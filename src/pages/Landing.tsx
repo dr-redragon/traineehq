@@ -52,14 +52,14 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Nav */}
-      <header className="border-b bg-card/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto flex items-center justify-between px-6 h-16">
+      <header className="border-b-4 border-primary bg-card sticky top-0 z-50">
+        <div className="max-w-5xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-3">
-            <img src={logoDark} alt="NW HST Training Hub" className="h-9 w-9" />
+            <img src={logoDark} alt="NW HST Training Hub" className="h-8 w-8" />
             <span className="font-display font-semibold text-lg tracking-tight">HST Training Hub</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/request-access" className="text-sm text-muted-foreground hover:text-accent font-medium transition-colors">
+            <Link to="/request-access" className="text-sm text-foreground underline underline-offset-4 hover:text-primary font-medium transition-colors">
               Request Access
             </Link>
           </div>
@@ -67,49 +67,35 @@ const Landing = () => {
       </header>
 
       {/* Hero */}
-      <section className="relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-[500px] h-[500px] rounded-full bg-accent/5" />
-          <div className="absolute top-20 -left-20 w-72 h-72 rounded-full bg-primary/5" />
-        </div>
-
-        <div className="max-w-6xl mx-auto px-6 pt-20 pb-16 lg:pt-28 lg:pb-24">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+      <section className="bg-secondary/60 border-b">
+        <div className="max-w-5xl mx-auto px-6 pt-16 pb-14 lg:pt-20 lg:pb-16">
+          <div className="grid lg:grid-cols-[1.1fr_1fr] gap-14 items-start">
             {/* Left — copy */}
             <div className="animate-fade-in">
-              <div className="inline-flex items-center gap-2 rounded-full bg-accent/10 px-4 py-1.5 mb-6">
-                <Stethoscope className="h-4 w-4 text-accent" />
-                <span className="text-xs font-medium text-accent">For NHS Higher Specialty Trainees</span>
+              <div className="inline-flex items-center gap-2 border-l-4 border-primary bg-card px-3 py-1.5 mb-6">
+                <Stethoscope className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium">For NHS Higher Specialty Trainees</span>
               </div>
-              <h1 className="text-4xl sm:text-5xl font-display font-bold leading-[1.15] mb-5">
-                Your training,
-                <br />
-                <span className="text-accent">organised.</span>
+              <h1 className="text-4xl sm:text-5xl font-display font-bold leading-[1.1] mb-5">
+                Your training, organised.
               </h1>
               <p className="text-lg text-muted-foreground leading-relaxed max-w-lg mb-8">
                 A centralised resource hub for Higher Surgical and Medical Specialty Trainees.
                 Access curricula, exam preparation, operative videos, and key contacts — all in one secure platform.
               </p>
-              <div className="flex items-center gap-6 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-accent" />
-                  <span>30+ Specialties</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-accent" />
-                  <span>Discussion Boards</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-accent" />
-                  <span>GDPR Compliant</span>
-                </div>
-              </div>
+              <ul className="flex flex-wrap items-center gap-x-8 gap-y-2 text-sm text-muted-foreground">
+                {["30+ Specialties", "Discussion Boards", "GDPR Compliant"].map((item) => (
+                  <li key={item} className="flex items-center gap-2">
+                    <div className="h-1.5 w-1.5 bg-primary" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {/* Right — login card */}
             <div id="login" className="animate-fade-in" style={{ animationDelay: "0.15s" }}>
-              <Card className="shadow-lg border-border/60">
+              <Card className="border-border">
                 <CardContent className="p-8">
                   <h2 className="text-xl font-display font-bold mb-1">Sign in</h2>
                   <p className="text-sm text-muted-foreground mb-6">
@@ -136,7 +122,7 @@ const Landing = () => {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="password">Password</Label>
-                        <Link to="/forgot-password" className="text-xs text-accent hover:underline">
+                        <Link to="/forgot-password" className="text-xs text-primary underline underline-offset-4">
                           Forgot password?
                         </Link>
                       </div>
@@ -162,9 +148,9 @@ const Landing = () => {
 
                   <p className="text-center text-[10px] text-muted-foreground mt-6">
                     By signing in you agree to our{" "}
-                    <a href="#" className="text-accent hover:underline">Privacy Policy</a>
+                    <a href="#" className="text-primary underline underline-offset-4">Privacy Policy</a>
                     {" "}and{" "}
-                    <a href="#" className="text-accent hover:underline">Terms of Use</a>.
+                    <a href="#" className="text-primary underline underline-offset-4">Terms of Use</a>.
                     <br />Essential cookies only — no tracking.
                   </p>
                 </CardContent>
@@ -175,33 +161,30 @@ const Landing = () => {
       </section>
 
       {/* Features */}
-      <section className="bg-secondary/30 border-t">
-        <div className="max-w-6xl mx-auto px-6 py-16 lg:py-20">
-          <h2 className="text-2xl font-display font-bold text-center mb-3">
+      <section className="bg-background">
+        <div className="max-w-5xl mx-auto px-6 py-16 lg:py-20">
+          <h2 className="text-2xl font-display font-bold mb-3">
             Built for busy trainees
           </h2>
-          <p className="text-muted-foreground text-center max-w-lg mx-auto mb-12">
+          <p className="text-muted-foreground max-w-lg mb-10">
             Everything you need for your training programme, accessible from any device.
           </p>
-          <div className="grid sm:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-3 gap-px bg-border border">
             {features.map((f, i) => (
-              <Card
+              <div
                 key={f.title}
-                className="border-border/60 hover:shadow-md transition-shadow animate-fade-in"
+                className="bg-card p-6 animate-fade-in"
                 style={{ animationDelay: `${0.1 * i + 0.3}s` }}
               >
-                <CardContent className="p-6">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-accent/10 mb-4">
-                    <f.icon className="h-5 w-5 text-accent" />
-                  </div>
-                  <h3 className="font-semibold text-sm mb-2">{f.title}</h3>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
-                </CardContent>
-              </Card>
+                <f.icon className="h-5 w-5 text-primary mb-4" />
+                <h3 className="font-display font-semibold text-sm mb-2">{f.title}</h3>
+                <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
+
 
       {/* Contact */}
       <ContactForm />
