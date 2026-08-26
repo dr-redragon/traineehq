@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,93 +6,100 @@
 
 @layer base {
   :root {
-    --font-display: 'Playfair Display', serif;
-    --font-body: 'DM Sans', sans-serif;
+    --font-display: 'Sora', sans-serif;
+    --font-body: 'Manrope', sans-serif;
 
-    --background: 210 20% 98%;
-    --foreground: 215 25% 15%;
+    /* Gov.uk-plain, pastel and minimal */
+    --background: 0 0% 100%;
+    --foreground: 0 0% 5%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 15%;
+    --card-foreground: 0 0% 5%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 15%;
+    --popover-foreground: 0 0% 5%;
 
-    --primary: 215 50% 23%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 208 73% 42%;
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 25% 93%;
-    --secondary-foreground: 215 50% 23%;
+    --secondary: 40 3% 95%;
+    --secondary-foreground: 0 0% 5%;
 
-    --muted: 210 20% 95%;
-    --muted-foreground: 215 15% 50%;
+    --muted: 40 3% 95%;
+    --muted-foreground: 0 0% 40%;
 
-    --accent: 174 60% 40%;
+    --accent: 208 73% 42%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 63% 42%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 174 60% 40%;
+    --border: 30 2% 87%;
+    --input: 0 0% 45%;
+    --ring: 48 100% 50%;
 
-    --radius: 0.625rem;
+    --radius: 0.25rem;
 
-    --sidebar-background: 215 50% 15%;
-    --sidebar-foreground: 210 30% 85%;
-    --sidebar-primary: 174 60% 50%;
-    --sidebar-primary-foreground: 215 50% 10%;
-    --sidebar-accent: 215 45% 22%;
-    --sidebar-accent-foreground: 210 30% 90%;
-    --sidebar-border: 215 40% 25%;
-    --sidebar-ring: 174 60% 50%;
-    --sidebar-muted: 215 30% 35%;
+    /* Light, quiet sidebar */
+    --sidebar-background: 40 3% 95%;
+    --sidebar-foreground: 0 0% 20%;
+    --sidebar-primary: 208 73% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 205 40% 91%;
+    --sidebar-accent-foreground: 208 73% 28%;
+    --sidebar-border: 30 2% 87%;
+    --sidebar-ring: 48 100% 50%;
+    --sidebar-muted: 0 0% 45%;
 
-    --success: 152 55% 42%;
+    --success: 160 55% 30%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
+    --warning: 33 90% 42%;
     --warning-foreground: 0 0% 100%;
   }
 
   .dark {
-    --background: 215 50% 8%;
-    --foreground: 210 30% 90%;
+    --background: 0 0% 8%;
+    --foreground: 0 0% 93%;
 
-    --card: 215 45% 12%;
-    --card-foreground: 210 30% 90%;
+    --card: 0 0% 11%;
+    --card-foreground: 0 0% 93%;
 
-    --popover: 215 45% 12%;
-    --popover-foreground: 210 30% 90%;
+    --popover: 0 0% 11%;
+    --popover-foreground: 0 0% 93%;
 
-    --primary: 174 60% 50%;
-    --primary-foreground: 215 50% 10%;
+    --primary: 205 65% 66%;
+    --primary-foreground: 0 0% 8%;
 
-    --secondary: 215 40% 18%;
-    --secondary-foreground: 210 30% 90%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 93%;
 
-    --muted: 215 35% 16%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 0 0% 16%;
+    --muted-foreground: 0 0% 65%;
 
-    --accent: 174 55% 45%;
-    --accent-foreground: 0 0% 100%;
+    --accent: 205 65% 66%;
+    --accent-foreground: 0 0% 8%;
 
-    --destructive: 0 62% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 55% 45%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 215 35% 20%;
-    --input: 215 35% 20%;
-    --ring: 174 60% 50%;
+    --border: 0 0% 24%;
+    --input: 0 0% 40%;
+    --ring: 48 100% 50%;
 
-    --sidebar-background: 215 55% 8%;
-    --sidebar-foreground: 210 25% 80%;
-    --sidebar-primary: 174 60% 50%;
-    --sidebar-primary-foreground: 215 50% 10%;
-    --sidebar-accent: 215 45% 15%;
-    --sidebar-accent-foreground: 210 25% 85%;
-    --sidebar-border: 215 40% 18%;
-    --sidebar-ring: 174 60% 50%;
-    --sidebar-muted: 215 25% 30%;
+    --sidebar-background: 0 0% 11%;
+    --sidebar-foreground: 0 0% 82%;
+    --sidebar-primary: 205 65% 66%;
+    --sidebar-primary-foreground: 0 0% 8%;
+    --sidebar-accent: 0 0% 17%;
+    --sidebar-accent-foreground: 0 0% 93%;
+    --sidebar-border: 0 0% 22%;
+    --sidebar-ring: 48 100% 50%;
+    --sidebar-muted: 0 0% 55%;
+
+    --success: 160 45% 55%;
+    --success-foreground: 0 0% 8%;
+    --warning: 38 80% 60%;
+    --warning-foreground: 0 0% 8%;
   }
 }
 
@@ -104,12 +111,23 @@
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
   }
 
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+
+  /* Gov.uk-style high-visibility keyboard focus */
+  :focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 0;
+    box-shadow: 0 2px 0 0 hsl(var(--foreground));
   }
 }
+
 
 @layer utilities {
   .font-display {

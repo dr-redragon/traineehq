@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Search, ChevronDown, ChevronRight,
   LogOut, User, Shield, MessageSquare
 } from "lucide-react";
-import logoWhite from "@/assets/logo-white.png";
+import logoDark from "@/assets/logo-dark.png";
 import { getIcon } from "@/lib/iconMap";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
@@ -61,7 +61,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarHeader className="p-4 border-b border-sidebar-border">
         <Link to="/dashboard" className="flex items-center gap-3">
-          <img src={logoWhite} alt="HST Training Hub" className="h-11 w-11" />
+          <img src={logoDark} alt="HST Training Hub" className="h-11 w-11" />
           {!collapsed && (
             <div>
               <h1 className="text-sm font-semibold font-display text-sidebar-accent-foreground tracking-tight">
@@ -165,7 +165,7 @@ export function AppSidebar() {
                             {!collapsed && (
                               <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleParent(s.id); }}
-                                className="p-1 rounded hover:bg-sidebar-accent text-white hover:text-sidebar-accent-foreground transition-colors"
+                                className="p-1 rounded hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-accent-foreground transition-colors"
                               >
                                 <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                               </button>
