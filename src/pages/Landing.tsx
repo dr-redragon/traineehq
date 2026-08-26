@@ -197,9 +197,9 @@ const Landing = () => {
             <span className="text-sm text-muted-foreground">© 2026 HST Training Hub</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
-            <a href="#" className="hover:text-accent transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-accent transition-colors">Terms of Use</a>
-            <a href="#" className="hover:text-accent transition-colors">Cookie Policy</a>
+            <a href="#" className="underline underline-offset-4 hover:text-primary transition-colors">Privacy Policy</a>
+            <a href="#" className="underline underline-offset-4 hover:text-primary transition-colors">Terms of Use</a>
+            <a href="#" className="underline underline-offset-4 hover:text-primary transition-colors">Cookie Policy</a>
           </div>
         </div>
       </footer>

@@ -165,7 +165,7 @@ export function AppSidebar() {
                             {!collapsed && (
                               <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleParent(s.id); }}
-                                className="p-1 rounded hover:bg-sidebar-accent text-white hover:text-sidebar-accent-foreground transition-colors"
+                                className="p-1 rounded hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-accent-foreground transition-colors"
                               >
                                 <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                               </button>
