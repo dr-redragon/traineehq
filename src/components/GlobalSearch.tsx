@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/command";
 import { FileText, Users, MessageSquare, BookOpen, Search } from "lucide-react";
 import { getIcon } from "@/lib/iconMap";
+import { orIlikePattern } from "@/lib/queryFilters";
 
 interface GlobalSearchProps {
   open: boolean;
@@ -42,7 +43,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
       const { data } = await supabase
         .from("specialties")
         .select("id, short_name, name, icon_name, color")
-        .or(`short_name.ilike.%${debouncedQuery}%,name.ilike.%${debouncedQuery}%`)
+        .or(`short_name.ilike.${orIlikePattern(debouncedQuery)},name.ilike.${orIlikePattern(debouncedQuery)}`)
         .limit(5);
       return data ?? [];
     },
@@ -71,7 +72,11 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         .from("contacts")
         .select("id, name, role, organisation, specialty_id")
         .eq("archived", false)
-        .or(`name.ilike.%${debouncedQuery}%,role.ilike.%${debouncedQuery}%,organisation.ilike.%${debouncedQuery}%`)
+        .or(
+          `name.ilike.${orIlikePattern(debouncedQuery)},` +
+          `role.ilike.${orIlikePattern(debouncedQuery)},` +
+          `organisation.ilike.${orIlikePattern(debouncedQuery)}`
+        )
         .limit(5);
       return data ?? [];
     },

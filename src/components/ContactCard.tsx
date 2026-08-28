@@ -5,7 +5,7 @@ import { Mail, Phone, ExternalLink, Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { contactCategories, obfuscateEmail } from "@/lib/contacts";
+import { contactCategories } from "@/lib/contacts";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
