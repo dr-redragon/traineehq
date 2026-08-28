@@ -1,0 +1,72 @@
+# Migration scripts
+
+Two standalone scripts for moving TraineeHQ from one Supabase project to another.
+They are independent of the app — nothing imports them, and they can be run
+against any pair of projects that share the schema in `supabase/schema/`.
+
+Node 18+ and `npm install` (they use `pg` and `@supabase/supabase-js`).
+
+## Order
+
+1. Run `supabase/schema/0001_traineehq_baseline.sql` against the empty target.
+2. `migrate-database.mjs` — rows, including auth users.
+3. `migrate-storage.mjs` — the files those rows point at.
+
+Both are safe to re-run and both take `--dry-run`.
+
+## migrate-database.mjs
+
+```sh
+SOURCE_DATABASE_URL='postgres://...' \
+TARGET_DATABASE_URL='postgres://...' \
+node scripts/migrate-database.mjs --dry-run
+
+# then, for real
+SOURCE_DATABASE_URL='postgres://...' \
+TARGET_DATABASE_URL='postgres://...' \
+node scripts/migrate-database.mjs
+```
+
+Connection strings come from **Project Settings → Database → Connection string**
+in each project. They embed the database password — keep them out of the repo
+and out of shell history (a leading space, or a `.env` file you never commit).
+
+It copies `auth.users` and `auth.identities` first, **with password hashes**, so
+everyone keeps their existing login and no one has to reset anything. Then every
+public table, parents before children. Finally it reconciles `profiles` and
+`user_roles`: the target's `on_auth_user_created` trigger invents a profile and a
+`trainee` role for each user as they are inserted, and any such row the source
+does not have is removed, so the result matches rather than being a superset.
+
+It ends by comparing row counts table by table and exits non-zero on any
+mismatch. `VERBOSE=1` prints every table, not just the differing ones.
+
+Two details that will bite anyone writing this by hand: `auth.users.confirmed_at`
+and `auth.identities.email` are **generated columns** and reject explicit values,
+so the script builds its column list from `information_schema` and skips them.
+
+## migrate-storage.mjs
+
+```sh
+SOURCE_SUPABASE_URL='https://<ref>.supabase.co' SOURCE_SERVICE_ROLE_KEY='...' \
+TARGET_SUPABASE_URL='https://<ref>.supabase.co' TARGET_SERVICE_ROLE_KEY='...' \
+node scripts/migrate-storage.mjs --dry-run
+```
+
+Service-role keys come from **Project Settings → API**. They bypass RLS
+entirely — treat them as passwords, and rotate them if they are ever exposed.
+
+By default it copies only files a `resources` row actually points at. **This is
+almost always what you want.** Deleting a resource in this app has never deleted
+its storage object, so a long-lived bucket fills with orphans: on the project
+this was written against, 212 of 223 objects were unreferenced — 167 MB of the
+167.4 MB total, against 70 KB of live files. Pass `--all` to copy everything
+anyway.
+
+It handles both `file_url` formats: bare bucket paths, and the older rows that
+stored a full public URL — including one that pointed at a *different* Supabase
+project altogether. Anything that is a genuinely external link is left alone.
+
+Files already in the target are skipped, uploads use `upsert`, and referenced
+paths missing from the source bucket are reported rather than failing the run —
+those are rows pointing at a file that was deleted underneath them.
