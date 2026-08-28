@@ -1,1 +1,22 @@
 project_id = "dvrzoglirpnoafjrobhn"
+
+# JWT verification per function, kept here so the setting is reviewable in the repo
+# rather than only in the dashboard.
+#
+# The two public functions are reachable with the anon key because the forms that call
+# them are public. Both enforce their own checks in code: contact-form-email validates
+# and escapes every field, and access-request-email only emails an applicant whose
+# pending request already exists, with the account-provisioning branches requiring a
+# signed-in admin or facilitator.
+
+[functions.invite-user]
+verify_jwt = true
+
+[functions.zip-resources]
+verify_jwt = true
+
+[functions.access-request-email]
+verify_jwt = false
+
+[functions.contact-form-email]
+verify_jwt = false

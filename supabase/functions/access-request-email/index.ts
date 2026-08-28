@@ -9,6 +9,10 @@ const corsHeaders = {
 const RESEND_API = "https://api.resend.com/emails";
 const FROM_EMAIL = "HST Training Hub <onboarding@resend.dev>";
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const MAX_NAME = 200;
+const MAX_NOTE = 2000;
+
 interface EmailPayload {
   type: "submission_confirmation" | "new_request_alert" | "approved" | "rejected";
   applicant_email: string;
@@ -25,6 +29,52 @@ function getSupabaseAdmin() {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
+}
+
+/** Escape anything interpolated into an email body — all of it is caller-supplied. */
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+/**
+ * Resolve the caller and confirm they may review access requests.
+ *
+ * Approving a request provisions a real account, so it must never be reachable with
+ * the anon key alone — the caller has to present their own JWT and hold a reviewing
+ * role. Returns null when the caller is not permitted.
+ */
+async function getReviewer(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  req: Request,
+): Promise<{ id: string } | null> {
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+
+  const { data: userData, error } = await admin.auth.getUser(token);
+  const caller = userData?.user;
+  if (error || !caller) return null;
+
+  const { data: roles } = await admin
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", caller.id);
+
+  const permitted = (roles ?? []).some((r: { role: string }) =>
+    ["super_admin", "admin", "facilitator"].includes(r.role)
+  );
+  return permitted ? { id: caller.id } : null;
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -51,7 +101,7 @@ function submissionConfirmationHtml(name: string) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">Request Received</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${name},</p>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
         Thank you for requesting access to the <strong>HST Training Hub</strong>.
         Your application has been received and will be reviewed by an administrator.
@@ -69,10 +119,10 @@ function newRequestAlertHtml(name: string, email: string, specialty: string, gra
       <h2 style="color:#1a1a2e;margin-bottom:16px">New Access Request</h2>
       <p style="color:#4a4a5a;line-height:1.6">A new access request has been submitted:</p>
       <table style="border-collapse:collapse;width:100%;margin:16px 0">
-        <tr><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Name</td><td style="padding:8px 12px;color:#1a1a2e;font-weight:600">${name}</td></tr>
-        <tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Email</td><td style="padding:8px 12px;color:#1a1a2e">${email}</td></tr>
-        <tr><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Specialty</td><td style="padding:8px 12px;color:#1a1a2e">${specialty}</td></tr>
-        ${grade ? `<tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Grade</td><td style="padding:8px 12px;color:#1a1a2e">${grade}</td></tr>` : ""}
+        <tr><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Name</td><td style="padding:8px 12px;color:#1a1a2e;font-weight:600">${esc(name)}</td></tr>
+        <tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Email</td><td style="padding:8px 12px;color:#1a1a2e">${esc(email)}</td></tr>
+        <tr><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Specialty</td><td style="padding:8px 12px;color:#1a1a2e">${esc(specialty)}</td></tr>
+        ${grade ? `<tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Grade</td><td style="padding:8px 12px;color:#1a1a2e">${esc(grade)}</td></tr>` : ""}
       </table>
       <p style="color:#4a4a5a;line-height:1.6">Please log in to the Admin Panel to review this request.</p>
       <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
@@ -83,7 +133,7 @@ function approvedHtml(name: string, resetLink: string) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">Access Approved ✅</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${name},</p>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
         Great news! Your access request for the <strong>HST Training Hub</strong> has been approved.
       </p>
@@ -91,7 +141,7 @@ function approvedHtml(name: string, resetLink: string) {
         Click the button below to set your password and activate your account:
       </p>
       <div style="text-align:center;margin:28px 0">
-        <a href="${resetLink}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+        <a href="${esc(resetLink)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
           Set Your Password
         </a>
       </div>
@@ -106,12 +156,12 @@ function rejectedHtml(name: string, reason: string) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">Access Request Update</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${name},</p>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
         Unfortunately, your access request for the HST Training Hub was not approved at this time.
       </p>
       <p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc">
-        <strong>Reason:</strong> <em>${reason}</em>
+        <strong>Reason:</strong> <em>${esc(reason)}</em>
       </p>
       <p style="color:#4a4a5a;line-height:1.6">
         If you believe this was in error, please contact your training programme director.
@@ -127,33 +177,63 @@ Deno.serve(async (req) => {
 
   try {
     const payload: EmailPayload = await req.json();
-    const { type, applicant_email, applicant_name } = payload;
+    const { type } = payload;
+    const applicantEmail = String(payload.applicant_email ?? "").trim().toLowerCase();
+    const applicantName = String(payload.applicant_name ?? "").trim().slice(0, MAX_NAME);
+
+    if (!EMAIL_RE.test(applicantEmail)) {
+      return json({ error: "A valid applicant email is required" }, 400);
+    }
+
+    const supabaseAdmin = getSupabaseAdmin();
 
     if (type === "submission_confirmation") {
-      // Send confirmation to applicant
-      await sendEmail(applicant_email, "Access Request Received — HST Training Hub", submissionConfirmationHtml(applicant_name));
+      // This branch is reachable without a session, by design — the Request Access form
+      // is public. It is anchored to a request row that actually exists, so it cannot be
+      // used to send mail to an arbitrary address or to a name of the caller's choosing.
+      const { data: request } = await supabaseAdmin
+        .from("access_requests")
+        .select("first_name, last_name, email, training_grade, specialty_id, status")
+        .eq("email", applicantEmail)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!request) {
+        return json({ error: "No pending access request found for that email" }, 404);
+      }
+
+      const name = `${request.first_name ?? ""} ${request.last_name ?? ""}`.trim();
+
+      await sendEmail(
+        request.email,
+        "Access Request Received — HST Training Hub",
+        submissionConfirmationHtml(name),
+      );
 
       // Notify admins + facilitators for the chosen specialty
-      const supabaseAdmin = getSupabaseAdmin();
-
       const { data: adminRoles } = await supabaseAdmin
         .from("user_roles")
         .select("user_id")
         .eq("role", "admin");
-      const adminIds = adminRoles?.map((r: any) => r.user_id) ?? [];
+      const adminIds = (adminRoles ?? []).map((r: { user_id: string }) => r.user_id);
 
       let facilitatorIds: string[] = [];
-      if (payload.specialty_name && payload.specialty_name !== "General") {
-        const { data: specs } = await supabaseAdmin
+      let specialtyName = "General";
+      if (request.specialty_id) {
+        const { data: spec } = await supabaseAdmin
           .from("specialties")
-          .select("id")
-          .eq("short_name", payload.specialty_name);
-        if (specs && specs.length > 0) {
+          .select("id, short_name")
+          .eq("id", request.specialty_id)
+          .maybeSingle();
+        if (spec) {
+          specialtyName = spec.short_name ?? "General";
           const { data: facRoles } = await supabaseAdmin
             .from("facilitator_specialties")
             .select("user_id")
-            .eq("specialty_id", specs[0].id);
-          facilitatorIds = facRoles?.map((r: any) => r.user_id) ?? [];
+            .eq("specialty_id", spec.id);
+          facilitatorIds = (facRoles ?? []).map((r: { user_id: string }) => r.user_id);
         }
       }
 
@@ -163,25 +243,30 @@ Deno.serve(async (req) => {
           .from("profiles")
           .select("email")
           .in("user_id", notifyIds);
-        const emails = profiles?.map((p: any) => p.email).filter(Boolean) ?? [];
+        const emails = (profiles ?? [])
+          .map((p: { email: string | null }) => p.email)
+          .filter((e: string | null): e is string => !!e);
         const alertHtml = newRequestAlertHtml(
-          applicant_name, applicant_email,
-          payload.specialty_name || "General", payload.training_grade,
+          name, request.email, specialtyName, request.training_grade ?? undefined,
         );
         for (const email of emails) {
-          try { await sendEmail(email, `New Access Request: ${applicant_name}`, alertHtml); }
+          try { await sendEmail(email, `New Access Request: ${name}`, alertHtml); }
           catch (e) { console.error(`Failed to notify ${email}:`, e); }
         }
       }
 
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true });
+    }
+
+    // Everything below provisions accounts or tells an applicant the outcome of a
+    // review, so it requires a signed-in reviewer.
+    const reviewer = await getReviewer(supabaseAdmin, req);
+    if (!reviewer) {
+      return json({ error: "Not authorised" }, 403);
     }
 
     if (type === "approved") {
-      const supabaseAdmin = getSupabaseAdmin();
-      const nameParts = applicant_name.split(" ");
+      const nameParts = applicantName.split(" ");
       const firstName = nameParts[0] || "";
       const lastName = nameParts.slice(1).join(" ") || "";
 
@@ -190,17 +275,17 @@ Deno.serve(async (req) => {
       // 1. Check if user already exists
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
       const existingUser = existingUsers?.users?.find(
-        (u: any) => u.email?.toLowerCase() === applicant_email.toLowerCase()
+        (u: { email?: string; id: string }) => u.email?.toLowerCase() === applicantEmail
       );
 
       if (existingUser) {
-        console.log(`User ${applicant_email} already exists, skipping creation.`);
+        console.log(`User ${applicantEmail} already exists, skipping creation.`);
         userId = existingUser.id;
       } else {
         // Create new user account
         const tempPassword = crypto.randomUUID() + "!Aa1";
         const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-          email: applicant_email,
+          email: applicantEmail,
           password: tempPassword,
           email_confirm: true,
           user_metadata: { first_name: firstName, last_name: lastName },
@@ -215,7 +300,6 @@ Deno.serve(async (req) => {
 
       // 2. Assign trainee to requested specialty if one was specified
       if (userId && payload.specialty_id) {
-        // Use upsert-like approach: ignore if already assigned
         const { error: assignError } = await supabaseAdmin.from("trainee_specialties").insert({
           user_id: userId,
           specialty_id: payload.specialty_id,
@@ -239,7 +323,7 @@ Deno.serve(async (req) => {
       // 3. Generate a password reset link so user can set their own password
       const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
         type: "recovery",
-        email: applicant_email,
+        email: applicantEmail,
       });
 
       const resetLink = (!linkError && linkData?.properties?.action_link)
@@ -247,34 +331,24 @@ Deno.serve(async (req) => {
         : "#";
 
       await sendEmail(
-        applicant_email,
+        applicantEmail,
         "Access Approved — HST Training Hub",
-        approvedHtml(applicant_name, resetLink),
+        approvedHtml(applicantName, resetLink),
       );
 
-      return new Response(JSON.stringify({ success: true, user_id: userId }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return json({ success: true, user_id: userId });
     }
 
     if (type === "rejected") {
-      const reason = payload.review_note || "No reason provided.";
-      await sendEmail(applicant_email, "Access Request Update — HST Training Hub", rejectedHtml(applicant_name, reason));
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      const reason = String(payload.review_note ?? "").trim().slice(0, MAX_NOTE) || "No reason provided.";
+      await sendEmail(applicantEmail, "Access Request Update — HST Training Hub", rejectedHtml(applicantName, reason));
+      return json({ success: true });
     }
 
-    return new Response(JSON.stringify({ error: "Unknown email type" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: "Unknown email type" }, 400);
   } catch (error) {
     console.error("Email function error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return json({ error: message }, 500);
   }
 });

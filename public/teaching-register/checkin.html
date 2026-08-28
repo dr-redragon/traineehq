@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://ecyhvubwcqqghumnyxuu.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://ecyhvubwcqqghumnyxuu.supabase.co">
+<title>Sign in — ENT Regional Teaching</title>
+<link rel="stylesheet" href="assets/pages.css">
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-inner">
+    <img src="assets/logo-mark.png" alt="North West ENT Regional Trainees Society" class="masthead-logo">
+    <span class="mark">The Register</span>
+    <span class="sub">ENT Regional Teaching</span>
+  </div>
+</header>
+
+<main class="narrow">
+  <div class="card" id="card">
+    <div id="loading" class="lede">Loading the session…</div>
+
+    <div id="form" style="display:none">
+      <h1>Sign in</h1>
+      <p class="lede" id="sessionLine"></p>
+
+      <div id="formError"></div>
+
+      <div class="field">
+        <label class="fld" for="who">Your name</label>
+        <select id="who"></select>
+      </div>
+
+      <div class="field" id="otherNameField" style="display:none">
+        <label class="fld" for="otherName">Type your full name</label>
+        <input id="otherName" placeholder="e.g. Alex Collingwood" autocomplete="name">
+        <p class="helper">You'll be added to the register with these details, so your name is on the list next time.</p>
+      </div>
+
+      <div class="field">
+        <label class="fld" for="grade">Your grade this rotation</label>
+        <select id="grade">
+          <option value="">Select grade…</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="fld" for="email" id="emailLabel">Your email</label>
+        <input id="email" type="email" inputmode="email" autocomplete="email" placeholder="the address you actually check">
+        <p class="helper" id="emailHelper">Work or personal — whichever you actually read. Your certificate is sent here once you have completed the feedback form after the session.</p>
+      </div>
+
+      <button class="btn primary block" id="submit">I'm here — sign me in</button>
+    </div>
+
+    <div id="done" style="display:none" class="done">
+      <div class="tick">✓</div>
+      <h2 id="doneName"></h2>
+      <p id="doneMsg"></p>
+    </div>
+  </div>
+</main>
+
+<script src="assets/config.js"></script>
+<script>
+/* Live session check-in. Writes the attendance to Supabase (the record the
+   certificate gate relies on) and, best effort, into the register blob so the
+   organiser's attendance grid updates without waiting for a manual sync. */
+const params = new URLSearchParams(location.search);
+const SESSION_ID = params.get('s') || '';
+const el = (id) => document.getElementById(id);
+
+let session = null;
+let roster = [];          // [{id, name}] from the register
+let submitting = false;
+
+function fail(message) {
+  el('loading').style.display = 'none';
+  el('form').style.display = 'none';
+  el('card').insertAdjacentHTML('beforeend',
+    `<div class="notice bad">${ENT.esc(message)}</div>`);
+}
+
+function showError(message) {
+  el('formError').innerHTML = `<div class="notice bad">${ENT.esc(message)}</div>`;
+}
+
+async function loadRoster() {
+  try {
+    // public_roster() is a SECURITY DEFINER function exposing just id/name for
+    // trainees and id/month/title for sessions — register_store itself is
+    // locked to the organiser login, this is the narrow anon-safe substitute.
+    const data = await ENT.rpc('public_roster', {});
+    const list = (data && data.trainees) || [];
+    return list.slice().sort((a, b) => a.name.localeCompare(b.name));
+  } catch (e) {
+    return [];            // roster is a convenience; typing a name still works
+  }
+}
+
+async function boot() {
+  if (!SESSION_ID) return fail('This sign-in link is missing its session. Please scan the QR code again.');
+
+  // Both requests go out together: on hospital wifi, two round trips one after
+  // the other is most of the wait before this form appears.
+  let rows;
+  try {
+    [rows, roster] = await Promise.all([
+      ENT.rest('sessions?id=eq.' + encodeURIComponent(SESSION_ID) + '&select=id,title,session_date,location,local_id'),
+      loadRoster(),
+    ]);
+  } catch (e) {
+    return fail('Could not reach the register. Check your connection and try again.');
+  }
+  session = rows && rows[0];
+  if (!session) return fail('This sign-in link is not valid any more.');
+
+  el('sessionLine').innerHTML =
+    `<span class="session-line">${ENT.esc(session.title)}</span><br>` +
+    `<span class="session-sub">${ENT.esc(ENT.fmtDate(session.session_date))}` +
+    (session.location ? ' · ' + ENT.esc(session.location) : '') + `</span>`;
+
+  el('who').innerHTML =
+    '<option value="">Select your name…</option>' +
+    roster.map((t) => `<option value="${ENT.esc(t.id)}" data-hasemail="${t.has_email ? '1' : ''}">${ENT.esc(t.name)}</option>`).join('') +
+    '<option value="__other">My name is not on the list…</option>';
+
+  el('grade').innerHTML = '<option value="">Select grade…</option>' +
+    ENT.GRADES.map((g) => `<option>${g}</option>`).join('');
+
+  el('who').onchange = () => {
+    const other = el('who').value === '__other';
+    el('otherNameField').style.display = other ? 'block' : 'none';
+    if (other) el('otherName').focus();
+    updateEmailField();
+  };
+  updateEmailField();
+
+  el('loading').style.display = 'none';
+  el('form').style.display = 'block';
+  el('submit').onclick = submit;
+}
+
+// Mirror the check-in into the register blob so the organiser's grid stays live.
+// record_local_checkin() is a SECURITY DEFINER function that patches just the
+// one attendance key — register_store itself no longer grants anon any access.
+// Only for trainees picked off the roster: someone who typed their own name is
+// added to the roster AND marked present server-side by the check-in function,
+// since creating a trainee is not something anon is trusted to do from here.
+// Best effort only: the Supabase attendee row is the record that matters, and the
+// organiser console can re-sync at any time.
+async function mirrorToRegister(traineeId, grade) {
+  if (!traineeId || !session.local_id) return;
+  try {
+    await ENT.rpc('record_local_checkin', {
+      p_trainee_id: traineeId, p_session_id: session.local_id, p_grade: grade || '',
+    });
+  } catch (e) {
+    // best effort — the attendees table write already succeeded
+  }
+}
+
+// Email is required only when we don't already hold one for the chosen trainee.
+// "Not on the list" always requires it, since there's no record to fall back to.
+function emailOnFileForSelection() {
+  const opt = el('who').selectedOptions[0];
+  return !!(opt && opt.dataset && opt.dataset.hasemail);
+}
+function updateEmailField() {
+  const onFile = emailOnFileForSelection() && el('who').value !== '__other';
+  el('emailLabel').textContent = onFile ? 'Your email (already on file)' : 'Your email';
+  el('emailHelper').textContent = onFile
+    ? "We have an address on file — leave this blank unless it has changed. Your certificate goes there after you complete the feedback form."
+    : "Work or personal — whichever you actually read. Your certificate is sent here once you complete the feedback form after the session.";
+}
+
+async function submit() {
+  if (submitting) return;
+  el('formError').innerHTML = '';
+
+  const choice = el('who').value;
+  const name = choice === '__other' ? el('otherName').value.trim()
+             : (roster.find((t) => t.id === choice) || {}).name || '';
+  const grade = el('grade').value;
+  const email = el('email').value.trim();
+  const localTraineeId = choice === '__other' ? '' : choice;
+  const onFile = emailOnFileForSelection() && choice !== '__other';
+
+  if (!name) return showError('Please choose or type your name.');
+  if (!grade) return showError('Please select your grade.');
+  // Must provide a valid email unless we already hold one; a typed value is
+  // always validated so a typo can't silently overwrite the address on file.
+  if (email) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showError('Please enter a valid email address.');
+  } else if (!onFile) {
+    return showError('Please enter your email so your certificate can be sent.');
+  }
+
+  submitting = true;
+  const btn = el('submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing you in…';
+
+  try {
+    const res = await ENT.api('check-in', { session_id: SESSION_ID, name, email, grade, local_trainee_id: localTraineeId });
+    if (choice !== '__other') await mirrorToRegister(choice, grade);
+    el('form').style.display = 'none';
+    el('done').style.display = 'block';
+    el('doneName').textContent = "You're signed in";
+    el('doneMsg').textContent =
+      `${name} (${grade}) — ${session.title}. After the session you'll get a short feedback form; ` +
+      `completing it releases your certificate` + (email ? ` to ${email}` : ' to the email we hold for you') + `.` +
+      // Only when the server actually created the roster entry -- for a typed
+      // name that turned out to already be on the list, there is nothing new.
+      (res && res.enrolled ? " You've been added to the register, so your name will be on the list next time." : '');
+  } catch (err) {
+    showError(err.message || 'Could not sign you in. Please try again.');
+    btn.disabled = false;
+    btn.textContent = "I'm here — sign me in";
+    submitting = false;
+  }
+}
+
+boot();
+</script>
+</body>
+</html>

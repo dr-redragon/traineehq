@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2, Mail, Search, Archive } from "lucide-react";
 import { toast } from "sonner";
-import { contactCategories, obfuscateEmail } from "@/lib/contacts";
+import { contactCategories } from "@/lib/contacts";
 import type { Tables } from "@/integrations/supabase/types";
 import type { Enums } from "@/integrations/supabase/types";
 

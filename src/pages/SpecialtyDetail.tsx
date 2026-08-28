@@ -7,15 +7,8 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { ContactCard } from "@/components/ContactCard";
 import { DiscussionBoard } from "@/components/DiscussionBoard";
 import { SpecialtyNoticeBoard } from "@/components/SpecialtyNoticeBoard";
-import { DroppableSubheadingGroup, DroppableUngrouped } from "@/components/DroppableSubheadingGroup";
-import { AddResourceDialog } from "@/components/AddResourceDialog";
-import { AddFolderDialog } from "@/components/AddFolderDialog";
-import { ResourceFolder } from "@/components/ResourceFolder";
-import { ResourceDragPreview } from "@/components/ResourceCard";
 import { DriveBrowser } from "@/components/drive/DriveBrowser";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,41 +20,18 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, MessageSquare, FolderOpen, Plus, MoreVertical, Pencil, Trash2, ListPlus, CheckSquare, ChevronLeft, ChevronRight } from "lucide-react";
-import { BulkActionBar } from "@/components/BulkActionBar";
-import { UploadProgressBar } from "@/components/UploadProgressBar";
-import { FileDropOverlay } from "@/components/FileDropOverlay";
+import { Users, MessageSquare, Plus, MoreVertical, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { toast } from "sonner";
 import { useCanManageSpecialty } from "@/hooks/useUserRole";
 import { getIcon } from "@/lib/iconMap";
+import { isUuid, orFilterValue } from "@/lib/queryFilters";
 import {
-  DndContext, DragOverlay, closestCenter, KeyboardSensor, PointerSensor, pointerWithin,
-  rectIntersection, useSensor, useSensors, type CollisionDetection, type DragEndEvent,
-  type DragOverEvent, type DragStartEvent,
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { SortableTabTrigger } from "@/components/SortableTabTrigger";
-import type { Tables } from "@/integrations/supabase/types";
-import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
-
-const UNGROUPED_DROP_ID = "group:__ungrouped__";
-
-const getGroupDropId = (subheading: string | null | undefined) =>
-  subheading ? `group:${subheading}` : UNGROUPED_DROP_ID;
-
-const getResourceDropId = (resource: Tables<"resources">) => {
-  const folderId = (resource as any).folder_id as string | null;
-  const subheading = (resource as any).subheading as string | null;
-
-  return folderId ? `folder:${folderId}` : getGroupDropId(subheading);
-};
-
-const resourceCollisionDetection: CollisionDetection = (args) => {
-  const pointerCollisions = pointerWithin(args);
-  if (pointerCollisions.length > 0) return pointerCollisions;
-  return rectIntersection(args);
-};
 
 const SpecialtyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -82,22 +52,7 @@ const SpecialtyDetail = () => {
   const [renameSubName, setRenameSubName] = useState("");
   const [deleteSubId, setDeleteSubId] = useState<string | null>(null);
   const [deleteAction, setDeleteAction] = useState<"move" | "delete">("move");
-  const [addSubheadingForSub, setAddSubheadingForSub] = useState<string | null>(null);
-  const [newSubheadingName, setNewSubheadingName] = useState("");
-  // Track manually added (empty) subheadings per subsection so they show before any resource is assigned
-  const [manualSubheadings, setManualSubheadings] = useState<Record<string, string[]>>({});
   const [moveTargetId, setMoveTargetId] = useState<string>("");
-  const [nativeDropSub, setNativeDropSub] = useState<string | null>(null);
-  const [nativeDropItemCount, setNativeDropItemCount] = useState(0);
-  const [nativeDropUploading, setNativeDropUploading] = useState(false);
-  const [nativeUploadProgress, setNativeUploadProgress] = useState({ current: 0, total: 0, fileName: "" });
-  const [selectMode, setSelectMode] = useState(false);
-  const [selectedResourceIds, setSelectedResourceIds] = useState<Set<string>>(new Set());
-  const [selectedFolderIds, setSelectedFolderIds] = useState<Set<string>>(new Set());
-  const [bulkDeleting, setBulkDeleting] = useState(false);
-  const [bulkDownloading, setBulkDownloading] = useState(false);
-  const [activeDragResourceId, setActiveDragResourceId] = useState<string | null>(null);
-  const [activeDragTargetId, setActiveDragTargetId] = useState<string | null>(null);
 
   const tabsListRef = useRef<HTMLDivElement>(null);
   const [tabsScroll, setTabsScroll] = useState({
@@ -132,218 +87,6 @@ const SpecialtyDetail = () => {
       observer.disconnect();
     };
   }, []);
-
-  const toggleSelectResource = (id: string) => {
-    setSelectedResourceIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const toggleSelectFolder = (folderId: string, resourceIds: string[]) => {
-    setSelectedFolderIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(folderId)) {
-        next.delete(folderId);
-        // Also deselect contained resources
-        setSelectedResourceIds((rPrev) => {
-          const rNext = new Set(rPrev);
-          resourceIds.forEach((id) => rNext.delete(id));
-          return rNext;
-        });
-      } else {
-        next.add(folderId);
-        // Also select contained resources
-        setSelectedResourceIds((rPrev) => {
-          const rNext = new Set(rPrev);
-          resourceIds.forEach((id) => rNext.add(id));
-          return rNext;
-        });
-      }
-      return next;
-    });
-  };
-
-  const clearSelection = () => {
-    setSelectMode(false);
-    setSelectedResourceIds(new Set());
-    setSelectedFolderIds(new Set());
-  };
-
-  const getDropLabel = (targetId: string | null, folders: Tables<"resource_folders">[] | undefined) => {
-    if (!targetId) return null;
-    if (targetId.startsWith("folder:")) {
-      const folder = folders?.find((item) => item.id === targetId.replace("folder:", ""));
-      return folder ? `Move into ${folder.name}` : "Move into folder";
-    }
-    if (targetId === UNGROUPED_DROP_ID) return "Move to ungrouped";
-    if (targetId.startsWith("group:")) return `Move into ${targetId.replace("group:", "")}`;
-    return null;
-  };
-
-  const handleBulkDelete = async () => {
-    setBulkDeleting(true);
-    try {
-      // Delete selected folders and their contents
-      for (const folderId of selectedFolderIds) {
-        const folderResources = (resources ?? []).filter((r) => (r as any).folder_id === folderId);
-        for (const r of folderResources) {
-          await supabase.from("resources").delete().eq("id", r.id);
-        }
-        await supabase.from("resource_folders").delete().eq("id", folderId);
-      }
-      // Delete individually selected resources (not already deleted via folder)
-      for (const rid of selectedResourceIds) {
-        const resource = (resources ?? []).find((r) => r.id === rid);
-        if (resource && !selectedFolderIds.has((resource as any).folder_id ?? "")) {
-          await supabase.from("resources").delete().eq("id", rid);
-        }
-      }
-      toast.success("Selected items deleted");
-      queryClient.invalidateQueries({ queryKey: ["resources"] });
-      queryClient.invalidateQueries({ queryKey: ["resource-folders"] });
-      clearSelection();
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setBulkDeleting(false);
-    }
-  };
-
-  const handleBulkDownload = async () => {
-    setBulkDownloading(true);
-    try {
-      const allResources = resources ?? [];
-      const folderResources = Array.from(selectedFolderIds).flatMap((folderId) =>
-        allResources
-          .filter((r) => (r as any).folder_id === folderId)
-          .map((resource) => ({
-            resource,
-            folderId,
-          }))
-      );
-      const individualResources = allResources.filter(
-        (r) => selectedResourceIds.has(r.id) && !selectedFolderIds.has((r as any).folder_id ?? "")
-      );
-
-      // Build folder name map
-      const folderNameMap: Record<string, string> = {};
-      for (const fId of selectedFolderIds) {
-        const folder = (resourceFolders ?? []).find((f: any) => f.id === fId);
-        if (folder) folderNameMap[fId] = (folder as any).name;
-      }
-
-      const filesToZip = [
-        ...folderResources.map(({ resource, folderId }) => ({
-          resource,
-          folderName: folderNameMap[folderId] || "folder",
-        })),
-        ...individualResources.map((r) => ({ resource: r, folderName: null as string | null })),
-      ];
-
-      if (filesToZip.length === 0) {
-        toast.error("No downloadable files selected");
-        return;
-      }
-
-      const { downloaded, skippedCount } = await downloadResourcesAsZip(
-        filesToZip,
-        `resources-${new Date().toISOString().slice(0, 10)}`,
-      );
-
-      toast.success(
-        skippedCount > 0
-          ? `${downloaded} file(s) downloaded, ${skippedCount} skipped`
-          : `${downloaded} file(s) downloaded`,
-      );
-    } catch (e: any) {
-      toast.error(e.message || "Unable to download the selected files");
-    } finally {
-      setBulkDownloading(false);
-    }
-  };
-
-  const handleNativeFileDrop = async (e: React.DragEvent, subsectionId: string) => {
-    e.preventDefault();
-    setNativeDropSub(null);
-    setNativeDropUploading(true);
-    try {
-      const { getDroppedFiles, detectResourceType } = await import("@/lib/fileDropUtils");
-      const droppedFiles = await getDroppedFiles(e.dataTransfer);
-      if (!droppedFiles.length) return;
-
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: existing } = await supabase
-        .from("resources")
-        .select("sort_order")
-        .eq("subsection_id", subsectionId)
-        .order("sort_order", { ascending: false })
-        .limit(1);
-      let nextOrder = ((existing?.[0]?.sort_order ?? -1) + 1);
-
-      // Group by folder name to auto-create folders
-      const folderNames = [...new Set(droppedFiles.map((d) => d.folderName).filter(Boolean))] as string[];
-      const folderIdMap: Record<string, string> = {};
-
-      for (const folderName of folderNames) {
-        // Find a unique folder name; if taken, append (2), (3), etc.
-        const { data: siblings } = await supabase
-          .from("resource_folders")
-          .select("name")
-          .eq("subsection_id", subsectionId);
-        const takenNames = new Set(((siblings as any) ?? []).map((r: any) => r.name as string));
-        let uniqueName = folderName;
-        let n = 2;
-        while (takenNames.has(uniqueName)) {
-          uniqueName = `${folderName} (${n++})`;
-        }
-        const { data: folderData, error: folderErr } = await supabase
-          .from("resource_folders")
-          .insert({ name: uniqueName, subsection_id: subsectionId, sort_order: 0 } as any)
-          .select("id")
-          .single();
-        if (folderErr) { toast.error(`Failed to create folder: ${uniqueName}`); continue; }
-        folderIdMap[folderName] = (folderData as any).id;
-      }
-      setNativeUploadProgress({ current: 0, total: droppedFiles.length, fileName: "" });
-
-      for (let i = 0; i < droppedFiles.length; i++) {
-        const { folderName, file } = droppedFiles[i];
-        setNativeUploadProgress({ current: i + 1, total: droppedFiles.length, fileName: file.name });
-        const ext = file.name.split(".").pop();
-        const path = `${id}/${subsectionId}/${crypto.randomUUID()}.${ext}`;
-        const { error: uploadErr } = await supabase.storage.from("resources").upload(path, file);
-        if (uploadErr) { toast.error(`Failed: ${file.name}`); continue; }
-
-        await supabase.from("resources").insert({
-          title: file.name.replace(/\.[^.]+$/, ""),
-          resource_type: detectResourceType(file) as any,
-          subsection_id: subsectionId,
-          file_url: path,
-          added_by: user?.id ?? null,
-          sort_order: nextOrder++,
-          folder_id: folderName ? folderIdMap[folderName] ?? null : null,
-          file_size: file.size,
-        } as any);
-      }
-
-      const fileCount = droppedFiles.length;
-      const folderCount = folderNames.length;
-      toast.success(
-        folderCount > 0
-          ? `Uploaded ${fileCount} file(s) in ${folderCount} folder(s)`
-          : `${fileCount} file(s) uploaded`
-      );
-      queryClient.invalidateQueries({ queryKey: ["resources"] });
-      queryClient.invalidateQueries({ queryKey: ["resource-folders"] });
-    } catch (err: any) {
-      toast.error(err.message);
-    } finally {
-      setNativeDropUploading(false);
-    }
-  };
 
   useEffect(() => {
     if (location.hash === "#discussion" && discussionRef.current) {
@@ -432,33 +175,13 @@ const SpecialtyDetail = () => {
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .or(`specialty_id.eq.${id},specialty_id.is.null`)
+        .or(`specialty_id.eq.${orFilterValue(id!)},specialty_id.is.null`)
         .eq("archived", false);
       if (error) throw error;
       return data;
     },
-    enabled: !!id,
-  });
-
-  const deleteResource = useMutation({
-    mutationFn: async (resourceId: string) => {
-      const { error } = await supabase.from("resources").delete().eq("id", resourceId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      toast.success("Resource deleted");
-      queryClient.invalidateQueries({ queryKey: ["resources"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const reorderResources = useMutation({
-    mutationFn: async (updates: { id: string; sort_order: number }[]) => {
-      for (const u of updates) {
-        await supabase.from("resources").update({ sort_order: u.sort_order }).eq("id", u.id);
-      }
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["resources"] }),
+    // The id lands inside an `or` filter expression, so only run it for a well-formed uuid.
+    enabled: isUuid(id),
   });
 
   const reorderSubsections = useMutation({
@@ -545,116 +268,6 @@ const SpecialtyDetail = () => {
     const updates = reordered.map((s, i) => ({ id: s.id, sort_order: i }));
     queryClient.setQueryData(["subsections", id], reordered.map((s, i) => ({ ...s, sort_order: i })));
     reorderSubsections.mutate(updates);
-  };
-
-  const updateResourcePlacement = useMutation({
-    mutationFn: async ({
-      resourceId,
-      subheading,
-      folderId,
-      sortOrder,
-    }: {
-      resourceId: string;
-      subheading: string | null;
-      folderId: string | null;
-      sortOrder?: number;
-    }) => {
-      const updateData: any = { subheading, folder_id: folderId };
-      if (sortOrder !== undefined) updateData.sort_order = sortOrder;
-      const { error } = await supabase.from("resources").update(updateData).eq("id", resourceId);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["resources"] }),
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  const resolveDropTargetId = (overId: string | null, subResources: Tables<"resources">[]) => {
-    if (!overId) return null;
-    if (overId.startsWith("folder:") || overId.startsWith("group:")) return overId;
-    const overResource = subResources.find((resource) => resource.id === overId);
-    return overResource ? getResourceDropId(overResource) : null;
-  };
-
-  const resetResourceDrag = () => {
-    setActiveDragResourceId(null);
-    setActiveDragTargetId(null);
-  };
-
-  const handleResourceDragStart = (event: DragStartEvent) => {
-    if (event.active.data.current?.type !== "resource") return;
-    setActiveDragResourceId(String(event.active.id));
-    setActiveDragTargetId((event.active.data.current?.containerId as string | null) ?? null);
-  };
-
-  const handleResourceDragOver = (event: DragOverEvent, subResources: Tables<"resources">[]) => {
-    if (event.active.data.current?.type !== "resource") return;
-    setActiveDragTargetId(resolveDropTargetId(event.over ? String(event.over.id) : null, subResources));
-  };
-
-  const handleCrossGroupDragEnd = (event: DragEndEvent, subResources: Tables<"resources">[]) => {
-    const { active, over } = event;
-    const activeId = String(active.id);
-    const activeResource = subResources.find((resource) => resource.id === activeId);
-    const overId = over ? String(over.id) : null;
-    const targetContainerId = resolveDropTargetId(overId, subResources);
-
-    resetResourceDrag();
-
-    if (!activeResource || !targetContainerId) return;
-
-    const sourceContainerId = getResourceDropId(activeResource);
-    const targetFolderId = targetContainerId.startsWith("folder:") ? targetContainerId.replace("folder:", "") : null;
-    const targetFolder = targetFolderId
-      ? (resourceFolders ?? []).find((folder: any) => folder.id === targetFolderId)
-      : null;
-    const targetSubheading = targetFolder
-      ? ((targetFolder as any).subheading ?? null)
-      : targetContainerId === UNGROUPED_DROP_ID
-        ? null
-        : targetContainerId.replace("group:", "");
-
-    if (sourceContainerId !== targetContainerId) {
-      const nextSortOrder = subResources.filter((resource) => getResourceDropId(resource) === targetContainerId).length;
-      queryClient.setQueryData(["resources", id, subsectionIds], (old: Tables<"resources">[] | undefined) => {
-        if (!old) return old;
-        return old.map((resource) =>
-          resource.id === activeId
-            ? { ...resource, folder_id: targetFolderId, subheading: targetSubheading, sort_order: nextSortOrder }
-            : resource
-        );
-      });
-      updateResourcePlacement.mutate({
-        resourceId: activeId,
-        subheading: targetSubheading,
-        folderId: targetFolderId,
-        sortOrder: nextSortOrder,
-      });
-      return;
-    }
-
-    if (!overId || overId === activeId || overId.startsWith("folder:") || overId.startsWith("group:")) return;
-
-    const containerResources = subResources
-      .filter((resource) => getResourceDropId(resource) === sourceContainerId)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    const oldIndex = containerResources.findIndex((resource) => resource.id === activeId);
-    const newIndex = containerResources.findIndex((resource) => resource.id === overId);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    const reordered = arrayMove(containerResources, oldIndex, newIndex);
-    const updates = reordered.map((resource, index) => ({ id: resource.id, sort_order: index }));
-
-    queryClient.setQueryData(["resources", id, subsectionIds], (old: Tables<"resources">[] | undefined) => {
-      if (!old) return old;
-      const reorderMap = new Map(reordered.map((resource, index) => [resource.id, index]));
-      return old.map((resource) =>
-        reorderMap.has(resource.id)
-          ? { ...resource, sort_order: reorderMap.get(resource.id) ?? resource.sort_order }
-          : resource
-      );
-    });
-
-    reorderResources.mutate(updates);
   };
 
   const deleteSubData = deleteSubId ? subsections?.find((s) => s.id === deleteSubId) : null;
@@ -811,25 +424,7 @@ const SpecialtyDetail = () => {
               .filter((r) => r.subsection_id === sub.id)
               .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
-            const subFolders = (resourceFolders ?? []).filter((f: any) => f.subsection_id === sub.id);
-
-            const resourceSubheadings = [...new Set(
-              subResources.map((r) => (r as any).subheading).filter(Boolean) as string[]
-            )];
-            const manual = manualSubheadings[sub.id] ?? [];
-            const allSubheadings = [...new Set([...resourceSubheadings, ...manual])];
-
-            // Filter out resources that belong to folders for the main list
-            const nonFolderResources = subResources.filter((r) => !(r as any).folder_id);
-            const ungrouped = nonFolderResources.filter((r) => !(r as any).subheading);
-            const grouped = allSubheadings.map((sh) => ({
-              name: sh,
-              resources: nonFolderResources.filter((r) => (r as any).subheading === sh),
-              folders: subFolders.filter((f: any) => f.subheading === sh),
-            }));
-            const ungroupedFolders = subFolders.filter((f: any) => !f.subheading);
-
-            const hasContent = subResources.length > 0 || subFolders.length > 0 || grouped.length > 0;
+            const subFolders = (resourceFolders ?? []).filter((f) => f.subsection_id === sub.id);
 
             return (
               <TabsContent key={sub.id} value={sub.name} className="mt-4 space-y-3">
@@ -869,7 +464,7 @@ const SpecialtyDetail = () => {
                   subsection={sub}
                   specialtyId={specialty.id}
                   resources={subResources}
-                  folders={subFolders as any}
+                  folders={subFolders}
                   canManage={!!canManage}
                 />
               </TabsContent>
@@ -900,15 +495,6 @@ const SpecialtyDetail = () => {
         </div>
       </div>
 
-      <BulkActionBar
-        selectedCount={selectedResourceIds.size + selectedFolderIds.size}
-        onDelete={handleBulkDelete}
-        onDownload={handleBulkDownload}
-        onClear={clearSelection}
-        deleting={bulkDeleting}
-        downloading={bulkDownloading}
-      />
-
       {/* Add Section Dialog */}
       <Dialog open={addSubOpen} onOpenChange={setAddSubOpen}>
         <DialogContent>
@@ -930,54 +516,6 @@ const SpecialtyDetail = () => {
             </div>
             <Button className="w-full" disabled={!newSubName.trim() || addSubsection.isPending} onClick={() => addSubsection.mutate(newSubName.trim())}>
               {addSubsection.isPending ? "Adding…" : "Add Section"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add Subheading Dialog */}
-      <Dialog open={!!addSubheadingForSub} onOpenChange={(o) => { if (!o) { setAddSubheadingForSub(null); setNewSubheadingName(""); } }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Subheading</DialogTitle>
-            <DialogDescription>Create a subheading to group resources within this section.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div className="space-y-1.5">
-              <Label>Subheading Name</Label>
-              <Input
-                value={newSubheadingName}
-                onChange={(e) => setNewSubheadingName(e.target.value)}
-                placeholder="e.g. Core Curriculum, Assessment Tools"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && newSubheadingName.trim() && addSubheadingForSub) {
-                    setManualSubheadings((prev) => ({
-                      ...prev,
-                      [addSubheadingForSub]: [...(prev[addSubheadingForSub] ?? []), newSubheadingName.trim()],
-                    }));
-                    toast.success("Subheading added");
-                    setAddSubheadingForSub(null);
-                    setNewSubheadingName("");
-                  }
-                }}
-              />
-            </div>
-            <Button
-              className="w-full"
-              disabled={!newSubheadingName.trim()}
-              onClick={() => {
-                if (addSubheadingForSub) {
-                  setManualSubheadings((prev) => ({
-                    ...prev,
-                    [addSubheadingForSub]: [...(prev[addSubheadingForSub] ?? []), newSubheadingName.trim()],
-                  }));
-                  toast.success("Subheading added");
-                  setAddSubheadingForSub(null);
-                  setNewSubheadingName("");
-                }
-              }}
-            >
-              Add Subheading
             </Button>
           </div>
         </DialogContent>

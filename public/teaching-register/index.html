@@ -1,0 +1,3061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://ecyhvubwcqqghumnyxuu.supabase.co" crossorigin>
+<link rel="dns-prefetch" href="https://ecyhvubwcqqghumnyxuu.supabase.co">
+<title>ENT Teaching Register</title>
+<script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  :root{
+    --ink:#15211c;
+    --paper:#f6f4ec;
+    --card:#fffdf7;
+    --line:#d8d2c0;
+    --moss:#3f6b4f;      /* primary */
+    --moss-deep:#2c4d39;
+    --clay:#c0613a;      /* accent / alert */
+    --clay-soft:#e8c4ac;
+    --gold:#b08a3e;
+    --muted:#7a7568;
+    --good:#3f6b4f;
+    --warn:#b08a3e;
+    --bad:#c0613a;
+    --shadow:0 1px 2px rgba(21,33,28,.06),0 8px 24px rgba(21,33,28,.06);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{
+    font-family:"Inter","Segoe UI",system-ui,sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    line-height:1.5;
+    font-size:15px;
+  }
+  /* ---- masthead ---- */
+  header{
+    background:var(--moss-deep);
+    color:#f6f4ec;
+    padding:22px clamp(16px,4vw,40px) 20px;
+    border-bottom:3px solid var(--gold);
+  }
+  .masthead-row{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;justify-content:space-between;max-width:1180px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:12px;color:inherit;text-decoration:none;border-radius:8px}
+  a.brand:hover .mark{color:#fff}
+  a.brand:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+  .brand-logo{height:44px;width:44px;flex-shrink:0;display:block}
+  .brand .mark{
+    font-family:Georgia,"Times New Roman",serif;
+    font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1;
+  }
+  .brand .sub{font-size:12px;text-transform:uppercase;letter-spacing:.22em;color:#b8cbbd;font-weight:600}
+  .cohort-pill{font-size:12.5px;color:#cdd9cf}
+  /* ---- nav tabs ---- */
+  nav{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;box-shadow:0 1px 0 rgba(21,33,28,.04)}
+  .tabs{display:flex;gap:2px;max-width:1180px;margin:0 auto;padding:0 clamp(8px,3vw,40px);overflow-x:auto}
+  .tab{
+    appearance:none;border:none;background:none;font:inherit;cursor:pointer;
+    padding:13px 16px;color:var(--muted);font-weight:600;font-size:14px;
+    border-bottom:3px solid transparent;white-space:nowrap;transition:color .15s;
+  }
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--moss-deep);border-bottom-color:var(--clay)}
+  main{max-width:1180px;margin:0 auto;padding:clamp(18px,3vw,32px) clamp(14px,3vw,40px) 100px}
+  .panel{display:none;animation:fade .25s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  /* ---- shared ---- */
+  h2.panel-title{font-family:Georgia,serif;font-size:23px;font-weight:700;margin-bottom:4px;letter-spacing:-.3px}
+  .panel-lede{color:var(--muted);font-size:14px;margin-bottom:22px;max-width:62ch}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+  .pad{padding:clamp(16px,2.4vw,24px)}
+  /* Not `button.btn`: the check-in tab styles several links as buttons, and an
+     element-qualified selector left them as bare text. */
+  .btn{
+    appearance:none;cursor:pointer;font:inherit;font-weight:600;font-size:14px;
+    border-radius:9px;padding:9px 16px;border:1px solid transparent;transition:.15s;
+    text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  }
+  .btn.primary{background:var(--moss);color:#fff}
+  .btn.primary:hover{background:var(--moss-deep)}
+  .btn.ghost{background:transparent;border-color:var(--line);color:var(--ink)}
+  .btn.ghost:hover{border-color:var(--moss);color:var(--moss-deep)}
+  .btn.clay{background:var(--clay);color:#fff}
+  .btn.clay:hover{filter:brightness(.94)}
+  .btn.sm{padding:6px 11px;font-size:12.5px;border-radius:7px}
+  /* a link and its "copy the link" twin, sitting together as one control */
+  .linkgrp{display:flex;align-items:center;gap:6px}
+  .iconbtn{appearance:none;cursor:pointer;background:#fff;border:1px solid var(--line);border-radius:7px;
+    color:var(--muted);padding:6px 9px;display:inline-flex;align-items:center;justify-content:center;
+    transition:.15s;flex-shrink:0}
+  .iconbtn:hover{border-color:var(--moss);color:var(--moss-deep)}
+  .iconbtn.ok{border-color:var(--moss);color:var(--moss);background:#eef3ee}
+  .grouphead{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+    color:var(--muted);margin:16px 0 8px}
+  .grouphead:first-child{margin-top:0}
+  input,select{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+  input:focus,select:focus{outline:2px solid var(--moss);outline-offset:-1px;border-color:var(--moss)}
+  label.fld{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+  .field{margin-bottom:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .row-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  /* ---- dashboard stats ---- */
+  .stat-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:24px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .n{font-family:Georgia,serif;font-size:30px;font-weight:700;line-height:1;color:var(--moss-deep)}
+  .stat .l{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-top:6px}
+  .stat.accent .n{color:var(--clay)}
+  /* ---- table ---- */
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--card);box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  thead th{
+    background:#eef0e6;text-align:left;padding:11px 12px;font-size:11.5px;text-transform:uppercase;
+    letter-spacing:.05em;color:var(--moss-deep);font-weight:700;border-bottom:1px solid var(--line);
+    position:sticky;top:0;white-space:nowrap;cursor:pointer;user-select:none;
+  }
+  thead th:hover{background:#e6e9dc}
+  thead th.no-sort{cursor:default}
+  thead th .arrow{opacity:.4;font-size:10px}
+  tbody td{padding:10px 12px;border-bottom:1px solid #ece8db;vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:#faf8f0}
+  .name-cell{font-weight:600;white-space:nowrap}
+  .grade-tag{font-size:11px;color:var(--muted);font-weight:500;margin-left:6px}
+  .sess-cells{display:flex;gap:3px}
+  .dot{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;cursor:pointer;border:1px solid transparent;transition:transform .08s,box-shadow .08s}
+  .dot:hover{transform:scale(1.18);box-shadow:0 0 0 2px var(--moss-deep)}
+  .dot.present{background:var(--moss);color:#fff}
+  .dot.absent{background:#fff;border-color:var(--line);color:#cfcabb}
+  .dot.excused{background:var(--clay-soft);color:var(--clay);border-color:#dba883}
+  .dot.na{background:#eceadf;color:#c3bfae}
+  #cellTip{position:fixed;z-index:200;pointer-events:none;opacity:0;transition:opacity .1s;
+    background:var(--moss-deep);color:#f6f4ec;border-radius:9px;padding:9px 12px;font-size:12.5px;line-height:1.45;
+    box-shadow:0 6px 22px rgba(21,33,28,.28);max-width:240px}
+  #cellTip.show{opacity:1}
+  #cellTip .tip-sess{font-weight:700;font-size:13px;margin-bottom:2px}
+  #cellTip .tip-month{color:#b8cbbd;font-weight:600;letter-spacing:.03em}
+  #cellTip .tip-row{margin-top:5px;display:flex;align-items:center;gap:7px}
+  #cellTip .tip-state{display:inline-block;width:8px;height:8px;border-radius:50%}
+  #cellTip .s-present{background:#8fd3a3}#cellTip .s-excused{background:#e8a878}
+  #cellTip .s-absent{background:#cfcabb}#cellTip .s-na{background:#9aa093}
+  /* Touch equivalent of the hover tip: a real, dismissible popover. A hover tip
+     is unusable on a phone — the tap that shows it never produces a mouseout, so
+     it sticks — and the same tap silently flipped the attendance underneath it. */
+  #cellPop{position:fixed;z-index:210;display:none;background:var(--moss-deep);color:#f6f4ec;
+    border-radius:12px;padding:13px 15px;font-size:13px;line-height:1.45;width:min(268px,calc(100vw - 24px));
+    box-shadow:0 10px 34px rgba(21,33,28,.34)}
+  #cellPop.show{display:block}
+  #cellPop .pop-sess{font-weight:700;font-size:14px;margin-bottom:2px}
+  #cellPop .pop-month{color:#b8cbbd;font-weight:600;letter-spacing:.03em;font-size:12px}
+  #cellPop .pop-row{margin-top:8px;display:flex;align-items:center;gap:8px}
+  #cellPop .pop-state{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  #cellPop .s-present{background:#8fd3a3}#cellPop .s-excused{background:#e8a878}
+  #cellPop .s-absent{background:#cfcabb}#cellPop .s-na{background:#9aa093}
+  #cellPop .pop-actions{display:flex;gap:8px;margin-top:13px}
+  #cellPop button{appearance:none;font:inherit;font-weight:600;font-size:13px;cursor:pointer;
+    border-radius:8px;padding:9px 12px;border:1px solid rgba(246,244,236,.35);
+    background:transparent;color:#f6f4ec;flex:1}
+  #cellPop button.go{background:#f6f4ec;color:var(--moss-deep);border-color:#f6f4ec}
+  #cellPop .pop-note{margin-top:10px;color:#b8cbbd;font-size:12px}
+  /* chase-absences composer */
+  .modal-back{display:none;position:fixed;inset:0;z-index:500;background:rgba(21,33,28,.52);
+    backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px}
+  .modal-back.show{display:flex}
+  .modal-card{background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(21,33,28,.3);
+    width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column}
+  .modal-head{padding:20px 26px;border-bottom:1px solid var(--line);display:flex;
+    justify-content:space-between;align-items:center;gap:12px;flex-shrink:0}
+  .modal-head h3{font-family:Georgia,serif;font-size:20px;font-weight:700;letter-spacing:-.3px}
+  .modal-body{padding:20px 26px;overflow-y:auto}
+  .chase-to{display:flex;flex-wrap:wrap;gap:6px;max-height:132px;overflow-y:auto;
+    border:1px solid var(--line);border-radius:10px;padding:10px;background:#fff}
+  .chase-to .who{font-size:12.5px;background:#eef0e6;color:var(--moss-deep);border-radius:99px;
+    padding:3px 10px;font-weight:600}
+  .chase-replies{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  @media(max-width:560px){.chase-replies{grid-template-columns:1fr}}
+  .chase-preview{border:1px solid var(--line);border-radius:10px;background:#fff;padding:16px 18px;
+    font-size:14px;line-height:1.6;max-height:230px;overflow-y:auto}
+  .chase-preview .hdr{font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);
+    padding-bottom:8px;margin-bottom:12px;line-height:1.7}
+  .chase-preview p{margin:0 0 11px}
+  .miss-list{margin:12px 0 0;font-size:13px}
+  /* custom month picker */
+  .month-input{position:relative;display:flex;align-items:stretch}
+  .month-input input{padding-right:38px}
+  .month-cal-btn{position:absolute;right:1px;top:1px;bottom:1px;width:34px;border:none;background:transparent;cursor:pointer;font-size:15px;border-radius:0 8px 8px 0;color:var(--muted)}
+  .month-cal-btn:hover{background:#eef0e6}
+  .month-pop{position:absolute;z-index:210;top:calc(100% + 6px);left:0;width:248px;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 10px 30px rgba(21,33,28,.18);padding:12px;display:none}
+  .month-pop.open{display:block;animation:fade .14s ease}
+  .month-pop .yr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .month-pop .yr b{font-family:Georgia,serif;font-size:17px;font-weight:700}
+  .month-pop .yr button{appearance:none;border:1px solid var(--line);background:#fff;cursor:pointer;width:30px;height:30px;border-radius:7px;font-size:15px;font-weight:700;color:var(--moss-deep)}
+  .month-pop .yr button:hover{border-color:var(--moss);background:#f0f4ee}
+  .month-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+  .month-grid button{appearance:none;border:1px solid transparent;background:#f3f1e8;cursor:pointer;padding:9px 0;border-radius:8px;font:inherit;font-size:13px;font-weight:600;color:var(--ink)}
+  .month-grid button:hover{background:#e3e8da}
+  .month-grid button.sel{background:var(--moss);color:#fff}
+  .month-pop .pop-foot{display:flex;justify-content:space-between;margin-top:10px}
+  .month-pop .pop-foot button{appearance:none;border:none;background:none;cursor:pointer;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);padding:4px 6px;border-radius:6px}
+  .month-pop .pop-foot button:hover{color:var(--moss-deep);background:#eef0e6}
+  .pct{font-weight:700;font-variant-numeric:tabular-nums}
+  .pct-bar{height:6px;border-radius:99px;background:#e7e3d4;overflow:hidden;margin-top:4px;min-width:60px}
+  .pct-bar > span{display:block;height:100%;border-radius:99px}
+  .badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap}
+  .badge.cct{background:#efe3c8;color:#8a6a1e}
+  .badge.mat{background:#f2d9ca;color:#9c4a26}
+  .badge.oop{background:#d9e3ec;color:#3a5a78}
+  .badge.idt_out{background:#e0dcef;color:#544a86}
+  .badge.idt_in{background:#d5e8df;color:#2f6b4d}
+  .badge.active{background:#dcebe0;color:var(--moss-deep)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--muted);margin:14px 2px 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend .dot{cursor:default}
+  /* ---- QR ---- */
+  .qr-layout{display:grid;grid-template-columns:300px 1fr;gap:28px;align-items:start}
+  .qr-box{text-align:center}
+  #qrcode{display:inline-block;padding:16px;background:#fff;border:1px solid var(--line);border-radius:14px}
+  #qrcode img,#qrcode canvas{display:block}
+  .session-picker{display:flex;flex-direction:column;gap:8px}
+  .sess-radio{display:flex;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--line);border-radius:9px;cursor:pointer;background:#fff;transition:.12s}
+  .sess-radio:hover{border-color:var(--moss)}
+  .sess-radio.sel{border-color:var(--moss);background:#f0f4ee;box-shadow:inset 0 0 0 1px var(--moss)}
+  .sess-radio input{width:auto}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--moss-deep);color:#fff;padding:13px 22px;border-radius:10px;font-weight:600;font-size:14px;box-shadow:0 8px 30px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:.3s;z-index:100}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .empty{padding:34px;text-align:center;color:var(--muted);font-size:14px}
+  .list-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid #ece8db}
+  .list-item:last-child{border-bottom:none}
+  .li-main{font-weight:600}
+  .li-sub{font-size:12.5px;color:var(--muted)}
+  .pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .inline-form{display:grid;grid-template-columns:1.3fr 1fr 1.4fr auto;gap:10px;align-items:end}
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .seg button{appearance:none;border:none;background:#fff;font:inherit;font-size:13px;font-weight:600;padding:8px 14px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--moss);color:#fff}
+  .helper{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5}
+  .danger-zone{margin-top:30px;border:1px dashed #d6b3a0;border-radius:12px;padding:16px;background:#fbf3ee}
+  .kebab{cursor:pointer;color:var(--muted);font-weight:700;padding:2px 8px;border-radius:6px}
+  .kebab:hover{background:#eee}
+  /* ---- academic-year tabs ---- */
+  .yr-tabs{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 18px}
+  .yr-tab{
+    appearance:none;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+    border:1px solid var(--line);background:#fff;color:var(--muted);
+    padding:8px 15px;border-radius:99px;transition:.12s;white-space:nowrap;
+  }
+  .yr-tab:hover{border-color:var(--moss);color:var(--moss-deep)}
+  .yr-tab.on{background:var(--moss);border-color:var(--moss);color:#fff}
+  .yr-tab .cnt{font-weight:500;font-size:11.5px;opacity:.72;margin-left:6px}
+  .year-block{margin-bottom:26px}
+  .year-block:last-child{margin-bottom:0}
+  .year-block-head{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:0 2px 10px}
+  .year-block-head h3{font-family:Georgia,serif;font-size:17px;font-weight:700;letter-spacing:-.2px}
+  .year-block-head .meta{font-size:12.5px;color:var(--muted)}
+  .hidden-note{font-size:12.5px;color:var(--muted);margin:9px 2px 0}
+  .mini-check{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;user-select:none;white-space:nowrap}
+  .mini-check input{width:15px;height:15px;accent-color:var(--moss);cursor:pointer}
+  .group-head{font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--moss-deep);
+    background:#f1f3ea;border-radius:7px;padding:5px 9px;margin:14px 0 6px}
+  .group-head:first-child{margin-top:0}
+  .former-toggle{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+    appearance:none;border:1px dashed var(--line);background:#faf8f0;cursor:pointer;padding:10px 13px;
+    border-radius:9px;font:inherit;font-size:13px;font-weight:600;color:var(--muted);margin-top:14px}
+  .former-toggle:hover{border-color:var(--moss);color:var(--moss-deep)}
+  .former-toggle .chev{transition:transform .15s}
+  .former-toggle.open .chev{transform:rotate(180deg)}
+  .former-list{display:none;margin-top:8px}
+  .former-list.open{display:block}
+  .former-list .list-item{opacity:.82}
+  /* ---- report modal ---- */
+  .yr-pill{display:inline-flex;align-items:center;gap:7px;padding:7px 14px;border:1.5px solid var(--line);border-radius:99px;cursor:pointer;font-size:13.5px;font-weight:600;background:#fff;transition:.12s;user-select:none}
+  .yr-pill input{display:none}
+  .yr-pill:hover{border-color:var(--moss)}
+  .yr-pill.on{background:var(--moss);color:#fff;border-color:var(--moss)}
+  .report-check{display:flex;align-items:center;gap:9px;font-size:13.5px;cursor:pointer;padding:5px 0}
+  .report-check input[type=checkbox]{width:15px;height:15px;accent-color:var(--moss);cursor:pointer;flex-shrink:0}
+  .linkbtn{appearance:none;border:none;background:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--moss);cursor:pointer;padding:3px 6px;border-radius:6px}
+  .linkbtn:hover{background:#eef0e6;color:var(--moss-deep)}
+  .report-yr-actions{display:flex;gap:4px;margin-top:9px}
+  @media(max-width:820px){
+    .qr-layout{grid-template-columns:1fr}
+    .grid2{grid-template-columns:1fr}
+    .inline-form{grid-template-columns:1fr 1fr}
+  }
+  /* form-only (kiosk) view shown when ?form= in URL */
+  body.kiosk nav,body.kiosk header .cohort-pill{display:none}
+  .kiosk-card{max-width:460px;margin:40px auto;padding:0 16px}
+  .login-error{background:#fbeee9;border:1px solid #e0b09a;color:#9c3d1c;border-radius:9px;padding:10px 13px;font-size:13.5px;margin-bottom:14px}
+  .att-list{border:1px solid var(--line);border-radius:10px;max-height:280px;overflow:auto;margin-top:8px}
+  .att-row{display:grid;grid-template-columns:22px 1.4fr auto;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid #ece8db;font-size:13px}
+  .att-row:last-child{border-bottom:none}
+  .att-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--moss);cursor:pointer}
+  .att-row .who{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .att-row .who small{font-weight:400;color:var(--muted)}
+  .att-tags{display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end}
+  .att-tag{font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:99px;white-space:nowrap}
+  .att-tag.yes{background:#dcebe0;color:var(--moss-deep)}
+  .att-tag.no{background:#f0ede4;color:var(--muted)}
+  .att-tag.wait{background:#f7e8d4;color:#8a6210}
+  .att-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .notice{border-radius:9px;padding:9px 12px;font-size:13px}
+  .notice.info{background:#eef2ea;border:1px solid #cfdcd2;color:var(--moss-deep)}
+  .notice.warn{background:#fbf3ee;border:1px solid #e4c3ad;color:#8d4526}
+  .notice.bad{background:#fbeee9;border:1px solid #e0b09a;color:#9c3d1c}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="masthead-row">
+    <a class="brand" href="index.html" title="Back to the register home">
+      <img src="assets/logo-mark.png" alt="North West ENT Regional Trainees Society" class="brand-logo" width="44" height="44">
+      <span class="mark">The Register</span>
+      <span class="sub">ENT Regional Teaching</span>
+    </a>
+    <span class="row-actions" style="gap:12px">
+      <span class="cohort-pill" id="cohortPill"></span>
+      <button class="btn ghost sm" id="logoutBtn" style="display:none">Log out</button>
+    </span>
+  </div>
+</header>
+
+<!-- ===== LOGIN ===== -->
+<div class="kiosk-card card pad" id="loginScreen" style="display:none">
+  <h2 class="panel-title" style="margin-bottom:2px">Sign in</h2>
+  <p class="panel-lede" style="margin-bottom:18px">This register is restricted to authorised organisers. Trainees checking in
+    or giving feedback don't need an account — use the QR code or link for your session instead.</p>
+  <div id="loginError"></div>
+  <div class="field">
+    <label class="fld">Email</label>
+    <input id="loginEmail" type="email" autocomplete="username" placeholder="you@example.com">
+  </div>
+  <div class="field">
+    <label class="fld">Password</label>
+    <input id="loginPassword" type="password" autocomplete="current-password">
+  </div>
+  <button class="btn primary" id="loginBtn" style="width:100%;padding:13px;font-size:15px">Sign in</button>
+  <p class="helper" style="margin-top:10px;text-align:right"><a href="#" id="forgotLink">Forgot password?</a></p>
+  <p class="helper" style="margin-top:4px">No account yet? Ask whoever administers this register to add you under
+    Supabase → Authentication → Users — there's no self-service sign-up.</p>
+</div>
+
+<!-- ===== FORGOT PASSWORD ===== -->
+<div class="kiosk-card card pad" id="forgotScreen" style="display:none">
+  <h2 class="panel-title" style="margin-bottom:2px">Reset your password</h2>
+  <p class="panel-lede" style="margin-bottom:18px">Enter the email your organiser account uses. If it matches an account, we'll send a link to set a new password.</p>
+  <div id="forgotMsg"></div>
+  <div class="field">
+    <label class="fld">Email</label>
+    <input id="forgotEmail" type="email" autocomplete="username" placeholder="you@example.com">
+  </div>
+  <button class="btn primary" id="forgotBtn" style="width:100%;padding:13px;font-size:15px">Send reset link</button>
+  <p class="helper" style="margin-top:14px"><a href="#" id="backToLoginLink">Back to sign in</a></p>
+</div>
+
+<!-- ===== SET NEW PASSWORD (arrived via emailed invite/reset link) ===== -->
+<div class="kiosk-card card pad" id="resetScreen" style="display:none">
+  <h2 class="panel-title" style="margin-bottom:2px" id="resetTitle">Choose a new password</h2>
+  <p class="panel-lede" style="margin-bottom:18px" id="resetLede">This resets the password for your organiser account.</p>
+  <div id="resetMsg"></div>
+  <div class="field">
+    <label class="fld">New password</label>
+    <input id="resetPassword" type="password" autocomplete="new-password">
+  </div>
+  <div class="field">
+    <label class="fld">Confirm password</label>
+    <input id="resetPassword2" type="password" autocomplete="new-password">
+  </div>
+  <button class="btn primary" id="resetBtn" style="width:100%;padding:13px;font-size:15px">Set new password</button>
+</div>
+
+<nav id="mainNav">
+  <div class="tabs">
+    <button class="tab active" data-tab="dash">Attendance</button>
+    <button class="tab" data-tab="checkin">Check-in / QR</button>
+    <button class="tab" data-tab="excused">Excused absences</button>
+    <button class="tab" data-tab="status">Long-term status</button>
+    <button class="tab" data-tab="manage">Trainees &amp; sessions</button>
+  </div>
+</nav>
+
+<main id="appMain">
+
+  <!-- ===== DASHBOARD ===== -->
+  <section class="panel active" id="panel-dash">
+    <h2 class="panel-title">Attendance summary</h2>
+    <p class="panel-lede">Each academic year runs August to July and has its own table — pick a year below. Live figures recalculated from check-ins, excused absences and long-term status. Adjusted attendance excludes excused sessions and any month a trainee was on leave or post-CCT from the denominator.</p>
+    <div class="yr-tabs" id="dashYearTabs"></div>
+    <div class="stat-strip" id="statStrip"></div>
+    <div class="row-actions" style="margin-bottom:14px">
+      <input id="dashSearch" placeholder="Search trainee…" style="max-width:260px">
+      <label class="mini-check" title="Hides trainees with no eligible sessions in the year -- CCT'd, IDT'd out, or not yet arrived. Trainees on maternity/paternity or OOP leave stay visible even with no eligible sessions, since that's a leave, not a departure."><input type="checkbox" id="dashHideNA" checked> Hide trainees not in programme</label>
+      <button class="btn ghost sm" id="exportCsv">Export CSV</button>
+      <button class="btn primary sm" id="reportBtn">Generate report</button>
+    </div>
+    <div id="dashTables"></div>
+    <div class="legend">
+      <span><span class="dot present">✓</span> Attended</span>
+      <span><span class="dot absent"></span> Missed</span>
+      <span><span class="dot excused">e</span> Excused</span>
+      <span><span class="dot na">–</span> Not eligible (leave / pre-start / post-CCT)</span>
+    </div>
+  </section>
+
+  <!-- ===== CHECK-IN / QR ===== -->
+  <section class="panel" id="panel-checkin">
+    <h2 class="panel-title">Session check-in</h2>
+    <p class="panel-lede">Display the QR at the teaching day — trainees scan, pick their name, and they're logged instantly. Or check people in manually below.</p>
+    <div class="yr-tabs" id="checkinYearTabs"></div>
+    <div class="qr-layout">
+      <div class="qr-box card pad">
+        <div id="qrcode"></div>
+        <p class="helper" style="margin-top:12px">Scan to open the sign-in form for<br><strong id="qrSessLabel">—</strong></p>
+        <button class="btn ghost sm" id="copyLink" style="margin-top:10px">Copy form link</button>
+      </div>
+      <div>
+        <div class="field">
+          <label class="fld">Active session</label>
+          <div class="session-picker" id="sessPicker"></div>
+        </div>
+        <div class="card pad" style="margin-top:18px">
+          <label class="fld">Quick manual check-in</label>
+          <div class="inline-form" style="grid-template-columns:1.4fr .8fr auto">
+            <div>
+              <select id="ciTrainee"></select>
+            </div>
+            <div>
+              <select id="ciGrade">
+                <option value="">Grade…</option>
+                <option>ST3</option><option>ST4</option><option>ST5</option>
+                <option>ST6</option><option>ST7</option><option>ST8</option>
+                <option>Fellow</option><option>SAS</option><option>Other</option>
+              </select>
+            </div>
+            <div>
+              <button class="btn primary" id="ciBtn" style="width:100%">Mark present</button>
+            </div>
+          </div>
+          <p class="helper">Logs the trainee as present for the active session, recording the grade they're at this rotation.</p>
+          <div id="ciRecent" style="margin-top:14px"></div>
+        </div>
+        <div class="card pad" style="margin-top:18px">
+          <label class="fld">Live sign-in, feedback &amp; certificates</label>
+          <div id="cloudBody"></div>
+        </div>
+        <div class="card pad" style="margin-top:18px">
+          <label class="fld">Unexplained absences</label>
+          <div id="chaseBody"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== EXCUSED ABSENCES ===== -->
+  <section class="panel" id="panel-excused">
+    <h2 class="panel-title">Excused absences</h2>
+    <p class="panel-lede">Declared absences (leave, on-call, sickness, study leave) are removed from the denominator, so a missed-but-excused session doesn't count against the trainee's adjusted attendance.</p>
+    <div class="yr-tabs" id="excusedYearTabs"></div>
+    <div class="card pad" style="margin-bottom:20px">
+      <div class="inline-form">
+        <div>
+          <label class="fld">Trainee</label>
+          <select id="exTrainee"></select>
+        </div>
+        <div>
+          <label class="fld">Session</label>
+          <select id="exSession"></select>
+        </div>
+        <div>
+          <label class="fld">Reason</label>
+          <select id="exReason">
+            <option>Annual Leave</option>
+            <option>On-call commitments</option>
+            <option>Post on-call rest</option>
+            <option>Sickness</option>
+            <option>Study Leave (Exam/course)</option>
+            <option>LTFT day</option>
+            <option>Theatre commitments</option>
+            <option>Emailed apology</option>
+            <option>Childcare</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div><button class="btn clay" id="exAdd" style="width:100%">Add excuse</button></div>
+      </div>
+      <div class="field" id="exOtherWrap" style="display:none;margin-top:12px;margin-bottom:0">
+        <label class="fld">Specify reason</label>
+        <input id="exOther" placeholder="Type the reason…">
+      </div>
+    </div>
+    <div class="card"><div id="exList"></div></div>
+  </section>
+
+  <!-- ===== LONG-TERM STATUS ===== -->
+  <section class="panel" id="panel-status">
+    <h2 class="panel-title">Long-term status</h2>
+    <p class="panel-lede">Set when a trainee completes training (CCT), goes on maternity / paternity leave, out-of-programme (OOP/PhD), or transfers (IDT). Sessions outside their active window are marked “not eligible” and excluded from both numerator and denominator.</p>
+    <div class="card pad" style="margin-bottom:20px">
+      <div id="stEditBanner" style="display:none;margin-bottom:14px;padding:8px 12px;background:#f0f4ee;border:1px solid var(--moss);border-radius:8px;font-size:13px;font-weight:600;color:var(--moss-deep)"></div>
+      <div class="grid2">
+        <div class="field">
+          <label class="fld">Trainee</label>
+          <select id="stTrainee"></select>
+        </div>
+        <div class="field">
+          <label class="fld">Status type</label>
+          <select id="stType">
+            <option value="active">Active</option>
+            <option value="cct">CCT (completes training)</option>
+            <option value="mat">Maternity / Paternity leave</option>
+            <option value="oop">Out of programme (PhD/OOP)</option>
+            <option value="idt_in">Interdeanery transfer (IN – joins)</option>
+            <option value="idt_out">Interdeanery transfer (OUT – leaves)</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid2" id="stDates">
+        <div class="field">
+          <label class="fld" id="stStartLbl">Start (month)</label>
+          <div class="month-input" data-monthpicker><input type="text" id="stStart" placeholder="e.g. Jan 2026" autocomplete="off"><button type="button" class="month-cal-btn" aria-label="Open calendar">📅</button></div>
+        </div>
+        <div class="field" id="stEndField">
+          <label class="fld" id="stEndLbl">End (month)</label>
+          <div class="month-input" data-monthpicker><input type="text" id="stEnd" placeholder="e.g. Mar 2026" autocomplete="off"><button type="button" class="month-cal-btn" aria-label="Open calendar">📅</button></div>
+        </div>
+      </div>
+      <p class="helper" id="stHelper"></p>
+      <div class="row-actions" style="margin-top:6px">
+        <button class="btn primary" id="stSave">Save status</button>
+        <button class="btn ghost" id="stCancel" style="display:none">Cancel edit</button>
+      </div>
+    </div>
+    <div class="card"><div id="stList"></div></div>
+  </section>
+
+  <!-- ===== MANAGE ===== -->
+  <section class="panel" id="panel-manage">
+    <h2 class="panel-title">Trainees &amp; sessions</h2>
+    <p class="panel-lede">The roster of trainees and the calendar of monthly teaching days. Everything above is built from these two lists.</p>
+    <div class="grid2" style="align-items:start">
+      <div class="card pad">
+        <label class="fld">Add trainee</label>
+        <div class="inline-form" style="grid-template-columns:1.2fr .7fr 1.2fr auto">
+          <div><input id="trName" placeholder="Full name"></div>
+          <div><select id="trGrade">
+            <option value="">Grade…</option>
+            <option>ST3</option><option>ST4</option><option>ST5</option>
+            <option>ST6</option><option>ST7</option><option>ST8</option>
+            <option>Fellow</option><option>SAS</option><option>Other</option>
+          </select></div>
+          <div><input id="trEmail" type="email" placeholder="Email (optional)"></div>
+          <div><button class="btn primary" id="trAdd">Add</button></div>
+        </div>
+        <p class="helper">Grade keeps itself up to date: whatever a trainee picks at their next sign-in replaces what is held here, since it changes between rotations. Set it by hand for anyone who has not signed in yet, or use <strong>Edit</strong> on their row to correct a name, grade or email. Email is used to send certificates — trainees without one are asked to add it when they next sign in.</p>
+        <div id="trList" style="margin-top:8px;max-height:380px;overflow:auto"></div>
+        <button type="button" class="former-toggle" id="formerToggle">
+          <span id="formerToggleLabel">Former trainees</span>
+          <span class="chev">▾</span>
+        </button>
+        <div id="formerList" class="former-list" style="max-height:380px;overflow:auto"></div>
+      </div>
+      <div class="card pad">
+        <label class="fld">Add teaching session</label>
+        <div class="inline-form" style="grid-template-columns:.9fr 1.4fr auto">
+          <div><div class="month-input" data-monthpicker><input type="text" id="seMonth" placeholder="e.g. Jun 2026" autocomplete="off"><button type="button" class="month-cal-btn" aria-label="Open calendar">📅</button></div></div>
+          <div><input id="seTitle" placeholder="Title e.g. Paediatric ENT WYT"></div>
+          <div><button class="btn primary" id="seAdd">Add</button></div>
+        </div>
+        <div id="seList" style="margin-top:8px;max-height:380px;overflow:auto"></div>
+      </div>
+    </div>
+    <div class="danger-zone">
+      <div class="row-actions" style="justify-content:space-between">
+        <div>
+          <strong>Data</strong>
+          <p class="helper" style="margin-top:2px">Everything is stored locally in this browser. Back it up or move it between machines here.</p>
+        </div>
+        <div class="row-actions">
+          <button class="btn ghost sm" id="backupBtn">Download backup</button>
+          <label class="btn ghost sm" style="cursor:pointer">Restore…<input type="file" id="restoreInp" accept=".json" hidden></label>
+          <button class="btn ghost sm" id="seedBtn">Load sample cohort</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ===== KIOSK / FORM VIEW (QR target) ===== -->
+<div class="kiosk-card card pad" id="kioskCard" style="display:none">
+  <h2 class="panel-title" style="margin-bottom:2px">Sign in</h2>
+  <p class="panel-lede" id="kioskSess" style="margin-bottom:18px"></p>
+  <div class="field">
+    <label class="fld">Your name</label>
+    <select id="kTrainee"></select>
+  </div>
+  <div class="field">
+    <label class="fld">Your grade this rotation</label>
+    <select id="kGrade">
+      <option value="">Select grade…</option>
+      <option>ST3</option><option>ST4</option><option>ST5</option>
+      <option>ST6</option><option>ST7</option><option>ST8</option>
+      <option>Fellow</option><option>SAS</option><option>Other</option>
+    </select>
+  </div>
+  <button class="btn primary" id="kSubmit" style="width:100%;padding:13px;font-size:15px">I'm here — sign me in</button>
+  <div id="kDone" style="display:none;text-align:center;margin-top:22px">
+    <div style="font-size:44px">✓</div>
+    <p style="font-weight:600;margin-top:6px" id="kDoneMsg"></p>
+  </div>
+</div>
+
+<!-- ===== REPORT MODAL ===== -->
+<div id="reportModal" style="display:none;position:fixed;inset:0;z-index:500;background:rgba(21,33,28,.52);backdrop-filter:blur(3px);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--card);border-radius:16px;box-shadow:0 20px 60px rgba(21,33,28,.3);width:100%;max-width:560px;max-height:90vh;overflow-y:auto">
+    <div style="padding:22px 26px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div>
+        <div style="font-family:Georgia,serif;font-size:20px;font-weight:700;letter-spacing:-.3px">Generate report</div>
+        <div style="font-size:13px;color:var(--muted);margin-top:3px">Export a professional attendance report as PDF or print</div>
+      </div>
+      <button onclick="hideReportModal()" style="appearance:none;border:none;background:#eef0e6;cursor:pointer;width:34px;height:34px;border-radius:8px;font-size:20px;color:var(--muted);display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1">×</button>
+    </div>
+    <div style="padding:22px 26px;display:flex;flex-direction:column;gap:22px">
+      <div>
+        <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Academic year(s) · Aug – Jul</div>
+        <div id="reportYears" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+        <div class="report-yr-actions">
+          <button type="button" class="linkbtn" id="reportYearsAll">Select all</button>
+          <button type="button" class="linkbtn" id="reportYearsNone">Clear</button>
+        </div>
+        <div id="reportLayoutWrap" style="margin-top:14px;display:none">
+          <label class="fld" for="reportLayout">Layout across the selected years</label>
+          <select id="reportLayout">
+            <option value="per">A separate table for each academic year</option>
+            <option value="both">Combined overview, then a table per year</option>
+            <option value="combined">One combined table across all selected years</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Include trainees</div>
+        <div style="display:flex;flex-direction:column">
+          <label class="report-check"><input type="checkbox" id="reportIncludeCCT" checked> Include trainees who have completed training (CCT)</label>
+          <label class="report-check"><input type="checkbox" id="reportIncludeIDT" checked> Include trainees who left via interdeanery transfer (IDT out)</label>
+          <label class="report-check"><input type="checkbox" id="reportHideNA" checked> Hide trainees with no eligible sessions in a year</label>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:10px">Report content</div>
+        <div id="reportContentOpts" style="display:flex;flex-direction:column">
+          <label class="report-check"><input type="checkbox" id="reportShowSessions" checked> Per-session attendance grid</label>
+          <label class="report-check"><input type="checkbox" id="reportShowRaw" checked> Raw attendance %</label>
+          <label class="report-check"><input type="checkbox" id="reportShowAdj" checked> Adjusted attendance %</label>
+        </div>
+        <label class="report-check" style="margin-top:10px;padding-top:12px;border-top:1px solid var(--line)"><input type="checkbox" id="reportSummaryOnly"> Summary only — show totals only, no percentages or session grid</label>
+      </div>
+    </div>
+    <div style="padding:14px 26px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn ghost" onclick="hideReportModal()">Cancel</button>
+      <button class="btn primary" onclick="generateReport()">Generate report</button>
+    </div>
+  </div>
+</div>
+
+<div id="syncBar" style="position:fixed;bottom:0;left:0;right:0;background:#f6f4ec;border-top:1px solid #d8d2c0;padding:5px 20px;font-size:11.5px;color:#7a7568;text-align:center;z-index:50;letter-spacing:.01em">
+  <span id="syncStatus">Connecting to database…</span>
+</div>
+<div class="toast" id="toast"></div>
+<!-- ===== EDIT TRAINEE ===== -->
+<div class="modal-back" id="trEditModal">
+  <div class="modal-card" style="max-width:440px">
+    <div class="modal-head">
+      <h3>Edit trainee</h3>
+      <button class="btn ghost sm" onclick="hideTraineeEdit()">Close</button>
+    </div>
+    <div class="modal-body">
+      <div id="trEditError"></div>
+      <div class="field">
+        <label class="fld" for="trEditName">Name</label>
+        <input id="trEditName" maxlength="120">
+      </div>
+      <div class="field">
+        <label class="fld" for="trEditGrade">Grade</label>
+        <select id="trEditGrade"></select>
+        <p class="helper" id="trEditGradeNote"></p>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label class="fld" for="trEditEmail">Email</label>
+        <input id="trEditEmail" type="email" placeholder="none on file">
+        <p class="helper">Where their certificate is sent. Never shown to other trainees.</p>
+      </div>
+    </div>
+    <div style="padding:14px 26px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn ghost" onclick="hideTraineeEdit()">Cancel</button>
+      <button class="btn primary" id="trEditSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CHASE ABSENCES ===== -->
+<div class="modal-back" id="chaseModal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <h3 id="chaseTitle">Ask about an absence</h3>
+      <button class="btn ghost sm" onclick="hideChaseModal()">Close</button>
+    </div>
+    <div class="modal-body">
+      <div id="chaseWarn"></div>
+
+      <label class="fld">Going to <span id="chaseCount"></span> — hidden from each other (BCC)</label>
+      <div class="chase-to" id="chaseTo"></div>
+
+      <div id="chaseMissing"></div>
+
+      <div class="field" style="margin-top:16px">
+        <label class="fld">Replies go to (up to 4)</label>
+        <div class="chase-replies" id="chaseReplies"></div>
+        <p class="helper">Any address works here — a personal Gmail or an NHS mailbox is fine. These are the only addresses a trainee's reply can reach.</p>
+      </div>
+
+      <div class="field">
+        <label class="fld">Subject</label>
+        <input id="chaseSubject">
+      </div>
+      <div class="field">
+        <label class="fld">Message — edit freely before sending</label>
+        <textarea id="chaseBodyText" style="min-height:190px"></textarea>
+      </div>
+
+      <label class="fld">Preview</label>
+      <div class="chase-preview" id="chasePreview"></div>
+      <div id="chaseResult"></div>
+    </div>
+    <div style="padding:14px 26px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end">
+      <button class="btn ghost" onclick="hideChaseModal()">Cancel</button>
+      <button class="btn primary" id="chaseSend">Send</button>
+    </div>
+  </div>
+</div>
+
+<div id="cellTip"></div>
+<div id="cellPop" role="dialog" aria-label="Attendance for this session"></div>
+
+<script>
+/* ============================================================
+   ENT Teaching Register — local-first attendance tracker
+   Storage: window.storage (persists across sessions) with a
+   localStorage fallback so it also works opened as a file.
+   ============================================================ */
+
+const STORE_KEY = 'ent_register_v1';
+const SUPABASE_URL = 'https://ecyhvubwcqqghumnyxuu.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVjeWh2dWJ3Y3FxZ2h1bW55eHV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NzQ3NzEsImV4cCI6MjA5NzE1MDc3MX0.0aI5Efr6h5UzUY3V-eJz1vihmntIMKqG3-_QMXq4cxY';
+let sb = null;    // created at boot, once the deferred supabase-js has run
+
+/* ============================================================
+   AUTH — the register (this file) is for organisers only, gated by a
+   real Supabase account (Authentication -> Users; no self-service
+   sign-up by design). Trainee-facing pages never touch this: checkin.html
+   and feedback.html call the Edge Function's anon-safe actions and the
+   two narrow RPCs below, and the kiosk view further down this file uses
+   the same RPCs rather than loading the organiser's data at all.
+   ============================================================ */
+function hideAuthScreens(){
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('forgotScreen').style.display='none';
+  document.getElementById('resetScreen').style.display='none';
+}
+function showLogin(message){
+  hideAuthScreens();
+  document.getElementById('loginScreen').style.display='block';
+  document.getElementById('mainNav').style.display='none';
+  document.getElementById('appMain').style.display='none';
+  document.getElementById('logoutBtn').style.display='none';
+  document.getElementById('loginError').innerHTML = message? `<div class="login-error">${escHtml(message)}</div>` : '';
+}
+function showForgot(){
+  hideAuthScreens();
+  document.getElementById('forgotScreen').style.display='block';
+  document.getElementById('mainNav').style.display='none';
+  document.getElementById('appMain').style.display='none';
+  document.getElementById('logoutBtn').style.display='none';
+  document.getElementById('forgotMsg').innerHTML='';
+}
+function showReset(invite){
+  hideAuthScreens();
+  document.getElementById('resetScreen').style.display='block';
+  document.getElementById('mainNav').style.display='none';
+  document.getElementById('appMain').style.display='none';
+  document.getElementById('logoutBtn').style.display='none';
+  document.getElementById('resetMsg').innerHTML='';
+  document.getElementById('resetTitle').textContent = invite ? 'Welcome — create your password' : 'Choose a new password';
+  document.getElementById('resetLede').textContent = invite
+    ? 'You’ve been invited as an organiser. Set a password below to activate your account.'
+    : 'This resets the password for your organiser account.';
+}
+function hideLogin(){
+  hideAuthScreens();
+  document.getElementById('mainNav').style.display='';
+  document.getElementById('appMain').style.display='';
+  document.getElementById('logoutBtn').style.display='inline-block';
+}
+function wireLogin(){
+  const doLogin=async()=>{
+    const email=document.getElementById('loginEmail').value.trim();
+    const password=document.getElementById('loginPassword').value;
+    if(!email||!password) return showLogin('Enter your email and password');
+    const btn=document.getElementById('loginBtn');
+    btn.disabled=true; btn.textContent='Signing in…';
+    const {error}=await sb.auth.signInWithPassword({email,password});
+    btn.disabled=false; btn.textContent='Sign in';
+    if(error){ showLogin(error.message==='Invalid login credentials'? 'Incorrect email or password.' : error.message); return; }
+    await bootApp();
+  };
+  document.getElementById('loginBtn').onclick=doLogin;
+  document.getElementById('loginPassword').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+  document.getElementById('logoutBtn').onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
+
+  document.getElementById('forgotLink').onclick=(e)=>{
+    e.preventDefault();
+    document.getElementById('forgotEmail').value=document.getElementById('loginEmail').value.trim();
+    showForgot();
+  };
+  document.getElementById('backToLoginLink').onclick=(e)=>{ e.preventDefault(); showLogin(); };
+
+  const doForgot=async()=>{
+    const email=document.getElementById('forgotEmail').value.trim();
+    const msgEl=document.getElementById('forgotMsg');
+    if(!email){ msgEl.innerHTML=`<div class="login-error">Enter your email address</div>`; return; }
+    const btn=document.getElementById('forgotBtn');
+    btn.disabled=true; btn.textContent='Sending…';
+    const redirectTo = location.origin + location.pathname;
+    const {error}=await sb.auth.resetPasswordForEmail(email, { redirectTo });
+    btn.disabled=false; btn.textContent='Send reset link';
+    // Always show the same success message, whether or not the address has an
+    // account -- confirming which emails exist would leak who's registered.
+    if(error && error.status && error.status >= 500){
+      msgEl.innerHTML=`<div class="login-error">${escHtml(error.message)}</div>`;
+      return;
+    }
+    msgEl.innerHTML=`<div class="notice info">If that email has an account, a reset link is on its way. Check your inbox (and spam folder).</div>`;
+  };
+  document.getElementById('forgotBtn').onclick=doForgot;
+  document.getElementById('forgotEmail').addEventListener('keydown',e=>{ if(e.key==='Enter') doForgot(); });
+
+  const doReset=async()=>{
+    const pw=document.getElementById('resetPassword').value;
+    const pw2=document.getElementById('resetPassword2').value;
+    const msgEl=document.getElementById('resetMsg');
+    if(!pw||pw.length<6){ msgEl.innerHTML=`<div class="login-error">Password must be at least 6 characters</div>`; return; }
+    if(pw!==pw2){ msgEl.innerHTML=`<div class="login-error">Passwords don't match</div>`; return; }
+    const btn=document.getElementById('resetBtn');
+    btn.disabled=true; btn.textContent='Saving…';
+    const {error}=await sb.auth.updateUser({ password: pw });
+    btn.disabled=false; btn.textContent='Set new password';
+    if(error){ msgEl.innerHTML=`<div class="login-error">${escHtml(error.message)}</div>`; return; }
+    history.replaceState(null,'',location.pathname+location.search);
+    await bootApp();
+  };
+  document.getElementById('resetBtn').onclick=doReset;
+  document.getElementById('resetPassword2').addEventListener('keydown',e=>{ if(e.key==='Enter') doReset(); });
+}
+
+function setSyncStatus(msg, ok){
+  const el = document.getElementById('syncStatus');
+  if(!el) return;
+  el.textContent = msg;
+  el.style.color = ok === false ? '#c0613a' : ok === true ? '#3f6b4f' : '#7a7568';
+}
+
+// The copy this device last saw. Reading it is instant, so the register can be
+// on screen before the network has said anything.
+function cachedDB(){
+  try{ const ls=localStorage.getItem(STORE_KEY); return ls?JSON.parse(ls):null; }catch(e){ return null; }
+}
+
+// The authoritative copy. Cross-device source of truth; also refreshes the cache.
+async function remoteDB(){
+  try{
+    const {data,error} = await sb.from('register_store').select('data,updated_at').eq('id','default').maybeSingle();
+    if(!error && data){
+      const ts = new Date(data.updated_at).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});
+      setSyncStatus('Database last updated: '+ts, true);
+      try{ localStorage.setItem(STORE_KEY, JSON.stringify(data.data)); }catch(e){}
+      return data.data;
+    }
+  }catch(e){}
+  try{
+    if(typeof window.storage!=='undefined'){
+      const r = await window.storage.get(STORE_KEY);
+      if(r) return JSON.parse(r.value);
+    }
+  }catch(e){}
+  return null;
+}
+
+// Resolves once the authoritative copy has been fetched (or the fetch has given
+// up). Saves wait on this, so an edit made against the instantly-painted cached
+// copy can never overwrite a newer one from another device.
+let dbReady = null;
+
+// Set the moment the organiser changes anything. If they edit during the short
+// window between the cached paint and the database replying, their edit must win
+// -- otherwise reconciling would silently throw it away.
+let dbDirty = false;
+
+async function saveDB(){
+  dbDirty = true;                      // claim DB before anything can reconcile over it
+  // Never write back over a newer copy we simply hadn't loaded yet.
+  if(dbReady) { try{ await dbReady; }catch(e){} }
+  const payload = JSON.stringify(DB);
+  // Save locally immediately so the UI never waits
+  try{ localStorage.setItem(STORE_KEY, payload); }catch(e){}
+  try{ if(typeof window.storage!=='undefined') await window.storage.set(STORE_KEY, payload); }catch(e){}
+  // Upsert to Supabase for cross-device sync
+  try{
+    const now = new Date().toISOString();
+    const {error} = await sb.from('register_store').upsert({id:'default',data:DB,updated_at:now},{onConflict:'id'});
+    if(!error){
+      const ts = new Date(now).toLocaleString(undefined,{dateStyle:'medium',timeStyle:'short'});
+      setSyncStatus('Database last updated: '+ts, true);
+    } else {
+      setSyncStatus('Saved locally — cloud sync failed', false);
+    }
+  }catch(e){
+    setSyncStatus('Saved locally — cloud sync failed', false);
+  }
+}
+
+/* ---- model ----
+   DB = {
+     trainees:[{id,name}],
+     sessions:[{id,month:'2026-01',title}],
+     attendance:{ "traineeId|sessionId": {grade:'ST6'} | true },  // true = legacy present
+     excused:[{id,trainee,session,reason,ts}],
+     status:[{id,trainee,type,start:'2026-02',end:'2026-05'|null}]
+   }
+   Grade is captured per check-in (it changes each rotation), not on the trainee.
+   Status semantics for eligibility of a session month M (start/end are 'YYYY-MM' or null):
+     active  -> eligible always (baseline)
+     cct     -> training ends. Ineligible for M after the end month (end falls back to start).
+     idt_out -> transfers out of deanery. Ineligible for M >= transfer month (start, falls back to end).
+     idt_in  -> joins deanery. Ineligible for M before the arrival month (start, falls back to end).
+     mat/oop -> a leave window [start..end]:
+                  both set     -> ineligible when start <= M <= end
+                  start only   -> ineligible when M >= start (indefinite / ongoing)
+                  end only     -> ineligible when M <= end (joined/returned: count only after end)
+                  neither      -> treated as ongoing from the first session
+*/
+let DB = null;
+
+function uid(){ return Math.random().toString(36).slice(2,9); }
+
+/* ============================================================
+   MONTH PICKER  — parse flexible typed input -> 'YYYY-MM',
+   plus a click calendar. Display uses the browser locale's
+   "Mon YYYY" format (e.g. "Jan 2026").
+   ============================================================ */
+const MONTH_NAMES=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MONTH_ABBR=MONTH_NAMES.map(m=>m.slice(0,3));
+// Normalise many typed formats to 'YYYY-MM' (or '' if unparseable)
+function parseMonth(raw){
+  if(!raw) return '';
+  let s=String(raw).trim().toLowerCase().replace(/[.,]/g,' ').replace(/\s+/g,' ').trim();
+  if(!s) return '';
+  let m=s.match(/^(\d{4})[-/ ](\d{1,2})$/);                 // YYYY-MM / YYYY/MM
+  if(m){ const mo=+m[2]; if(mo>=1&&mo<=12) return m[1]+'-'+String(mo).padStart(2,'0'); }
+  m=s.match(/^(\d{1,2})[-/ ](\d{4})$/);                     // MM-YYYY / MM/YYYY
+  if(m){ const mo=+m[1]; if(mo>=1&&mo<=12) return m[2]+'-'+String(mo).padStart(2,'0'); }
+  m=s.match(/^(\d{1,2})[-/ ](\d{2})$/);                     // MM/YY (2-digit year -> 2000s)
+  if(m){ const mo=+m[1]; if(mo>=1&&mo<=12) return '20'+m[2]+'-'+String(mo).padStart(2,'0'); }
+  const names=MONTH_NAMES.map((n,i)=>[n,i]).concat(MONTH_ABBR.map((n,i)=>[n,i])).concat([['sept',8]]);
+  for(const [nm0,idx] of names){                             // "jan 2026", "2026 march", "sept 26"
+    const nm=nm0.toLowerCase();
+    const re1=new RegExp('^'+nm+'[a-z]* (\\d{2,4})$');
+    const re2=new RegExp('^(\\d{2,4}) '+nm+'[a-z]*$');
+    let mm=s.match(re1)||s.match(re2);
+    if(mm){ let y=mm[1]; if(y.length===2) y='20'+y; return y+'-'+String(idx+1).padStart(2,'0'); }
+  }
+  m=s.match(/^(\d{4})(\d{2})$/);                            // YYYYMM
+  if(m){ const mo=+m[2]; if(mo>=1&&mo<=12) return m[1]+'-'+m[2]; }
+  return '';
+}
+// 'YYYY-MM' -> display string in system locale, e.g. "Jan 2026"
+function fmtMonth(val){
+  if(!val) return '';
+  const [y,mo]=val.split('-').map(Number);
+  if(!y||!mo) return '';
+  try{ return new Date(y,mo-1,1).toLocaleDateString(undefined,{month:'short',year:'numeric'}); }
+  catch(e){ return MONTH_ABBR[mo-1]+' '+y; }
+}
+// reformat an input's text to the system display format if it parses
+function normaliseMonthInput(input){
+  const norm=parseMonth(input.value);
+  input.dataset.value = norm;
+  input.value = norm ? fmtMonth(norm) : input.value;
+}
+function monthValue(input){ return input.dataset.value || parseMonth(input.value) || ''; }
+function setMonthValue(input,val){ input.dataset.value=val||''; input.value=val?fmtMonth(val):''; }
+
+let openMonthPop=null;
+function closeMonthPop(){ if(openMonthPop){ openMonthPop.remove(); openMonthPop=null; document.removeEventListener('mousedown',monthOutside); } }
+function monthOutside(e){ if(openMonthPop && !openMonthPop.contains(e.target) && !e.target.closest('.month-input')) closeMonthPop(); }
+function buildMonthPop(wrap,input){
+  closeMonthPop();
+  const cur=monthValue(input);
+  let year = cur ? +cur.split('-')[0] : new Date().getFullYear();
+  const selMonth = cur ? +cur.split('-')[1] : null;
+  const selYear  = cur ? +cur.split('-')[0] : null;
+  const pop=document.createElement('div'); pop.className='month-pop open';
+  function render(){
+    pop.innerHTML=
+      `<div class="yr"><button data-yr="-1">‹</button><b>${year}</b><button data-yr="1">›</button></div>`+
+      `<div class="month-grid">`+
+      MONTH_ABBR.map((m,i)=>`<button data-mo="${i+1}" class="${(selYear===year&&selMonth===i+1)?'sel':''}">${m}</button>`).join('')+
+      `</div>`+
+      `<div class="pop-foot"><button data-act="clear">Clear</button><button data-act="close">Done</button></div>`;
+    pop.querySelectorAll('[data-yr]').forEach(b=>b.onclick=()=>{year+=+b.dataset.yr;render();});
+    pop.querySelectorAll('[data-mo]').forEach(b=>b.onclick=()=>{
+      setMonthValue(input, year+'-'+String(+b.dataset.mo).padStart(2,'0'));
+      input.dispatchEvent(new Event('change',{bubbles:true}));
+      closeMonthPop();
+    });
+    pop.querySelector('[data-act="clear"]').onclick=()=>{ setMonthValue(input,''); input.dispatchEvent(new Event('change',{bubbles:true})); closeMonthPop(); };
+    pop.querySelector('[data-act="close"]').onclick=()=>closeMonthPop();
+  }
+  render();
+  wrap.appendChild(pop); openMonthPop=pop;
+  setTimeout(()=>document.addEventListener('mousedown',monthOutside),0);
+}
+function initMonthPickers(){
+  document.querySelectorAll('[data-monthpicker]').forEach(wrap=>{
+    const input=wrap.querySelector('input');
+    const btn=wrap.querySelector('.month-cal-btn');
+    btn.onclick=()=>{ if(openMonthPop && wrap.contains(openMonthPop)){ closeMonthPop(); } else { buildMonthPop(wrap,input); } };
+    input.addEventListener('blur',()=>normaliseMonthInput(input));
+    input.addEventListener('keydown',e=>{ if(e.key==='Enter'){ normaliseMonthInput(input); input.dispatchEvent(new Event('change',{bubbles:true})); } });
+  });
+}
+function monthOf(s){ return s.month; }
+function sessionsSorted(){ return [...DB.sessions].sort((a,b)=>a.month.localeCompare(b.month)); }
+
+/* ---- academic years: the register year runs August → July ----
+   'YYYY-MM' -> starting calendar year (Aug 2025 … Jul 2026 => 2025),
+   labelled '2025/26'. Everything year-scoped goes through these.      */
+const ALL_YEARS='__all__';
+function acYearStart(month){ const [y,m]=String(month).split('-').map(Number); return m>=8?y:y-1; }
+function acYearLabel(startY){ return startY+'/'+String(startY+1).slice(-2); }
+function sessAcademicYear(month){ return acYearLabel(acYearStart(month)); }
+function acYearRange(label){ const y=+String(label).split('/')[0]; return 'Aug '+y+' – Jul '+(y+1); }
+function availableAcademicYears(){ return [...new Set(DB.sessions.map(s=>sessAcademicYear(s.month)))].sort(); }
+function currentAcademicYear(){ const d=new Date(); return acYearLabel(d.getMonth()+1>=8?d.getFullYear():d.getFullYear()-1); }
+function sessionsInYear(label){ return sessionsSorted().filter(s=>sessAcademicYear(s.month)===label); }
+function defaultDashYear(){
+  const ys=availableAcademicYears();
+  if(!ys.length) return ALL_YEARS;
+  const cur=currentAcademicYear();
+  return ys.includes(cur)?cur:ys[ys.length-1];   // else the most recent year with sessions
+}
+function findTrainee(id){ return DB.trainees.find(t=>t.id===id); }
+function findSession(id){ return DB.sessions.find(s=>s.id===id); }
+function attKey(t,s){ return t+'|'+s; }
+function isPresent(t,s){ return !!DB.attendance[attKey(t,s)]; }
+function gradeAt(t,s){ const v=DB.attendance[attKey(t,s)]; return (v&&typeof v==='object'&&v.grade)?v.grade:''; }
+
+const GRADES = ['ST3','ST4','ST5','ST6','ST7','ST8','Fellow','SAS','Other'];
+
+// The most recent month this trainee has a grade recorded against, from any
+// sign-in. '' if they have never signed in with one.
+function latestGradedMonth(traineeId){
+  const all=sessionsSorted();
+  for(let i=all.length-1;i>=0;i--){ if(gradeAt(traineeId,all[i].id)) return all[i].month; }
+  return '';
+}
+
+// A trainee's grade follows whatever they last put on the sign-in form. The
+// newest session they have a grade recorded for wins, and t.gradeFrom remembers
+// which month that was, so a grade set by hand sticks until a LATER sign-in
+// supersedes it. Returns true if anything changed, so the caller can save.
+function refreshGrades(){
+  const all=sessionsSorted();
+  let changed=false;
+  DB.trainees.forEach(t=>{
+    let grade='', month='';
+    for(let i=all.length-1;i>=0;i--){
+      const g=gradeAt(t.id,all[i].id);
+      if(g){ grade=g; month=all[i].month; break; }
+    }
+    if(!grade) return;
+    if(month > (t.gradeFrom||'') && (t.grade!==grade || t.gradeFrom!==month)){
+      t.grade=grade; t.gradeFrom=month; changed=true;
+    }
+  });
+  return changed;
+}
+function latestGrade(traineeId, scope){
+  // most recent session (by month) the trainee attended with a recorded grade.
+  // With a scope (e.g. one academic year) the grade is read from that year first,
+  // then from any earlier session, so a past year never shows a future grade.
+  const all=sessionsSorted();
+
+  // For any view that reaches the present, the grade held on the trainee is the
+  // answer: it tracks their newest sign-in, and it is what an organiser edits by
+  // hand. A past academic year still reads its grade out of that year's
+  // attendance, so it is never relabelled with a grade they did not hold then.
+  const t=findTrainee(traineeId);
+  const stored=(t&&(t.grade||'').trim())||'';
+  const reachesNow = !scope || !all.length ||
+    (scope.length && scope[scope.length-1].month >= all[all.length-1].month);
+  if(stored && reachesNow) return stored;
+
+  const list=scope||all;
+  for(let i=list.length-1;i>=0;i--){ const g=gradeAt(traineeId,list[i].id); if(g) return g; }
+  if(scope&&scope.length){
+    const cutoff=scope[scope.length-1].month;
+    for(let i=all.length-1;i>=0;i--){ if(all[i].month<=cutoff){ const g=gradeAt(traineeId,all[i].id); if(g) return g; } }
+  }
+  return '';
+}
+
+/* ---- eligibility & calculation engine ---- */
+function statusFor(traineeId){ return DB.status.filter(s=>s.trainee===traineeId); }
+
+function isEligible(traineeId, sessMonth){
+  // default eligible; a status row can switch it off
+  for(const st of statusFor(traineeId)){
+    if(st.type==='active') continue;
+    if(st.type==='cct'){
+      const m = st.end || st.start;            // CCT month
+      if(m && sessMonth > m) return false;     // ineligible after training ends
+    }
+    else if(st.type==='idt_out'){
+      const m = st.start || st.end;            // transfer-out month
+      if(m && sessMonth >= m) return false;    // ineligible from transfer onward
+    }
+    else if(st.type==='idt_in'){
+      const m = st.start || st.end;            // arrival month
+      if(m && sessMonth < m) return false;     // ineligible before arrival
+    }
+    else if(st.type==='mat' || st.type==='oop'){
+      // leave window [start..end]; missing bound = open on that side
+      const afterStart = st.start ? sessMonth >= st.start : true;
+      const beforeEnd  = st.end   ? sessMonth <= st.end   : true;
+      if(afterStart && beforeEnd) return false;
+    }
+  }
+  return true;
+}
+
+function isExcused(traineeId, sessMonth){
+  return DB.excused.some(e=>e.trainee===traineeId && findSession(e.session) && findSession(e.session).month===sessMonth);
+}
+
+function cellState(traineeId, sess){
+  if(!isEligible(traineeId, sess.month)) return 'na';
+  if(DB.attendance[attKey(traineeId,sess.id)]) return 'present';
+  if(isExcused(traineeId, sess.month)) return 'excused';
+  return 'absent';
+}
+
+function computeRowForSessions(trainee, sessList){
+  let attended=0, total=0, excused=0, eligible=0;
+  const cells=[];
+  for(const s of sessList){
+    const st = cellState(trainee.id, s);
+    cells.push({sess:s, state:st});
+    total++;                                   // every session in scope
+    if(st==='na') continue;
+    eligible++;                                // eligible sessions
+    if(st==='present') attended++;
+    if(st==='excused') excused++;
+  }
+  const adjDenom = eligible - excused;          // excused removed from denominator
+  const rawPct = total? Math.round(attended/total*100):0;
+  const adjPct = adjDenom>0? Math.round(attended/adjDenom*100): (eligible===0? null : 0);
+  return {trainee,cells,attended,total,excused,eligible,adjDenom,rawPct,adjPct};
+}
+function computeRow(trainee){ return computeRowForSessions(trainee, sessionsSorted()); }
+
+function nowMonth(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+
+// The trainee's current long-term status, as of a given month (default: today).
+// mat/oop are LEAVE WINDOWS: once their end month is behind the reference month,
+// the trainee is back to Active -- the return from leave is automatic the moment
+// the date passes, with nothing to click. cct and idt_out are one-way departures
+// and idt_in a one-way arrival, so those keep showing regardless of date.
+//
+// The status row itself is never touched here or anywhere else on expiry -- it
+// stays on the Long-term status tab as the record of when the leave was, which
+// is the "memory" this is built to keep. Only the derived, point-in-time answer
+// to "what are they right now" changes.
+function activeStatusType(traineeId, atMonth){
+  const rows = statusFor(traineeId).filter(s=>s.type!=='active');
+  if(!rows.length) return null;
+  const cutoff = atMonth || nowMonth();
+  for(const st of rows){
+    if((st.type==='mat'||st.type==='oop') && st.end && st.end < cutoff) continue; // leave has ended
+    return st;
+  }
+  return null;
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+let sortKey='name', sortDir=1;
+
+function pctColor(p){
+  if(p===null) return 'var(--muted)';
+  if(p>=80) return 'var(--good)';
+  if(p>=60) return 'var(--warn)';
+  return 'var(--bad)';
+}
+
+/* Attendance cell details.
+   Mouse: a hover tip, and a click toggles attendance straight away.
+   Touch: hovering doesn't exist, so the first tap opens a real popover showing
+   the same details WITHOUT changing anything; changing it takes a second,
+   deliberate tap on a button inside. The popover closes on an outside tap,
+   Escape, scroll or resize, so it can't get stranded on screen. */
+const STATE_CLASS={Attended:'s-present',Excused:'s-excused',Missed:'s-absent','Not eligible':'s-na'};
+
+// Which input opened this — set on pointerdown, before any click fires.
+let lastPointerTouch=false;
+addEventListener('pointerdown',e=>{ lastPointerTouch = e.pointerType==='touch'||e.pointerType==='pen'; },true);
+
+let cellTipWired=false;
+function attachCellTip(tb){
+  if(cellTipWired) return;          // delegation survives re-renders
+  cellTipWired=true;
+  const tip=document.getElementById('cellTip');
+  function place(e){
+    const pad=14, w=tip.offsetWidth, h=tip.offsetHeight;
+    let x=e.clientX+pad, y=e.clientY+pad;
+    if(x+w>innerWidth-8) x=e.clientX-w-pad;
+    if(y+h>innerHeight-8) y=e.clientY-h-pad;
+    tip.style.left=x+'px'; tip.style.top=y+'px';
+  }
+  tb.addEventListener('mouseover',e=>{
+    if(lastPointerTouch) return;    // a tap must never leave a tip stuck on screen
+    const d=e.target.closest('.dot'); if(!d||!tb.contains(d)) return;
+    const grade=d.dataset.grade?` · ${d.dataset.grade}`:'';
+    tip.innerHTML=
+      `<div class="tip-sess">${d.dataset.sess}</div>`+
+      `<div class="tip-month">${d.dataset.month}</div>`+
+      `<div class="tip-row"><span class="tip-state ${STATE_CLASS[d.dataset.state]||''}"></span>`+
+      `${d.dataset.name} — ${d.dataset.state}${grade}</div>`;
+    tip.classList.add('show'); place(e);
+  });
+  tb.addEventListener('mousemove',e=>{ if(tip.classList.contains('show')) place(e); });
+  tb.addEventListener('mouseout',e=>{
+    const d=e.target.closest('.dot'); if(d) tip.classList.remove('show');
+  });
+}
+
+/* ---- touch popover ---- */
+let popOpenFor=null;               // {t,s} of the dot the popover belongs to
+
+function closeCellPop(){
+  const pop=document.getElementById('cellPop');
+  if(!pop||!popOpenFor) return;
+  pop.classList.remove('show');
+  popOpenFor=null;
+  document.removeEventListener('pointerdown',popOutside,true);
+  removeEventListener('keydown',popKey,true);
+  removeEventListener('scroll',closeCellPop,true);
+  removeEventListener('resize',closeCellPop);
+}
+function popOutside(e){ if(!e.target.closest('#cellPop')) closeCellPop(); }
+function popKey(e){ if(e.key==='Escape') closeCellPop(); }
+
+function placeCellPop(pop,dot){
+  const r=dot.getBoundingClientRect(), gap=10;
+  const w=pop.offsetWidth, h=pop.offsetHeight;
+  let x=r.left+r.width/2-w/2;
+  x=Math.max(12,Math.min(x,innerWidth-w-12));
+  let y=r.bottom+gap;
+  if(y+h>innerHeight-12) y=Math.max(12,r.top-h-gap);
+  pop.style.left=x+'px'; pop.style.top=y+'px';
+}
+
+function openCellPop(dot){
+  const pop=document.getElementById('cellPop');
+  document.getElementById('cellTip').classList.remove('show');
+  const present = dot.dataset.state==='Attended';
+  const na = dot.classList.contains('na');
+  const excused = dot.dataset.state==='Excused';
+  const grade = dot.dataset.grade? ' · '+escHtml(dot.dataset.grade) : '';
+
+  let actions;
+  if(na){
+    actions = `<div class="pop-note">Not in the programme for this session, so it doesn’t count either way.</div>`;
+  } else {
+    actions = `<div class="pop-actions">`+
+      `<button type="button" class="go" data-act="toggle">${present?'Mark absent':'Mark attended'}</button>`+
+      `<button type="button" data-act="close">Close</button></div>`+
+      (excused?`<div class="pop-note">Excused — this session is already out of their denominator.</div>`:'');
+  }
+
+  pop.innerHTML =
+    `<div class="pop-sess">${escHtml(dot.dataset.sess)}</div>`+
+    `<div class="pop-month">${escHtml(dot.dataset.month)}</div>`+
+    `<div class="pop-row"><span class="pop-state ${STATE_CLASS[dot.dataset.state]||''}"></span>`+
+    `<span>${escHtml(dot.dataset.name)} — ${escHtml(dot.dataset.state)}${grade}</span></div>`+
+    actions;
+
+  popOpenFor={t:dot.dataset.t,s:dot.dataset.s};
+  pop.classList.add('show');
+  placeCellPop(pop,dot);
+
+  pop.querySelectorAll('button').forEach(b=>b.onclick=async()=>{
+    if(b.dataset.act==='close') return closeCellPop();
+    const k=attKey(popOpenFor.t,popOpenFor.s);
+    const where=popOpenFor;
+    const nowPresent = !DB.attendance[k];
+    if(DB.attendance[k]) delete DB.attendance[k]; else DB.attendance[k]={grade:''};
+    closeCellPop();
+    await saveDB(); renderAll();
+    pushAttendance(findSession(where.s), [where.t], nowPresent);
+  });
+
+  // added on the next frame so the tap that opened this doesn't close it
+  requestAnimationFrame(()=>{
+    if(!popOpenFor) return;
+    document.addEventListener('pointerdown',popOutside,true);
+    addEventListener('keydown',popKey,true);
+    addEventListener('scroll',closeCellPop,true);
+    addEventListener('resize',closeCellPop);
+  });
+}
+
+/* ---- dashboard: one table per academic year ---- */
+let dashYear=null;                       // an academic-year label, or ALL_YEARS
+
+function renderYearTabs(){
+  const el=document.getElementById('dashYearTabs');
+  const ys=availableAcademicYears();
+  if(dashYear===null) dashYear=defaultDashYear();
+  if(dashYear!==ALL_YEARS && !ys.includes(dashYear)) dashYear=defaultDashYear();   // year lost its last session
+  if(dashYear===ALL_YEARS && ys.length===1) dashYear=defaultDashYear();            // only one year left to show
+  if(!ys.length){ el.innerHTML=''; return; }
+  const tabs=ys.map(y=>
+    `<button class="yr-tab${dashYear===y?' on':''}" data-year="${escHtml(y)}" title="${escHtml(acYearRange(y))}">`+
+    `${escHtml(y)}<span class="cnt">${sessionsInYear(y).length}</span></button>`);
+  if(ys.length>1) tabs.push(
+    `<button class="yr-tab${dashYear===ALL_YEARS?' on':''}" data-year="${ALL_YEARS}" title="Every academic year, one table each">`+
+    `All years<span class="cnt">${DB.sessions.length}</span></button>`);
+  el.innerHTML=tabs.join('');
+  el.querySelectorAll('.yr-tab').forEach(b=>b.onclick=()=>{ dashYear=b.dataset.year; renderDash(); });
+}
+
+// rows for one scope of sessions, honouring the search box and the "hide not in programme" toggle.
+// "Not in programme" hides trainees with no eligible sessions here -- but mat/oop
+// is a leave, not a departure, so someone on leave for this whole scope stays
+// visible; only a genuine non-member of the scope (CCT'd, IDT'd out, not yet
+// arrived, or just never eligible) is hidden.
+function dashRowsFor(sessList,q,hideNA){
+  let rows=DB.trainees.filter(t=>t.name.toLowerCase().includes(q))
+                      .map(t=>computeRowForSessions(t,sessList));
+  let hidden=0;
+  if(hideNA && sessList.length){
+    const cutoff=sessList[sessList.length-1].month;
+    const onLeave=r=>{ const st=activeStatusType(r.trainee.id,cutoff); return st && (st.type==='mat'||st.type==='oop'); };
+    hidden=rows.filter(r=>r.eligible===0 && !onLeave(r)).length;
+    rows=rows.filter(r=>r.eligible>0 || onLeave(r));
+  }
+  rows.sort((a,b)=>{
+    let A,B;
+    if(sortKey==='name'){A=a.trainee.name;B=b.trainee.name;}
+    else if(sortKey==='raw'){A=a.rawPct;B=b.rawPct;}
+    else if(sortKey==='adj'){A=a.adjPct??-1;B=b.adjPct??-1;}
+    else {A=a.attended;B=b.attended;}
+    if(A<B)return -1*sortDir; if(A>B)return 1*sortDir; return 0;
+  });
+  return {rows,hidden};
+}
+
+function dashTableHtml(rows,sessList){
+  const arrow = k => sortKey===k ? `<span class="arrow">${sortDir>0?'▲':'▼'}</span>` : `<span class="arrow">↕</span>`;
+  const head = `<tr>
+    <th data-sort="name">Trainee ${arrow('name')}</th>
+    <th class="no-sort">Status</th>
+    <th class="no-sort">Sessions</th>
+    <th data-sort="att">Att/Elig ${arrow('att')}</th>
+    <th data-sort="raw">Raw % ${arrow('raw')}</th>
+    <th data-sort="adj">Adjusted % ${arrow('adj')}</th>
+  </tr>`;
+
+  let body;
+  if(!rows.length || !sessList.length){
+    const msg = !DB.trainees.length
+      ? 'No trainees yet. Add some under “Trainees &amp; sessions”, or load the sample cohort.'
+      : !sessList.length
+        ? 'No teaching days in this academic year yet — add one under “Trainees &amp; sessions”.'
+        : 'No trainees to show for this year.';
+    body=`<tr><td colspan="6"><div class="empty">${msg}</div></td></tr>`;
+  } else {
+    // Scoped to the year block being drawn, so a past year still shows the leave
+    // that genuinely applied then, rather than "Active" read back from today.
+    const cutoff = sessList.length? sessList[sessList.length-1].month : undefined;
+    body=rows.map(r=>{
+      const stat = activeStatusType(r.trainee.id, cutoff);
+      const badge = stat
+        ? `<span class="badge ${stat.type}">${{cct:'CCT',mat:'Mat/Pat',oop:'OOP',idt_in:'IDT in',idt_out:'IDT out'}[stat.type]}${(stat.start||stat.end)?' · '+fmtMonth(stat.start||stat.end):''}</span>`
+        : `<span class="badge active">Active</span>`;
+      const dots = r.cells.map(c=>{
+        const sym = c.state==='present'?'✓':c.state==='excused'?'e':c.state==='na'?'–':'';
+        const stateLabel = {present:'Attended',excused:'Excused',na:'Not eligible',absent:'Missed'}[c.state];
+        const g = c.state==='present'? gradeAt(r.trainee.id,c.sess.id):'';
+        return `<span class="dot ${c.state}" data-t="${r.trainee.id}" data-s="${c.sess.id}"`+
+          ` data-month="${escHtml(fmtMonth(c.sess.month))}" data-sess="${escHtml(c.sess.title)}"`+
+          ` data-name="${escHtml(r.trainee.name)}" data-state="${stateLabel}" data-grade="${escHtml(g)}">${sym}</span>`;
+      }).join('');
+      const adj = r.adjPct===null?'—':r.adjPct+'%';
+      return `<tr>
+        <td class="name-cell">${escHtml(r.trainee.name)}<span class="grade-tag">${escHtml(latestGrade(r.trainee.id,sessList))}</span></td>
+        <td>${badge}</td>
+        <td><div class="sess-cells">${dots}</div></td>
+        <td style="font-variant-numeric:tabular-nums">${r.attended}/${r.adjDenom>0?r.adjDenom:r.eligible}</td>
+        <td><span class="pct" style="color:${pctColor(r.rawPct)}">${r.rawPct}%</span>
+            <div class="pct-bar"><span style="width:${r.rawPct}%;background:${pctColor(r.rawPct)}"></span></div></td>
+        <td><span class="pct" style="color:${pctColor(r.adjPct)}">${adj}</span>
+            <div class="pct-bar"><span style="width:${r.adjPct??0}%;background:${pctColor(r.adjPct)}"></span></div></td>
+      </tr>`;
+    }).join('');
+  }
+  return `<div class="table-wrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+function renderDash(){
+  renderYearTabs();
+  const q = (document.getElementById('dashSearch').value||'').toLowerCase();
+  const hideNA = document.getElementById('dashHideNA').checked;
+  const ys = availableAcademicYears();
+  // one block per academic year; a single block when a year tab is picked
+  const labels = ys.length ? (dashYear===ALL_YEARS ? ys.slice().reverse() : [dashYear]) : [null];
+
+  document.getElementById('dashTables').innerHTML = labels.map(label=>{
+    const sessList = label? sessionsInYear(label) : [];
+    const {rows,hidden} = dashRowsFor(sessList,q,hideNA);
+    const head = labels.length>1
+      ? `<div class="year-block-head"><h3>${escHtml(label)}</h3>`+
+        `<span class="meta">${escHtml(acYearRange(label))} · ${sessList.length} teaching day${sessList.length!==1?'s':''}</span></div>`
+      : '';
+    const note = hidden
+      ? `<div class="hidden-note">${hidden} trainee${hidden!==1?'s':''} hidden — not in the programme for any session in ${escHtml(label)}.</div>`
+      : '';
+    return `<div class="year-block">${head}${dashTableHtml(rows,sessList)}${note}</div>`;
+  }).join('');
+
+  // stat strip for whatever the tabs currently scope to
+  const scopeSess = (dashYear===ALL_YEARS||!ys.length) ? sessionsSorted() : sessionsInYear(dashYear);
+  const {rows} = dashRowsFor(scopeSess,q,hideNA);
+  const elig = rows.filter(r=>r.eligible>0);
+  const avgAdj = elig.length? Math.round(elig.reduce((s,r)=>s+(r.adjPct||0),0)/elig.length):0;
+  const avgRaw = rows.length? Math.round(rows.reduce((s,r)=>s+r.rawPct,0)/rows.length):0;
+  const full = elig.filter(r=>r.adjPct===100).length;
+  const below = elig.filter(r=>r.adjPct!==null&&r.adjPct<60).length;
+  const scopeLbl = (dashYear===ALL_YEARS||!ys.length) ? 'All years' : dashYear;
+  document.getElementById('statStrip').innerHTML = `
+    <div class="stat"><div class="n">${rows.length}</div><div class="l">Trainees · ${escHtml(scopeLbl)}</div></div>
+    <div class="stat"><div class="n">${scopeSess.length}</div><div class="l">Teaching days</div></div>
+    <div class="stat"><div class="n">${avgAdj}%</div><div class="l">Mean adjusted</div></div>
+    <div class="stat"><div class="n">${avgRaw}%</div><div class="l">Mean raw</div></div>
+    <div class="stat"><div class="n">${full}</div><div class="l">At 100% adjusted</div></div>
+    <div class="stat accent"><div class="n">${below}</div><div class="l">Below 60%</div></div>`;
+}
+
+/* sorting, cell toggling and the hover tip are delegated off the container once,
+   so they survive the year tables being re-rendered */
+function wireDashTables(){
+  const cont=document.getElementById('dashTables');
+  cont.addEventListener('click',async e=>{
+    const th=e.target.closest('th[data-sort]');
+    if(th){ const k=th.dataset.sort; if(sortKey===k)sortDir*=-1; else{sortKey=k;sortDir=1;} renderDash(); return; }
+    const d=e.target.closest('.dot');
+    if(!d) return;
+    // On touch, show the details first; the change needs a second, deliberate tap.
+    if(lastPointerTouch){ openCellPop(d); return; }
+    if(!d.classList.contains('na')){
+      const k=attKey(d.dataset.t,d.dataset.s);
+      const nowPresent = !DB.attendance[k];
+      if(DB.attendance[k]) delete DB.attendance[k]; else DB.attendance[k]={grade:''};
+      await saveDB(); renderAll();
+      pushAttendance(findSession(d.dataset.s), [d.dataset.t], nowPresent);
+    }
+  });
+  attachCellTip(cont);
+}
+
+/* ---- check-in / QR ---- */
+let activeSession = null;
+let checkinYear = null;      // an academic-year label, or ALL_YEARS
+
+// Small reusable "year pill" bar for panels that scope to one academic year at a
+// time (Check-in, Excused absences) — simpler than the dashboard's version since
+// there's only ever one active tab, no per-year table blocks underneath.
+function renderScopeYearTabs(containerId, currentYear, onPick){
+  const el = document.getElementById(containerId);
+  const ys = availableAcademicYears();
+  if(!ys.length){ el.innerHTML=''; return null; }
+  let year = currentYear;
+  if(year!==ALL_YEARS && !ys.includes(year)) year = defaultDashYear();
+  const tabs = ys.map(y=>
+    `<button class="yr-tab${year===y?' on':''}" data-year="${escHtml(y)}" title="${escHtml(acYearRange(y))}">`+
+    `${escHtml(y)}<span class="cnt">${sessionsInYear(y).length}</span></button>`);
+  if(ys.length>1) tabs.push(
+    `<button class="yr-tab${year===ALL_YEARS?' on':''}" data-year="${ALL_YEARS}">All years<span class="cnt">${DB.sessions.length}</span></button>`);
+  el.innerHTML = tabs.join('');
+  el.querySelectorAll('.yr-tab').forEach(b=>b.onclick=()=>onPick(b.dataset.year));
+  return year;
+}
+
+function renderCheckin(){
+  checkinYear = renderScopeYearTabs('checkinYearTabs', checkinYear ?? defaultDashYear(), (y)=>{
+    checkinYear = y;
+    activeSession = null;   // let the new scope pick its own default below
+    renderCheckin(); drawQR();
+  });
+
+  const sess = checkinYear && checkinYear!==ALL_YEARS ? sessionsInYear(checkinYear) : sessionsSorted();
+  if((!activeSession || !sess.some(s=>s.id===activeSession)) && sess.length) activeSession = sess[sess.length-1].id;
+  if(!sess.length) activeSession = null;
+  const picker = document.getElementById('sessPicker');
+  const sessRadio = s=>`
+    <label class="sess-radio ${s.id===activeSession?'sel':''}">
+      <input type="radio" name="sess" value="${s.id}" ${s.id===activeSession?'checked':''}>
+      <span><strong>${escHtml(fmtMonth(s.month))}</strong> · ${escHtml(s.title)}</span>
+    </label>`;
+  picker.innerHTML = sess.length
+    ? (checkinYear===ALL_YEARS
+        ? availableAcademicYears().slice().reverse().map(y=>
+            `<div class="group-head">${escHtml(y)} · ${escHtml(acYearRange(y))}</div>`+
+            sessionsInYear(y).slice().reverse().map(sessRadio).join('')
+          ).join('')
+        : sess.slice().reverse().map(sessRadio).join(''))
+    : `<div class="empty">${DB.sessions.length? 'No teaching days in this academic year yet.' : 'Add a session first.'}</div>`;
+  picker.querySelectorAll('input').forEach(i=>i.onchange=()=>{activeSession=i.value;renderCheckin();drawQR();});
+
+  const sel = document.getElementById('ciTrainee');
+  sel.innerHTML = DB.trainees.slice().sort((a,b)=>a.name.localeCompare(b.name))
+    .map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+
+  const s = findSession(activeSession);
+  document.getElementById('qrSessLabel').innerHTML = s
+    ? `${escHtml(fmtMonth(s.month))} · ${escHtml(s.title)}` + (s.cloudId? ' <span class="badge active">live</span>' : '')
+    : '—';
+  drawQR();
+  renderCloudPanel();
+  renderChasePanel();
+  renderRecentCheckins();
+}
+function renderRecentCheckins(){
+  const s = findSession(activeSession); if(!s){document.getElementById('ciRecent').innerHTML='';return;}
+  const present = DB.trainees.filter(t=>DB.attendance[attKey(t.id,s.id)]);
+  document.getElementById('ciRecent').innerHTML = present.length
+    ? `<div class="helper" style="margin-bottom:6px">${present.length} signed in</div>` +
+      `<div class="pill-row">${present.map(t=>{const g=gradeAt(t.id,s.id);return `<span class="badge active">${t.name}${g?' · '+g:''}</span>`;}).join('')}</div>`
+    : `<div class="helper">No check-ins yet for this session.</div>`;
+}
+/* The QR library is ~20KB and is needed only once a teaching day is on screen,
+   so it is fetched on demand rather than blocking every page load. */
+let qrLib=null;
+function loadQrLib(){
+  if(window.QRCode) return Promise.resolve(true);
+  if(qrLib) return qrLib;
+  qrLib = new Promise(resolve=>{
+    const sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    sc.onload=()=>resolve(true); sc.onerror=()=>resolve(false);
+    document.head.appendChild(sc);
+  });
+  return qrLib;
+}
+async function drawQR(){
+  const box=document.getElementById('qrcode'); box.innerHTML='';
+  if(!activeSession) return;
+  const base = location.href.split('?')[0].split('#')[0];
+  const s = findSession(activeSession);
+  // Published sessions get the live page (name, grade, email -> Supabase);
+  // anything else keeps the original local sign-in form.
+  const url = s && s.cloudId
+    ? base.replace(/[^\/]*$/, '') + 'checkin.html?s=' + encodeURIComponent(s.cloudId)
+    : base + '?form=' + encodeURIComponent(activeSession);
+  box.dataset.url = url;
+  if(!await loadQrLib()){ box.textContent='QR unavailable offline — use “Copy form link”'; return; }
+  if(box.dataset.url!==url) return;           // a newer render already ran
+  box.innerHTML='';
+  new QRCode(box,{text:url,width:230,height:230,colorDark:'#2c4d39',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.M});
+}
+
+/* ============================================================
+   LIVE SESSION (Supabase) — publishes a teaching day so trainees can
+   sign in from the QR with their email, get the feedback form afterwards
+   and receive a certificate once that feedback is in. The local register
+   stays the organiser's source of truth; this only adds to it.
+   ============================================================ */
+const FUNCTIONS_URL = SUPABASE_URL + '/functions/v1/register-api';
+
+// Organiser actions on the Edge Function are gated by whoever is signed in here
+// (the same account as the rest of the register) — their own access token goes
+// as the Authorization bearer, so there is no separate secret to paste anywhere.
+async function callApi(action, payload){
+  const {data:{session}} = await sb.auth.getSession();
+  const headers = {
+    'Content-Type':'application/json',
+    'Authorization':'Bearer '+(session?.access_token || SUPABASE_KEY),
+    'apikey':SUPABASE_KEY,
+  };
+  const res = await fetch(FUNCTIONS_URL,{method:'POST',headers,body:JSON.stringify(Object.assign({action},payload||{}))});
+  const data = await res.json().catch(()=>({}));
+  if(!res.ok) throw new Error(data.error || ('Request failed ('+res.status+')'));
+  return data;
+}
+
+/* Marking someone present in the register is as much a check-in as that trainee
+   scanning the QR, so it has to reach Supabase too. Without a row there they
+   never appear on the feedback form's name list and can never be sent a
+   certificate -- which is why only the people who used the QR could give
+   feedback. Best effort: the register is still the record, and "Re-sync
+   sign-ins" repairs anything that did not get through. */
+async function pushAttendance(sess, traineeIds, checkedIn){
+  if(!sess || !sess.cloudId || !traineeIds.length) return null;
+  const trainees = traineeIds.map(id=>{
+    const t=findTrainee(id); if(!t) return null;
+    return {
+      local_trainee_id: t.id,
+      name: t.name,
+      email: (t.email||'').trim(),
+      grade: gradeAt(t.id, sess.id) || (t.grade||''),
+    };
+  }).filter(Boolean);
+  if(!trainees.length) return null;
+  try{
+    return await callApi('mark-attended',{session_id:sess.cloudId, trainees, checked_in:checkedIn!==false});
+  }catch(err){
+    toast('Saved here, but the live sign-in list could not be reached — use Re-sync sign-ins');
+    return null;
+  }
+}
+
+function pageUrl(file, cloudId){
+  const base = location.href.split('?')[0].split('#')[0].replace(/[^\/]*$/,'');
+  return base + file + '?s=' + encodeURIComponent(cloudId);
+}
+
+/* ============================================================
+   UNEXPLAINED ABSENCES — who the register shows as absent for a session
+   with no excuse recorded, and a chaser email to ask them why.
+   Eligibility, excuses and long-term status all live in the register, not in
+   Supabase, so the list is worked out here and only the addresses are sent.
+   ============================================================ */
+const CHASE_REPLIES_KEY = 'ent_chase_replies_v1';
+
+// Eligible for this session, not marked present, not excused. Former trainees
+// (CCT'd, transferred out) fall out via isEligible().
+function unexplainedAbsentees(sess){
+  if(!sess) return [];
+  return DB.trainees
+    .filter(t => isEligible(t.id, sess.month) && !isPresent(t.id, sess.id) && !isExcused(t.id, sess.month))
+    .sort((a,b)=>a.name.localeCompare(b.name));
+}
+
+function renderChasePanel(){
+  const box=document.getElementById('chaseBody');
+  if(!box) return;
+  const s=findSession(activeSession);
+  if(!s){ box.innerHTML='<p class="helper" style="margin-top:0">Add a teaching day first.</p>'; return; }
+
+  const absent=unexplainedAbsentees(s);
+  const withEmail=absent.filter(t=>(t.email||'').trim());
+  const without=absent.filter(t=>!(t.email||'').trim());
+
+  if(!absent.length){
+    box.innerHTML='<p class="helper" style="margin-top:0">Everyone eligible for <strong>'+escHtml(s.title)+
+      '</strong> is either marked present or excused — nobody to chase.</p>';
+    return;
+  }
+
+  box.innerHTML =
+    '<p class="helper" style="margin-top:0"><strong>'+absent.length+'</strong> eligible trainee'+(absent.length===1?' is':'s are')+
+    ' down as absent for <strong>'+escHtml(s.title)+'</strong> with no excuse recorded'+
+    (without.length? ', and <strong>'+without.length+'</strong> of them '+(without.length===1?'has':'have')+' no email on file':'')+'.</p>'+
+    '<div class="pill-row" style="margin:10px 0 12px">'+
+      absent.map(t=>'<span class="badge '+((t.email||'').trim()?'active':'')+'">'+escHtml(t.name)+
+        ((t.email||'').trim()?'':' · no email')+'</span>').join('')+
+    '</div>'+
+    '<div class="row-actions">'+
+      '<button class="btn primary sm" id="chaseOpen"'+(withEmail.length?'':' disabled')+'>Write the chaser email…</button>'+
+    '</div>'+
+    (withEmail.length? '' : '<p class="helper">None of them have an email on file yet — add one on the Trainees &amp; sessions tab.</p>');
+
+  const btn=document.getElementById('chaseOpen');
+  if(btn) btn.onclick=()=>showChaseModal(s);
+}
+
+/* ---- the composer ---- */
+let chaseTargets=[];             // trainees with an email, for this session
+
+function defaultChaseBody(s){
+  const when = fmtMonth(s.month);
+  return 'Hello!\n\n'+
+    'It appears the system shows you did not attend the '+s.title+' session on '+when+'. '+
+    'Please can you reply with the reason so we can update the register.\n\n'+
+    'If you were there and we have missed you, just say so and we will correct it.\n\n'+
+    'Many thanks,\nENT Regional Teaching';
+}
+
+function savedReplyAddresses(){
+  try{ const v=JSON.parse(localStorage.getItem(CHASE_REPLIES_KEY)); if(Array.isArray(v)) return v; }catch(e){}
+  return [];
+}
+
+function showChaseModal(s){
+  const absent=unexplainedAbsentees(s);
+  chaseTargets=absent.filter(t=>(t.email||'').trim());
+  const missing=absent.filter(t=>!(t.email||'').trim());
+
+  document.getElementById('chaseTitle').textContent='Ask about absences — '+s.title;
+  document.getElementById('chaseCount').textContent=
+    chaseTargets.length+' trainee'+(chaseTargets.length===1?'':'s');
+  document.getElementById('chaseTo').innerHTML=
+    chaseTargets.map(t=>'<span class="who">'+escHtml(t.name)+'</span>').join('');
+
+  // Say plainly who is being left out, and why, before anything is sent.
+  document.getElementById('chaseMissing').innerHTML = missing.length
+    ? '<div class="notice warn miss-list"><strong>'+missing.length+' will not be emailed — no address on file:</strong> '+
+      missing.map(t=>escHtml(t.name)).join(', ')+
+      '. Add their emails on the <em>Trainees &amp; sessions</em> tab and reopen this to include them.</div>'
+    : '';
+
+  const saved=savedReplyAddresses();
+  document.getElementById('chaseReplies').innerHTML=[0,1,2,3].map(i=>
+    '<input class="chase-reply" type="email" placeholder="reply address '+(i+1)+(i?' (optional)':'')+
+    '" value="'+escHtml(saved[i]||'')+'">').join('');
+
+  document.getElementById('chaseSubject').value='Attendance query — '+s.title+' ('+fmtMonth(s.month)+')';
+  document.getElementById('chaseBodyText').value=defaultChaseBody(s);
+  document.getElementById('chaseResult').innerHTML='';
+  document.getElementById('chaseWarn').innerHTML='';
+
+  const send=document.getElementById('chaseSend');
+  send.disabled=false; send.textContent='Send';
+  send.onclick=()=>sendChase(s);
+
+  ['chaseSubject','chaseBodyText'].forEach(id=>document.getElementById(id).oninput=renderChasePreview);
+  document.getElementById('chaseReplies').oninput=renderChasePreview;
+  renderChasePreview();
+
+  document.getElementById('chaseModal').classList.add('show');
+  checkChaseSender();
+}
+
+function hideChaseModal(){ document.getElementById('chaseModal').classList.remove('show'); }
+
+function chaseReplyValues(){
+  return [...document.querySelectorAll('.chase-reply')].map(i=>i.value.trim()).filter(Boolean);
+}
+
+function renderChasePreview(){
+  const subject=document.getElementById('chaseSubject').value.trim();
+  const body=document.getElementById('chaseBodyText').value;
+  const replies=chaseReplyValues();
+  document.getElementById('chasePreview').innerHTML=
+    '<div class="hdr"><strong>Subject:</strong> '+escHtml(subject||'(no subject)')+'<br>'+
+    '<strong>To:</strong> '+chaseTargets.length+' recipient'+(chaseTargets.length===1?'':'s')+', all in BCC — none of them can see the others<br>'+
+    '<strong>Reply-to:</strong> '+(replies.length? escHtml(replies.join(', ')) : '<em>none set — replies go to the sending address</em>')+'</div>'+
+    body.split(/\n{2,}/).filter(p=>p.trim()).map(pp=>'<p>'+escHtml(pp).replace(/\n/g,'<br>')+'</p>').join('');
+}
+
+// Warn about the Resend sandbox before anything is sent, not after.
+async function checkChaseSender(){
+  const s=findSession(activeSession);
+  if(!s || !s.cloudId) return;                 // no published session to ask about
+  try{
+    const res=await callApi('session-status',{session_id:s.cloudId});
+    if(res.email_sandbox){
+      document.getElementById('chaseWarn').innerHTML=
+        '<div class="notice warn"><strong>These will not reach anyone yet.</strong> Resend is still sending as <code>'+
+        escHtml(res.email_from)+'</code>, its shared test address, which only delivers to the Resend account holder. '+
+        'See docs/SETUP.md.</div>';
+    }
+  }catch(e){ /* the warning is a courtesy; never block the compose window on it */ }
+}
+
+async function sendChase(s){
+  const subject=document.getElementById('chaseSubject').value.trim();
+  const body=document.getElementById('chaseBodyText').value.trim();
+  const replies=chaseReplyValues();
+  const rEl=document.getElementById('chaseResult');
+
+  if(!subject) return rEl.innerHTML='<div class="notice bad" style="margin-top:12px">Give the email a subject.</div>';
+  if(!body) return rEl.innerHTML='<div class="notice bad" style="margin-top:12px">The message is empty.</div>';
+  const badReply=replies.find(r=>!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(r));
+  if(badReply) return rEl.innerHTML='<div class="notice bad" style="margin-top:12px">“'+escHtml(badReply)+'” is not a valid reply address.</div>';
+  if(!chaseTargets.length) return rEl.innerHTML='<div class="notice bad" style="margin-top:12px">Nobody to send to.</div>';
+
+  try{ localStorage.setItem(CHASE_REPLIES_KEY, JSON.stringify(replies)); }catch(e){}
+
+  const btn=document.getElementById('chaseSend');
+  btn.disabled=true; btn.textContent='Sending…';
+  try{
+    const res=await callApi('chase-absences',{
+      recipients: chaseTargets.map(t=>t.email.trim()),
+      subject, body, reply_to: replies,
+    });
+    const fails=res.failures||[];
+    let msg='Sent to '+res.sent+' of '+res.considered+', all in BCC.';
+    if(fails.length) msg+=' '+fails.length+' batch'+(fails.length===1?'':'es')+' failed: '+
+      escHtml(fails.map(f=>f.why).join(' '));
+    else if(res.sandbox) msg+=' <strong>But the sender is still Resend’s test address, so only the Resend account holder actually received it.</strong>';
+    rEl.innerHTML='<div class="notice '+((fails.length||res.sandbox)?'warn':'info')+'" style="margin-top:12px">'+msg+'</div>';
+    if(!fails.length) toast('Chaser sent to '+res.sent);
+  }catch(err){
+    rEl.innerHTML='<div class="notice bad" style="margin-top:12px">'+escHtml(err.message)+'</div>';
+  }
+  btn.disabled=false; btn.textContent='Send';
+}
+
+/* One "copy this link" control, used next to the links it belongs to rather
+   than as a separate button somewhere else in the panel. */
+const COPY_ICON =
+  '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" '+
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'+
+  '<rect x="9" y="9" width="12" height="12" rx="2"/>'+
+  '<path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+
+function copyLinkBtn(url, what){
+  const label = 'Copy the '+what;
+  return '<button type="button" class="iconbtn" data-copy-url="'+escHtml(url)+'" '+
+         'title="'+escHtml(label)+'" aria-label="'+escHtml(label)+'">'+COPY_ICON+'</button>';
+}
+
+function wireCopyButtons(container){
+  container.querySelectorAll('[data-copy-url]').forEach(b=>{
+    b.onclick=()=>{
+      navigator.clipboard?.writeText(b.dataset.copyUrl);
+      toast('Link copied');
+      b.classList.add('ok');
+      setTimeout(()=>b.classList.remove('ok'), 1300);
+    };
+  });
+}
+
+function renderCloudPanel(){
+  const box = document.getElementById('cloudBody');
+  if(!box) return;
+  const s = findSession(activeSession);
+  if(!s){ box.innerHTML = `<p class="helper">Add a teaching day first.</p>`; return; }
+
+  if(!s.cloudId){
+    const guess = s.month + '-15';
+    box.innerHTML =
+      `<p class="helper" style="margin-top:0">Publish <strong>${escHtml(s.title)}</strong> to get a live sign-in page,
+        a feedback link and automatic certificates. The old local sign-in form keeps working either way.</p>
+       <div class="grid2" style="margin-top:12px">
+         <div class="field" style="margin-bottom:0">
+           <label class="fld">Date of the teaching day</label>
+           <input type="date" id="cloudDate" value="${guess}">
+         </div>
+         <div class="field" style="margin-bottom:0">
+           <label class="fld">Location (optional)</label>
+           <input id="cloudLoc" placeholder="e.g. Wythenshawe Hospital">
+         </div>
+       </div>
+       <div class="row-actions" style="margin-top:12px">
+         <button class="btn primary sm" id="cloudPublish">Publish this session</button>
+         <a class="btn ghost sm" href="form-editor.html">Edit the feedback form template</a>
+       </div>
+       <p class="helper">A published session starts from the template, then can be edited on its own.</p>`;
+    document.getElementById('cloudPublish').onclick=()=>publishSession(s);
+    return;
+  }
+
+  // Two groups in the order the day actually runs, rather than one undifferentiated
+  // row of links. Everything to do with the feedback form and certificates lives
+  // behind one door -- the console -- instead of being scattered here as well.
+  box.innerHTML =
+    `<div class="row-actions" style="margin-bottom:10px">
+       <span class="badge active">Live</span>
+       <span class="li-sub" id="cloudCounts">loading numbers…</span>
+     </div>
+
+     <div class="grouphead">On the day</div>
+     <div class="row-actions">
+       <span class="linkgrp">
+         <a class="btn ghost sm" href="${pageUrl('checkin.html',s.cloudId)}" target="_blank" rel="noopener">Open sign-in page</a>
+         ${copyLinkBtn(pageUrl('checkin.html',s.cloudId), 'sign-in link')}
+       </span>
+       <button class="btn ghost sm" id="cloudSync">Re-sync sign-ins</button>
+     </div>
+     <p class="helper" id="cloudSyncMsg">This is the page the QR opens. Anyone whose name is not on the list types it
+       themselves and joins the roster on the spot. Sign-ins reach the attendance grid on their own — re-sync is the
+       repair button: use it if someone signed in while offline, or to pull in emails and grades people typed on the
+       day.</p>
+
+     <div class="grouphead">After the session</div>
+     <div class="row-actions">
+       <a class="btn primary sm" href="${pageUrl('session.html',s.cloudId)}">Feedback &amp; certificates</a>
+     </div>
+     <p class="helper">Everything for afterwards in one place: share or edit the feedback form, see who has replied,
+       issue and resend certificates, and read the anonymous report.</p>
+
+     <div class="att-head">
+       <label class="fld" style="margin:0">Send the feedback form now</label>
+       <div class="row-actions">
+         <button class="btn primary sm" id="fbPushAll">Email all outstanding</button>
+         <button class="btn ghost sm" id="fbPushSel">Email selected</button>
+       </div>
+     </div>
+     <p class="helper" style="margin-top:6px">Emails the form to checked-in trainees. Completing it releases their certificate automatically. Anyone who has already given feedback is skipped.</p>
+     <div id="fbResult"></div>
+     <div class="att-list" id="cloudAttendees"><div class="empty" style="padding:16px">Loading attendees&hellip;</div></div>`;
+
+  wireCopyButtons(box);
+  document.getElementById('cloudSync').onclick=()=>syncCloudCheckins(s);
+  document.getElementById('fbPushAll').onclick=()=>pushCloudFeedback(s,null);
+  document.getElementById('fbPushSel').onclick=()=>pushCloudFeedback(s,cloudSelectedIds());
+  loadCloudCounts(s);
+  loadCloudAttendees(s);
+}
+
+// The per-session attendee list with checkboxes, shown inline in the Check-in
+// tab. Reuses the same session-status / email-feedback-link actions the session
+// console uses -- this is the same machinery, surfaced where the day is run.
+let cloudAttendees=[];
+async function loadCloudAttendees(s){
+  const box=document.getElementById('cloudAttendees'); if(!box) return;
+  try{
+    const res=await callApi('session-status',{session_id:s.cloudId});
+    cloudAttendees=(res.attendees||[]).filter(a=>a.checked_in_at);
+    if(!res.email_configured){
+      box.innerHTML='<div class="empty" style="padding:16px">Email is not configured yet, so feedback links and certificates cannot be sent. See docs/SETUP.md (RESEND_API_KEY).</div>';
+      document.getElementById('fbPushAll').disabled=true;
+      document.getElementById('fbPushSel').disabled=true;
+      return;
+    }
+    // The sandbox sender reports every send as a success but only ever reaches
+    // the Resend account holder, so say so before anyone relies on it.
+    if(res.email_sandbox){
+      document.getElementById('fbResult').innerHTML =
+        '<div class="notice warn" style="margin-top:10px"><strong>Trainees will not receive these.</strong> '+
+        'Resend is still sending as <code>'+escHtml(res.email_from)+'</code>, its shared test address, which only '+
+        'delivers to the Resend account holder. Verify a domain in Resend and set <code>CERT_FROM_EMAIL</code> '+
+        'to an address at it — see docs/SETUP.md.</div>';
+    }
+    if(!cloudAttendees.length){
+      box.innerHTML='<div class="empty" style="padding:16px">Nobody has signed in yet.</div>';
+      return;
+    }
+    box.innerHTML=cloudAttendees.map(a=>{
+      const fb=a.feedback_completed?'<span class="att-tag yes">Feedback in</span>':'<span class="att-tag no">No feedback</span>';
+      const cert=a.certificate_sent_at?'<span class="att-tag yes">Cert sent</span>'
+        :a.feedback_completed?'<span class="att-tag wait">Cert due</span>':'<span class="att-tag no">Gated</span>';
+      return '<label class="att-row">'+
+        '<input type="checkbox" value="'+escHtml(a.id)+'" '+(a.feedback_completed?'disabled':'')+'>'+
+        '<span class="who">'+escHtml(a.name)+' <small>'+escHtml(a.grade||'')+'</small></span>'+
+        '<span class="att-tags">'+fb+cert+'</span></label>';
+    }).join('');
+  }catch(err){
+    box.innerHTML='<div class="empty" style="padding:16px">'+escHtml(err.message)+'</div>';
+  }
+}
+function cloudSelectedIds(){
+  return [...document.querySelectorAll('#cloudAttendees input[type=checkbox]:checked')].map(c=>c.value);
+}
+async function pushCloudFeedback(s, ids){
+  const rEl=document.getElementById('fbResult');
+  if(ids && !ids.length){ rEl.innerHTML='<div class="notice warn" style="margin-top:10px">Tick at least one person, or use \u201call outstanding\u201d.</div>'; return; }
+  const btn=ids?document.getElementById('fbPushSel'):document.getElementById('fbPushAll');
+  const label=btn.textContent; btn.disabled=true; btn.textContent='Sending...';
+  try{
+    const res=await callApi('email-feedback-link', Object.assign({session_id:s.cloudId}, ids?{attendee_ids:ids}:{}));
+    const fails=res.failures||[];
+    let msg='Feedback link emailed to '+res.sent+' of '+res.considered+' outstanding.';
+    if(fails.length){
+      // name who missed out and why, rather than a bare count
+      msg+='<ul style="margin:8px 0 0 18px">'+fails.map(f=>
+        '<li>'+escHtml(f.name||f.email||'someone')+' — '+escHtml(f.why||'send failed')+'</li>').join('')+'</ul>';
+    } else if(res.sandbox){
+      msg+=' <strong>But the sender is still Resend\u2019s test address, so only the Resend account holder actually receives them.</strong>';
+    }
+    rEl.innerHTML='<div class="notice '+((fails.length||res.sandbox)?'warn':'info')+'" style="margin-top:10px">'+msg+'</div>';
+    await loadCloudAttendees(s);
+  }catch(err){
+    rEl.innerHTML='<div class="notice bad" style="margin-top:10px">'+escHtml(err.message)+'</div>';
+  }
+  btn.disabled=false; btn.textContent=label;
+}
+
+async function publishSession(s){
+  const btn=document.getElementById('cloudPublish');
+  const date=document.getElementById('cloudDate').value;
+  const location_=document.getElementById('cloudLoc').value.trim();
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toast('Pick the date of the teaching day');
+  btn.disabled=true; btn.textContent='Publishing…';
+  try{
+    const res = await callApi('create-session',{title:s.title,session_date:date,location:location_,local_id:s.id});
+    s.cloudId = res.session.id;
+    await saveDB();
+    renderCheckin();
+    toast(res.created? 'Session published — QR is live' : 'Session linked to the existing cloud session');
+  }catch(err){
+    btn.disabled=false; btn.textContent='Publish this session';
+    toast(err.message.includes('sign in')? 'Your session has expired — log out and back in, then try again' : err.message);
+  }
+}
+
+async function loadCloudCounts(s){
+  const elc=document.getElementById('cloudCounts');
+  if(!elc) return;
+  try{
+    const res=await fetch(SUPABASE_URL+'/rest/v1/session_stats?session_id=eq.'+encodeURIComponent(s.cloudId),
+      {headers:{apikey:SUPABASE_KEY,Authorization:'Bearer '+SUPABASE_KEY}});
+    const rows=await res.json();
+    const st=rows&&rows[0];
+    elc.textContent = st
+      ? `${st.checked_in_count} signed in · ${st.response_count} feedback · ${st.certificate_sent_count} certificates sent`
+      : 'no sign-ins yet';
+  }catch(e){ elc.textContent='counts unavailable offline'; }
+}
+
+// Cloud sign-ins are matched to the register by name. Anyone who typed a name
+// that is not on the roster joins it here: the check-in function already enrols
+// them as they sign in, so this is the repair path for anything that missed it
+// (an offline moment, a session signed into before this existed, a name marked
+// present straight on the live console).
+async function syncCloudCheckins(s){
+  setCloudSyncMsg('Syncing sign-ins…');
+  try{
+    // Push first: anyone the register has marked present but who never reached
+    // the live list -- including everyone marked before this was wired up --
+    // so they show on the feedback form and can be sent a certificate.
+    const presentHere = DB.trainees.filter(t=>isPresent(t.id, s.id)).map(t=>t.id);
+    const pushed = await pushAttendance(s, presentHere, true);
+    const res=await callApi('session-status',{session_id:s.cloudId});
+    const byName=new Map(DB.trainees.map(t=>[t.name.trim().toLowerCase(), t]));
+    let added=0, emailed=0; const enrolled=[];
+    (res.attendees||[]).filter(a=>a.checked_in_at).forEach(a=>{
+      const name=String(a.name||'').trim();
+      if(!name) return;
+      let t=byName.get(name.toLowerCase());
+      if(!t){
+        // Signed in as "my name is not on the list". They join the roster rather
+        // than being reported and forgotten -- this session counts for them, and
+        // they are on the list for every teaching day from here on. Grade and
+        // gradeFrom are left to refreshGrades() below, which dates the grade to
+        // this session's month exactly as it does for everybody else.
+        t={id:uid(),name,email:'',grade:'',gradeFrom:''};
+        DB.trainees.push(t);
+        byName.set(name.toLowerCase(), t);
+        enrolled.push(name);
+      }
+      const key=attKey(t.id,s.id);
+      if(!DB.attendance[key]){ DB.attendance[key]={grade:a.grade||''}; added++; }
+      // What they put on the form is the trainee's own statement of their grade,
+      // so a corrected re-sign-in replaces what we held rather than being ignored.
+      else if(a.grade && DB.attendance[key].grade!==a.grade){ DB.attendance[key].grade=a.grade; }
+      // backfill a missing roster email from what they signed in with. The
+      // server stands in an undeliverable placeholder for anyone marked present
+      // with no address on file; writing that back would look like an email.
+      if(a.email && !/@no-email\.invalid$/i.test(a.email) && !(t.email||'').trim()){ t.email=a.email; emailed++; }
+    });
+    const regraded = refreshGrades();
+    if(added||emailed||regraded||enrolled.length) await saveDB();
+    const noEmail = (pushed && pushed.no_email) || [];
+    const summary = `${added} new sign-in${added===1?'':'s'} added to the register.` +
+      (pushed && pushed.marked? ` ${pushed.marked} marked present here ${pushed.marked===1?'is':'are'} now on the live list too.` : '') +
+      (emailed? ` ${emailed} email${emailed===1?'':'s'} added to the roster.` : '') +
+      (noEmail.length? ` No email on file, so no certificate can reach them: ${noEmail.join(', ')}.` : '') +
+      (enrolled.length? ` Added to the roster as new trainee${enrolled.length===1?'':'s'}: ${enrolled.join(', ')}.` : '');
+    renderAll();                       // re-renders this panel, so report afterwards
+    setCloudSyncMsg(summary);
+    if(added) toast(added+' sign-ins pulled in');
+  }catch(err){
+    setCloudSyncMsg(err.message);
+  }
+}
+
+function setCloudSyncMsg(text){
+  const el=document.getElementById('cloudSyncMsg');
+  if(el) el.textContent=text;
+}
+
+/* ---- excused ---- */
+function fillTraineeSelect(el){ el.innerHTML = DB.trainees.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${t.id}">${t.name}</option>`).join(''); }
+function fillSessionSelect(el){
+  el.innerHTML = availableAcademicYears().slice().reverse().map(y=>
+    `<optgroup label="${escHtml(y)} · ${escHtml(acYearRange(y))}">`+
+    sessionsInYear(y).slice().reverse().map(s=>`<option value="${s.id}">${escHtml(fmtMonth(s.month))} · ${escHtml(s.title)}</option>`).join('')+
+    `</optgroup>`).join('');
+}
+let excusedYear = null;   // an academic-year label, or ALL_YEARS
+
+function renderExcused(){
+  excusedYear = renderScopeYearTabs('excusedYearTabs', excusedYear ?? defaultDashYear(), (y)=>{
+    excusedYear = y; renderExcused();
+  });
+
+  fillTraineeSelect(document.getElementById('exTrainee'));
+  const exSessionEl = document.getElementById('exSession');
+  if(excusedYear && excusedYear!==ALL_YEARS){
+    exSessionEl.innerHTML = sessionsInYear(excusedYear).slice().reverse()
+      .map(s=>`<option value="${s.id}">${escHtml(fmtMonth(s.month))} · ${escHtml(s.title)}</option>`).join('')
+      || `<option value="" disabled selected>No sessions in ${escHtml(excusedYear)}</option>`;
+  } else {
+    fillSessionSelect(exSessionEl);
+  }
+
+  const list = document.getElementById('exList');
+  const items = DB.excused.slice().sort((a,b)=>b.ts-a.ts)
+    .filter(e=>{
+      if(!excusedYear || excusedYear===ALL_YEARS) return true;
+      const s=findSession(e.session);
+      return s && sessAcademicYear(s.month)===excusedYear;
+    });
+  list.innerHTML = items.length? items.map(e=>{
+    const t=findTrainee(e.trainee), s=findSession(e.session);
+    if(!t||!s) return '';
+    return `<div class="list-item">
+      <div><div class="li-main">${escHtml(t.name)}</div><div class="li-sub">${escHtml(fmtMonth(s.month))} · ${escHtml(s.title)} — ${escHtml(e.reason)}</div></div>
+      <span class="kebab" data-del="${e.id}">Remove</span></div>`;
+  }).join('') : `<div class="empty">${DB.excused.length? 'No excused absences in this academic year.' : 'No excused absences logged. Declared leave or on-call commitments added here are removed from the denominator.'}</div>`;
+  list.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{DB.excused=DB.excused.filter(x=>x.id!==b.dataset.del);await saveDB();renderAll();toast('Excuse removed');});
+}
+
+/* ---- status ---- */
+let editingStatusId=null;
+function statusRangeText(s){
+  const F=m=>`${fmtMonth(m)} (${sessAcademicYear(m)})`;
+  if(s.type==='cct'){ const m=s.end||s.start; return m?`completes after ${F(m)}`:'completes (month not set)'; }
+  if(s.type==='idt_out'){ const m=s.start||s.end; return m?`leaves deanery from ${F(m)}`:'leaves deanery (month not set)'; }
+  if(s.type==='idt_in'){ const m=s.start||s.end; return m?`joins deanery from ${F(m)}`:'joins deanery (month not set)'; }
+  // mat / oop
+  if(s.start && s.end) return `excluded ${F(s.start)} → ${F(s.end)}`;
+  if(s.start && !s.end) return `excluded from ${F(s.start)} → ongoing`;
+  if(!s.start && s.end) return `excluded up to ${F(s.end)}, counts after`;
+  return 'excluded (no dates set) → ongoing';
+}
+function renderStatus(){
+  const stSel=document.getElementById('stTrainee');
+  const keepTrainee = editingStatusId ? stSel.value : null;
+  fillTraineeSelect(stSel);
+  if(keepTrainee) stSel.value=keepTrainee;
+  const list=document.getElementById('stList');
+  const items=DB.status.filter(s=>s.type!=='active');
+  list.innerHTML = items.length? items.map(s=>{
+    const t=findTrainee(s.trainee); if(!t)return'';
+    const lbl={cct:'CCT',mat:'Maternity/Paternity',oop:'Out of programme',idt_in:'Interdeanery transfer (IN)',idt_out:'Interdeanery transfer (OUT)'}[s.type];
+    // A mat/oop window whose end has passed is history, not a current state --
+    // the trainee already counts normally again, and this row is only being
+    // kept as the record of when their leave was.
+    const ended=(s.type==='mat'||s.type==='oop') && s.end && s.end<nowMonth();
+    const endedNote=ended? ` <span class="badge active">ended — counting normally again</span>`:'';
+    return `<div class="list-item">
+      <div><div class="li-main">${t.name} <span class="badge ${s.type}">${lbl}</span>${endedNote}</div>
+      <div class="li-sub">${statusRangeText(s)}</div></div>
+      <div class="row-actions">
+        <span class="kebab" data-edit="${s.id}">Edit</span>
+        <span class="kebab" data-del="${s.id}">Remove</span>
+      </div></div>`;
+  }).join('') : `<div class="empty">No long-term statuses set. Everyone is treated as active across all sessions.</div>`;
+  list.querySelectorAll('[data-del]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Remove this status? The trainee will count for all sessions again.'))return;
+    if(editingStatusId===b.dataset.del) cancelStatusEdit();
+    DB.status=DB.status.filter(x=>x.id!==b.dataset.del);await saveDB();renderAll();toast('Status removed');
+  });
+  list.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>loadStatusForEdit(b.dataset.edit));
+  if(!editingStatusId) updateStatusHelper();
+}
+function loadStatusForEdit(id){
+  const s=DB.status.find(x=>x.id===id); if(!s)return;
+  editingStatusId=id;
+  document.getElementById('stTrainee').value=s.trainee;
+  document.getElementById('stType').value=s.type;
+  setMonthValue(document.getElementById('stStart'),s.start||'');
+  setMonthValue(document.getElementById('stEnd'),s.end||'');
+  updateStatusHelper();
+  const t=findTrainee(s.trainee);
+  const banner=document.getElementById('stEditBanner');
+  banner.style.display='block';
+  banner.textContent=`Editing status for ${t?t.name:'trainee'} — change the fields and Save, or Cancel.`;
+  document.getElementById('stSave').textContent='Save changes';
+  document.getElementById('stCancel').style.display='inline-block';
+  document.getElementById('panel-status').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function cancelStatusEdit(){
+  editingStatusId=null;
+  document.getElementById('stEditBanner').style.display='none';
+  document.getElementById('stSave').textContent='Save status';
+  document.getElementById('stCancel').style.display='none';
+  setMonthValue(document.getElementById('stStart'),'');
+  setMonthValue(document.getElementById('stEnd'),'');
+  document.getElementById('stType').value='active';
+  updateStatusHelper();
+}
+function updateStatusHelper(){
+  const type=document.getElementById('stType').value;
+  const h=document.getElementById('stHelper');
+  const startLbl=document.getElementById('stStartLbl');
+  const endLbl=document.getElementById('stEndLbl');
+  const startField=document.getElementById('stStart').closest('.field');
+  const endField=document.getElementById('stEndField');
+  // [startLabel, endLabel, helper, showStart, showEnd]
+  const map={
+    active:['—','—','This trainee counts for every session.',false,false],
+    cct:['—','CCT month','Sessions after the CCT month are excluded. Leave blank if not yet known.',false,true],
+    idt_out:['Transfer-out month','—','Trainee leaves the deanery. Sessions from this month onward are excluded.',true,false],
+    idt_in:['Arrival month','—','Trainee joins the deanery new. Sessions before this month are excluded; they count from this month on.',true,false],
+    mat:['Leave start (month)','Leave end (month)','Excluded during the leave window. No end = ongoing. Once the end month passes, they automatically go back to Active and count normally again — nothing to change by hand — and this record stays here as the history of the leave.',true,true],
+    oop:['OOP start (month)','OOP end (month)','Out-of-programme months are excluded. No end = ongoing. Once the end month passes, they automatically go back to Active and count normally again — nothing to change by hand — and this record stays here as the history of the time out of programme.',true,true]
+  };
+  const [sl,el,desc,showStart,showEnd]=map[type];
+  startLbl.textContent=sl; endLbl.textContent=el; h.textContent=desc;
+  startField.style.display=showStart?'block':'none';
+  endField.style.display=showEnd?'block':'none';
+}
+
+/* ---- manage ---- */
+// A trainee is "former" once their status is CCT (completed training) or an
+// IDT transfer out — they no longer appear in the working roster, but nothing
+// about their record changes, so past years' reports are unaffected.
+function isFormerTrainee(traineeId){
+  const st=activeStatusType(traineeId);
+  return !!st && (st.type==='cct' || st.type==='idt_out');
+}
+function traineeItemHtml(t){
+  const st=activeStatusType(t.id);
+  const badge = isFormerTrainee(t.id)
+    ? ` <span class="badge ${st.type}">${st.type==='cct'?'CCT':'IDT out'}${(st.start||st.end)?' · '+fmtMonth(st.start||st.end):''}</span>`
+    : '';
+  const email = (t.email||'').trim();
+  const emailLine = email
+    ? `<span class="li-sub">✉ ${escHtml(email)}</span>`
+    : `<span class="li-sub" style="color:var(--clay)">✉ no email on file</span>`;
+  return `<div class="list-item">
+    <div><div><span class="li-main">${escHtml(t.name)}</span> <span class="grade-tag">${escHtml(latestGrade(t.id))}</span>${badge}</div>${emailLine}</div>
+    <div class="row-actions">
+      <span class="kebab" data-edittr="${t.id}">Edit</span>
+      <span class="kebab" data-deltr="${t.id}">✕</span>
+    </div></div>`;
+}
+/* Editing a trainee: name, grade and email in one place, rather than the
+   email-only prompt this used to be. */
+let editingTraineeId=null;
+
+function showTraineeEdit(id){
+  const t=findTrainee(id); if(!t) return;
+  editingTraineeId=id;
+  document.getElementById('trEditName').value=t.name||'';
+  document.getElementById('trEditEmail').value=(t.email||'').trim();
+  document.getElementById('trEditError').innerHTML='';
+
+  const cur=(t.grade||'').trim() || latestGrade(id);
+  document.getElementById('trEditGrade').innerHTML =
+    '<option value="">Not set</option>' +
+    GRADES.map(g=>`<option${g===cur?' selected':''}>${g}</option>`).join('') +
+    (cur && !GRADES.includes(cur) ? `<option selected>${escHtml(cur)}</option>` : '');
+
+  const from=latestGradedMonth(id);
+  document.getElementById('trEditGradeNote').textContent = from
+    ? `Currently from their sign-in for ${fmtMonth(from)}. If you change it here it stays until they sign in again with a different grade.`
+    : 'They have not signed in with a grade yet. Whatever they pick at their next sign-in will replace this.';
+
+  document.getElementById('trEditModal').classList.add('show');
+  document.getElementById('trEditName').focus();
+}
+
+function hideTraineeEdit(){
+  document.getElementById('trEditModal').classList.remove('show');
+  editingTraineeId=null;
+}
+
+async function saveTraineeEdit(){
+  const t=findTrainee(editingTraineeId); if(!t) return hideTraineeEdit();
+  const name=document.getElementById('trEditName').value.trim();
+  const grade=document.getElementById('trEditGrade').value;
+  const email=document.getElementById('trEditEmail').value.trim();
+  const err=document.getElementById('trEditError');
+
+  if(!name) return err.innerHTML='<div class="notice bad">A trainee needs a name.</div>';
+  const clash=DB.trainees.find(o=>o.id!==t.id && o.name.trim().toLowerCase()===name.toLowerCase());
+  if(clash) return err.innerHTML='<div class="notice bad">Another trainee is already called that. Sign-ins are matched by name, so two the same cannot be told apart.</div>';
+  if(email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    return err.innerHTML='<div class="notice bad">That doesn’t look like a valid email.</div>';
+
+  t.name=name;
+  t.email=email;
+  if(grade!==((t.grade||'').trim() || latestGrade(t.id))){
+    t.grade=grade;
+    // Anchor the change to their newest sign-in so an older one cannot undo it,
+    // while a later sign-in still supersedes it.
+    t.gradeFrom=latestGradedMonth(t.id);
+  }
+  hideTraineeEdit();
+  await saveDB(); renderAll(); toast('Trainee updated');
+}
+
+function wireTraineeRowActions(container){
+  container.querySelectorAll('[data-edittr]').forEach(b=>b.onclick=()=>showTraineeEdit(b.dataset.edittr));
+  container.querySelectorAll('[data-deltr]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.deltr; const t=findTrainee(id);
+    if(!confirm(`Remove ${t?t.name:'this trainee'}? This deletes their attendance, excuses and status. This can't be undone.`)) return;
+    DB.trainees=DB.trainees.filter(t=>t.id!==id);
+    DB.excused=DB.excused.filter(e=>e.trainee!==id);
+    DB.status=DB.status.filter(s=>s.trainee!==id);
+    Object.keys(DB.attendance).forEach(k=>{if(k.startsWith(id+'|'))delete DB.attendance[k];});
+    await saveDB();renderAll();toast('Trainee removed');
+  });
+}
+let formerListOpen=false;
+function renderManage(){
+  const all=DB.trainees.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  const current=all.filter(t=>!isFormerTrainee(t.id));
+  const former=all.filter(t=>isFormerTrainee(t.id));
+
+  const tl=document.getElementById('trList');
+  tl.innerHTML = current.map(traineeItemHtml).join('') ||
+    (all.length? `<div class="empty">Everyone is a former trainee — expand the list below.</div>` : `<div class="empty">No trainees.</div>`);
+  wireTraineeRowActions(tl);
+
+  const toggle=document.getElementById('formerToggle');
+  const formerBox=document.getElementById('formerList');
+  toggle.style.display = former.length? 'flex' : 'none';
+  document.getElementById('formerToggleLabel').textContent =
+    `Former trainees (CCT'd / transferred out) · ${former.length}`;
+  toggle.classList.toggle('open', formerListOpen);
+  formerBox.classList.toggle('open', formerListOpen);
+  formerBox.innerHTML = former.map(traineeItemHtml).join('') ||
+    `<div class="empty">Nobody here yet — set a trainee's status to CCT or IDT out on the Long-term status tab and they'll move here.</div>`;
+  wireTraineeRowActions(formerBox);
+  toggle.onclick=()=>{ formerListOpen=!formerListOpen; toggle.classList.toggle('open',formerListOpen); formerBox.classList.toggle('open',formerListOpen); };
+  const sl=document.getElementById('seList');
+  const seItem = s=>`
+    <div class="list-item"><div><span class="li-main">${escHtml(fmtMonth(s.month))}</span> <span class="li-sub">${escHtml(s.title)}</span></div>
+    <span class="kebab" data-delse="${s.id}">✕</span></div>`;
+  sl.innerHTML = availableAcademicYears().slice().reverse().map(y=>{
+    const list=sessionsInYear(y);
+    return `<div class="group-head">${escHtml(y)} · ${list.length} teaching day${list.length!==1?'s':''}</div>`+
+           list.slice().reverse().map(seItem).join('');
+  }).join('') || `<div class="empty">No sessions.</div>`;
+  sl.querySelectorAll('[data-delse]').forEach(b=>b.onclick=async()=>{
+    const id=b.dataset.delse; const s=findSession(id);
+    if(!confirm(`Delete the ${s?s.month+' · '+s.title:'session'} teaching day? All check-ins and excuses for it will be removed.`)) return;
+    DB.sessions=DB.sessions.filter(s=>s.id!==id);
+    DB.excused=DB.excused.filter(e=>e.session!==id);
+    Object.keys(DB.attendance).forEach(k=>{if(k.endsWith('|'+id))delete DB.attendance[k];});
+    if(activeSession===id)activeSession=null;
+    await saveDB();renderAll();toast('Session removed');
+  });
+}
+
+function renderAll(){
+  closeCellPop();                    // never leave a popover pointing at a stale cell
+  const yrs=availableAcademicYears();
+  document.getElementById('cohortPill').textContent =
+    `${DB.trainees.length} trainees · ${DB.sessions.length} teaching days` +
+    (yrs.length? ` · ${yrs.length} academic year${yrs.length!==1?'s':''}`:'');
+  renderDash(); renderCheckin(); renderExcused(); renderStatus(); renderManage();
+}
+
+/* ---- toast ---- */
+let toastT;
+function toast(msg){
+  const el=document.getElementById('toast'); el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>el.classList.remove('show'),2200);
+}
+
+/* ============================================================
+   EVENTS
+   ============================================================ */
+// Tabs are addressable as #dash / #checkin / ... so other pages (the session
+// console) can link straight back to the tab you came from.
+function showTab(name){
+  const tab=document.querySelector('.tab[data-tab="'+name+'"]');
+  const panel=document.getElementById('panel-'+name);
+  if(!tab||!panel) return false;
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  tab.classList.add('active'); panel.classList.add('active');
+  return true;
+}
+function applyTabHash(){ return showTab((location.hash||'').replace(/^#/,'')); }
+
+function wire(){
+  document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+    showTab(t.dataset.tab);
+    history.replaceState(null,'','#'+t.dataset.tab);
+  });
+  addEventListener('hashchange', applyTabHash);
+  document.getElementById('dashSearch').oninput=renderDash;
+  document.getElementById('dashHideNA').onchange=renderDash;
+  wireDashTables();
+
+  document.getElementById('ciBtn').onclick=async()=>{
+    const t=document.getElementById('ciTrainee').value;
+    const g=document.getElementById('ciGrade').value;
+    if(!t||!activeSession)return toast('Pick a session and trainee');
+    const sess=findSession(activeSession);
+    DB.attendance[attKey(t,activeSession)]={grade:g}; refreshGrades(); await saveDB(); renderAll();
+    toast(findTrainee(t).name+' marked present');
+    pushAttendance(sess, [t], true);
+  };
+  document.getElementById('copyLink').onclick=()=>{
+    const url=document.getElementById('qrcode').dataset.url||'';
+    navigator.clipboard?.writeText(url); toast('Form link copied');
+  };
+
+  const exReasonSel=document.getElementById('exReason');
+  const exOtherWrap=document.getElementById('exOtherWrap');
+  exReasonSel.onchange=()=>{ exOtherWrap.style.display = exReasonSel.value==='Other'?'block':'none'; if(exReasonSel.value==='Other') document.getElementById('exOther').focus(); };
+  document.getElementById('exAdd').onclick=async()=>{
+    const t=document.getElementById('exTrainee').value, s=document.getElementById('exSession').value;
+    let r=exReasonSel.value;
+    if(r==='Other'){
+      const free=document.getElementById('exOther').value.trim();
+      if(!free)return toast('Type the reason for “Other”');
+      r=free;
+    }
+    if(!t||!s)return toast('Pick trainee and session');
+    DB.excused.push({id:uid(),trainee:t,session:s,reason:r,ts:Date.now()});
+    document.getElementById('exOther').value=''; exReasonSel.value='Annual Leave'; exOtherWrap.style.display='none';
+    await saveDB(); renderAll(); toast('Excuse added — denominator updated');
+  };
+
+  document.getElementById('stType').onchange=updateStatusHelper;
+  document.getElementById('stCancel').onclick=()=>cancelStatusEdit();
+  document.getElementById('stSave').onclick=async()=>{
+    const t=document.getElementById('stTrainee').value, type=document.getElementById('stType').value;
+    let start=monthValue(document.getElementById('stStart'))||null, end=monthValue(document.getElementById('stEnd'))||null;
+    if(!t)return toast('Pick a trainee');
+    // only keep dates relevant to the visible fields for this type
+    if(type==='cct'){ start=null; }                 // cct uses end month only
+    if(type==='idt_out'||type==='idt_in'){ end=null; } // idt uses start month only
+    if((type==='mat'||type==='oop') && !start && !end){ return toast('Set a start or end month for the leave'); }
+    if(type==='cct' && !end){ return toast('Set the CCT month'); }
+    if(type==='idt_out' && !start){ return toast('Set the transfer-out month'); }
+    if(type==='idt_in' && !start){ return toast('Set the arrival month'); }
+    if((start&&end) && start>end){ return toast('Start month is after the end month'); }
+    // one status per trainee: drop any existing (or the one being edited)
+    DB.status=DB.status.filter(s=>s.trainee!==t && s.id!==editingStatusId);
+    if(type!=='active') DB.status.push({id:editingStatusId||uid(),trainee:t,type,start,end});
+    const wasEditing=!!editingStatusId;
+    cancelStatusEdit();
+    await saveDB(); renderAll(); toast(wasEditing?'Status updated — attendance recalculated':'Status saved — attendance recalculated');
+  };
+
+  document.getElementById('trAdd').onclick=async()=>{
+    const n=document.getElementById('trName').value.trim();
+    if(!n)return toast('Enter a name');
+    const emEl=document.getElementById('trEmail'); const em=emEl.value.trim();
+    if(em && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) return toast('That doesn’t look like a valid email');
+    const grEl=document.getElementById('trGrade');
+    DB.trainees.push({id:uid(),name:n,email:em||'',grade:grEl?grEl.value:'',gradeFrom:''});
+    document.getElementById('trName').value=''; emEl.value='';
+    if(grEl) grEl.value='';
+    await saveDB(); renderAll(); toast('Trainee added');
+  };
+  document.getElementById('seAdd').onclick=async()=>{
+    const seM=document.getElementById('seMonth');
+    const m=monthValue(seM), ti=document.getElementById('seTitle').value.trim();
+    if(!m||!ti)return toast('Enter a valid month and title');
+    DB.sessions.push({id:uid(),month:m,title:ti});
+    document.getElementById('seTitle').value=''; setMonthValue(seM,'');
+    await saveDB(); renderAll(); toast('Session added');
+  };
+
+  document.getElementById('trEditSave').onclick=saveTraineeEdit;
+  document.getElementById('trEditModal').addEventListener('click',e=>{
+    if(e.target===document.getElementById('trEditModal')) hideTraineeEdit();
+  });
+  document.getElementById('exportCsv').onclick=exportCsv;
+  document.getElementById('reportBtn').onclick=showReportModal;
+  wireReportModal();
+  document.getElementById('backupBtn').onclick=backup;
+  document.getElementById('restoreInp').onchange=restore;
+  document.getElementById('seedBtn').onclick=async()=>{ if(confirm('Replace current data with the sample cohort from your spreadsheet?')){ DB=seedData(); await saveDB(); renderAll(); toast('Sample cohort loaded'); } };
+}
+
+/* ---- export / backup ---- */
+function csvCell(v){ const t=String(v??''); return /[",\n]/.test(t)? '"'+t.replace(/"/g,'""')+'"' : t; }
+function exportCsv(){
+  // exports whatever the year tabs are showing: one academic year, or every session
+  const ys=availableAcademicYears();
+  const scoped = ys.length && dashYear!==ALL_YEARS ? dashYear : null;
+  const sess = scoped? sessionsInYear(scoped) : sessionsSorted();
+  const head=['Academic year','Name','Grade','Status', ...sess.map(s=>fmtMonth(s.month)+' '+s.title),
+              'Attended','Eligible','Excused','AdjDenom','RawPct','AdjPct'];
+  const lines=[head.map(csvCell).join(',')];
+  const yearLabel = scoped || (ys.length? ys.join(' + ') : '—');
+  const csvCutoff = sess.length? sess[sess.length-1].month : undefined;
+  DB.trainees.map(t=>computeRowForSessions(t,sess)).forEach(r=>{
+    const stat=activeStatusType(r.trainee.id, csvCutoff);
+    const cells=r.cells.map(c=>{
+      if(c.state==='present'){ const g=gradeAt(r.trainee.id,c.sess.id); return g?'P:'+g:'P'; }
+      return {excused:'E',na:'NA',absent:'A'}[c.state];
+    });
+    lines.push([
+      yearLabel, r.trainee.name, latestGrade(r.trainee.id,sess), stat?stat.type:'active',
+      ...cells, r.attended, r.eligible, r.excused, r.adjDenom, r.rawPct, r.adjPct??''
+    ].map(csvCell).join(','));
+  });
+  const suffix = scoped? scoped.replace('/','-') : 'all_years';
+  dl(new Blob([lines.join('\n')],{type:'text/csv'}),'attendance_'+suffix+'.csv');
+}
+function backup(){ dl(new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}),'ent_register_backup.json'); }
+function restore(e){
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=async()=>{ try{ DB=JSON.parse(r.result); await saveDB(); renderAll(); toast('Data restored'); }catch(err){ toast('Invalid file'); } };
+  r.readAsText(f);
+}
+function dl(blob,name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click(); URL.revokeObjectURL(a.href); }
+
+/* ============================================================
+   REPORT GENERATOR
+   ============================================================ */
+function escHtml(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function pctHex(p){
+  if(p===null) return '#7a7568';
+  if(p>=80) return '#3f6b4f';
+  if(p>=60) return '#b08a3e';
+  return '#c0613a';
+}
+
+function showReportModal(){
+  const years=availableAcademicYears();
+  const yc=document.getElementById('reportYears');
+  // pre-tick the year the register is showing; "All years" pre-ticks everything
+  const preset = y => dashYear===ALL_YEARS || !years.includes(dashYear) || dashYear===y;
+  yc.innerHTML=years.length
+    ? years.map(y=>`<label class="yr-pill${preset(y)?' on':''}" data-yrpill title="${escHtml(acYearRange(y))}"><input type="checkbox" name="acYear" value="${escHtml(y)}" ${preset(y)?'checked':''} onchange="reportYearToggled(this)">${escHtml(y)}</label>`).join('')
+    : `<span style="color:var(--muted);font-size:13px">No sessions found — add sessions first.</span>`;
+  syncReportLayout();
+  document.getElementById('reportModal').style.display='flex';
+}
+
+function hideReportModal(){
+  document.getElementById('reportModal').style.display='none';
+}
+
+function reportYearToggled(cb){
+  cb.closest('[data-yrpill]').classList.toggle('on',cb.checked);
+  syncReportLayout();
+}
+function setAllReportYears(on){
+  document.querySelectorAll('input[name="acYear"]').forEach(i=>{
+    i.checked=on; i.closest('[data-yrpill]').classList.toggle('on',on);
+  });
+  syncReportLayout();
+}
+// the layout choice only means anything with more than one year selected
+function syncReportLayout(){
+  const n=document.querySelectorAll('input[name="acYear"]:checked').length;
+  document.getElementById('reportLayoutWrap').style.display = n>1?'block':'none';
+}
+
+function wireReportModal(){
+  const sumOnly=document.getElementById('reportSummaryOnly');
+  const opts=['reportShowSessions','reportShowRaw','reportShowAdj'];
+  sumOnly.onchange=()=>{
+    opts.forEach(id=>{
+      const el=document.getElementById(id);
+      el.disabled=sumOnly.checked;
+      el.closest('.report-check').style.opacity=sumOnly.checked?'0.35':'1';
+    });
+  };
+  document.getElementById('reportYearsAll').onclick=()=>setAllReportYears(true);
+  document.getElementById('reportYearsNone').onclick=()=>setAllReportYears(false);
+}
+
+function generateReport(){
+  const selectedYears=[...document.querySelectorAll('input[name="acYear"]:checked')].map(i=>i.value).sort();
+  if(!selectedYears.length) return toast('Select at least one academic year');
+  const includeCCT=document.getElementById('reportIncludeCCT').checked;
+  const includeIDT=document.getElementById('reportIncludeIDT').checked;
+  const hideNA=document.getElementById('reportHideNA').checked;
+  const summaryOnly=document.getElementById('reportSummaryOnly').checked;
+  const showSessions=!summaryOnly&&document.getElementById('reportShowSessions').checked;
+  const showRaw=!summaryOnly&&document.getElementById('reportShowRaw').checked;
+  const showAdj=!summaryOnly&&document.getElementById('reportShowAdj').checked;
+  // one year selected => a single table either way
+  const layout=selectedYears.length>1?document.getElementById('reportLayout').value:'combined';
+
+  const filtSess=sessionsSorted().filter(s=>selectedYears.includes(sessAcademicYear(s.month)));
+  if(!filtSess.length) return toast('No sessions in the selected year(s)');
+
+  let trainees=DB.trainees.slice();
+  if(!includeCCT) trainees=trainees.filter(t=>!statusFor(t.id).some(s=>s.type==='cct'));
+  if(!includeIDT) trainees=trainees.filter(t=>!statusFor(t.id).some(s=>s.type==='idt_out'));
+
+  const buildSection=(title,subtitle,sessList)=>{
+    let rows=trainees.map(t=>computeRowForSessions(t,sessList));
+    if(hideNA) rows=rows.filter(r=>r.eligible>0);
+    rows.sort((a,b)=>a.trainee.name.localeCompare(b.trainee.name));
+    return {title,subtitle,sess:sessList,rows};
+  };
+
+  const sections=[];
+  if(layout==='combined'||layout==='both'){
+    sections.push(selectedYears.length>1
+      ? buildSection('All selected years','Combined · '+selectedYears.join(', '),filtSess)
+      : buildSection('Academic year '+selectedYears[0],acYearRange(selectedYears[0]),filtSess));
+  }
+  if(layout==='per'||layout==='both'){
+    selectedYears.forEach(y=>{
+      const list=sessionsInYear(y);
+      if(list.length) sections.push(buildSection('Academic year '+y,acYearRange(y),list));
+    });
+  }
+
+  // headline figures are always across everything selected
+  let overall=trainees.map(t=>computeRowForSessions(t,filtSess));
+  if(hideNA) overall=overall.filter(r=>r.eligible>0);
+
+  const html=buildReportHtml({sections,overall,filtSess,selectedYears,includeCCT,includeIDT,
+                              hideNA,layout,showSessions,showRaw,showAdj,summaryOnly});
+  const win=window.open('','_blank');
+  if(!win){ toast('Pop-up blocked — please allow pop-ups for this page'); return; }
+  win.document.write(html);
+  win.document.close();
+  hideReportModal();
+}
+
+function buildReportHtml({sections,overall,filtSess,selectedYears,includeCCT,includeIDT,hideNA,layout,showSessions,showRaw,showAdj,summaryOnly}){
+  const now=new Date().toLocaleDateString(undefined,{day:'numeric',month:'long',year:'numeric'});
+  const yearLabel=selectedYears.join(', ');
+  const multi=selectedYears.length>1;
+
+  const eligRows=overall.filter(r=>r.eligible>0);
+  const avgAdj=eligRows.length?Math.round(eligRows.reduce((s,r)=>s+(r.adjPct||0),0)/eligRows.length):0;
+  const avgRaw=overall.length?Math.round(overall.reduce((s,r)=>s+r.rawPct,0)/overall.length):0;
+  const below60=eligRows.filter(r=>r.adjPct!==null&&r.adjPct<60).length;
+  const at100=eligRows.filter(r=>r.adjPct===100).length;
+
+  const statusLbl={cct:'CCT',mat:'Mat/Pat',oop:'OOP',idt_in:'IDT In',idt_out:'IDT Out',active:'Active'};
+  const statusBg={cct:'#efe3c8',mat:'#f2d9ca',oop:'#d9e3ec',idt_in:'#d5e8df',idt_out:'#e0dcef',active:'#dcebe0'};
+  const statusCol={cct:'#8a6a1e',mat:'#9c4a26',oop:'#3a5a78',idt_in:'#2f6b4d',idt_out:'#544a86',active:'#2c4d39'};
+
+  const stateSym={present:'✓',absent:'✗',excused:'E',na:'–'};
+  const stateBg={present:'#d4ead9',absent:'#fad5cb',excused:'#fdebd3',na:'#f0ede4'};
+  const stateCol={present:'#2c5c3a',absent:'#a04a2c',excused:'#8a6210',na:'#b0aba0'};
+
+  const headFor=sessList=>{
+    let th='<th>Trainee</th><th>Grade</th><th>Status</th>';
+    if(showSessions) sessList.forEach(s=>{
+      th+=`<th style="text-align:center">${escHtml(fmtMonth(s.month))}<br>`+
+        `<span style="font-weight:400;font-size:9.5px;text-transform:none;letter-spacing:0;color:#5a7060;display:block;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(s.title)}</span></th>`;
+    });
+    th+=`<th style="text-align:center">Sessions</th>`;
+    if(showRaw) th+=`<th style="text-align:center">Raw %</th>`;
+    if(showAdj) th+=`<th style="text-align:center">Adjusted %</th>`;
+    return th;
+  };
+
+  const bodyFor=sec=>{
+    if(!sec.rows.length){
+      const cols=4+(showSessions?sec.sess.length:0)+(showRaw?1:0)+(showAdj?1:0);
+      return `<tr><td colspan="${cols}" style="padding:20px;text-align:center;color:#7a7568">No trainees to show for this period.</td></tr>`;
+    }
+    const repCutoff = sec.sess.length? sec.sess[sec.sess.length-1].month : undefined;
+    return sec.rows.map((r,i)=>{
+      const stat=activeStatusType(r.trainee.id, repCutoff);
+      const st=stat?stat.type:'active';
+      const adj=r.adjPct===null?'—':r.adjPct+'%';
+      const den=r.adjDenom>0?r.adjDenom:r.eligible;
+      const rowBg=i%2===0?'#ffffff':'#faf8f0';
+      let cells=`<td style="font-weight:600;white-space:nowrap;background:${rowBg}">${escHtml(r.trainee.name)}</td>`;
+      cells+=`<td style="color:#5a7060;white-space:nowrap;background:${rowBg}">${escHtml(latestGrade(r.trainee.id,sec.sess)||'—')}</td>`;
+      cells+=`<td style="background:${rowBg}"><span style="display:inline-block;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:99px;background:${statusBg[st]};color:${statusCol[st]};white-space:nowrap">${statusLbl[st]||st}</span></td>`;
+      if(showSessions){
+        r.cells.forEach(c=>{
+          cells+=`<td style="text-align:center;padding:6px 4px;background:${rowBg}"><span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;background:${stateBg[c.state]};color:${stateCol[c.state]};font-weight:700;font-size:11px">${stateSym[c.state]}</span></td>`;
+        });
+      }
+      cells+=`<td style="text-align:center;font-variant-numeric:tabular-nums;font-weight:600;background:${rowBg}">${r.attended}/${den}</td>`;
+      if(showRaw) cells+=`<td style="text-align:center;font-weight:700;color:${pctHex(r.rawPct)};background:${rowBg}">${r.rawPct}%</td>`;
+      if(showAdj) cells+=`<td style="text-align:center;font-weight:700;color:${pctHex(r.adjPct)};background:${rowBg}">${adj}</td>`;
+      return `<tr>${cells}</tr>`;
+    }).join('');
+  };
+
+  // one block per section — a separate table for each academic year
+  const sectionsHtml=sections.map(sec=>{
+    const el=sec.rows.filter(r=>r.eligible>0);
+    const sAdj=el.length?Math.round(el.reduce((s,r)=>s+(r.adjPct||0),0)/el.length):0;
+    const sRaw=sec.rows.length?Math.round(sec.rows.reduce((s,r)=>s+r.rawPct,0)/sec.rows.length):0;
+    const meta=`${escHtml(sec.subtitle)} · ${sec.sess.length} session${sec.sess.length!==1?'s':''} · `+
+      `${sec.rows.length} trainee${sec.rows.length!==1?'s':''} · mean adjusted ${sAdj}% · mean raw ${sRaw}%`;
+    return `<div class="ysection">
+      <div class="section-title">${escHtml(sec.title)}</div>
+      <div class="section-meta">${meta}</div>
+      <div class="twrap">
+        <table>
+          <thead><tr>${headFor(sec.sess)}</tr></thead>
+          <tbody>${bodyFor(sec)}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  const legendHtml=showSessions
+    ? `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px;font-size:11.5px;color:#5a7060">`+
+      [['present','✓','Attended'],['absent','✗','Absent'],['excused','E','Excused'],['na','–','Not eligible']].map(([s,sym,lbl])=>
+        `<span style="display:inline-flex;align-items:center;gap:6px"><span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;background:${stateBg[s]};color:${stateCol[s]};font-weight:700;font-size:11px">${sym}</span>${lbl}</span>`
+      ).join('')+`</div>`
+    : '';
+
+  const filters=[];
+  filters.push(multi?`Academic years ${yearLabel}`:`Academic year ${yearLabel}`);
+  if(multi) filters.push({per:'One table per academic year',both:'Combined overview plus a table per year',combined:'Single combined table'}[layout]);
+  if(!includeCCT) filters.push('Excludes trainees who have CCT\'d');
+  if(!includeIDT) filters.push('Excludes trainees who left via IDT out');
+  if(hideNA) filters.push('Excludes trainees with no eligible sessions');
+  if(summaryOnly) filters.push('Summary view (totals only)');
+  const filtersText=filters.join(' · ');
+
+  const widest=Math.max(...sections.map(sec=>sec.sess.length));
+  const landscapeRule=(showSessions?widest:0)>7?'@page{size:A4 landscape}':'';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ENT Teaching — Attendance Report ${escHtml(yearLabel)}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI",system-ui,-apple-system,sans-serif;background:#f0ede4;color:#15211c;font-size:13px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.page{max-width:1160px;margin:0 auto;padding:32px 24px 72px}
+.rpt-header{background:linear-gradient(135deg,#2c4d39 0%,#3f6b4f 100%);color:#f6f4ec;padding:28px 32px 26px;border-radius:14px;margin-bottom:5px;display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.h-left .h-eyebrow{font-size:10.5px;text-transform:uppercase;letter-spacing:.25em;color:#8fba9f;font-weight:600;margin-bottom:7px}
+.h-left .h-title{font-family:Georgia,"Times New Roman",serif;font-size:26px;font-weight:700;letter-spacing:-.4px;line-height:1.15}
+.h-left .h-sub{font-size:13px;color:#b8cbbd;margin-top:4px;font-weight:500}
+.h-right{text-align:right;font-size:12px;color:#9ab5a3;line-height:2;flex-shrink:0}
+.h-right strong{color:#e8f0ea;font-weight:600}
+.gold-bar{height:3px;background:linear-gradient(90deg,#b08a3e,#d4aa5a,#b08a3e);border-radius:99px;margin-bottom:28px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:28px}
+.scard{background:#fff;border:1px solid #d8d2c0;border-radius:12px;padding:16px 18px;box-shadow:0 1px 4px rgba(21,33,28,.07)}
+.scard .n{font-family:Georgia,serif;font-size:27px;font-weight:700;color:#2c4d39;line-height:1}
+.scard .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.07em;color:#7a7568;margin-top:5px}
+.scard.accent .n{color:#c0613a}
+.section-title{font-family:Georgia,serif;font-size:15px;font-weight:700;color:#2c4d39;margin-bottom:5px;letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:#d8d2c0}
+.section-meta{font-size:11.5px;color:#7a7568;margin-bottom:11px}
+.ysection{margin-bottom:30px}
+.ysection:last-of-type{margin-bottom:22px}
+.twrap{background:#fff;border:1px solid #d8d2c0;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(21,33,28,.07);overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12px}
+thead th{background:#eef0e6;padding:10px 11px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#2c4d39;font-weight:700;border-bottom:2px solid #d8d2c0;white-space:nowrap}
+tbody td{padding:9px 11px;border-bottom:1px solid #ece8db;vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+.rpt-footer{font-size:11px;color:#7a7568;border-top:1px solid #d8d2c0;padding-top:16px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+.print-btn{position:fixed;bottom:22px;right:22px;background:#2c4d39;color:#fff;border:none;padding:12px 20px;border-radius:10px;font-family:inherit;font-weight:700;font-size:14px;cursor:pointer;box-shadow:0 4px 18px rgba(44,77,57,.38);letter-spacing:.01em}
+.print-btn:hover{background:#3f6b4f}
+@media print{
+  body{background:#fff}
+  .page{max-width:100%;padding:0}
+  .rpt-header{border-radius:0;margin-bottom:4px}
+  .print-btn{display:none}
+  .twrap{box-shadow:none;border-radius:0;overflow:visible}
+  .ysection{break-inside:auto;page-break-inside:auto}
+  .section-title{break-after:avoid;page-break-after:avoid}
+  ${landscapeRule}
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="rpt-header">
+    <div class="h-left">
+      <div class="h-eyebrow">ENT Regional Teaching</div>
+      <div class="h-title">Attendance Report</div>
+      <div class="h-sub">Academic year${multi?'s':''}: ${escHtml(yearLabel)} &nbsp;·&nbsp; ${escHtml(multi?'August – July':acYearRange(selectedYears[0]))}</div>
+    </div>
+    <div class="h-right">
+      <div><strong>${filtSess.length}</strong> session${filtSess.length!==1?'s':''} &nbsp;·&nbsp; <strong>${overall.length}</strong> trainee${overall.length!==1?'s':''}</div>
+      <div>Generated ${escHtml(now)}</div>
+    </div>
+  </div>
+  <div class="gold-bar"></div>
+
+  <div class="stats">
+    <div class="scard"><div class="n">${overall.length}</div><div class="l">Trainees</div></div>
+    <div class="scard"><div class="n">${filtSess.length}</div><div class="l">Sessions</div></div>
+    <div class="scard"><div class="n">${avgAdj}%</div><div class="l">Mean adjusted</div></div>
+    <div class="scard"><div class="n">${avgRaw}%</div><div class="l">Mean raw</div></div>
+    <div class="scard"><div class="n">${at100}</div><div class="l">At 100%</div></div>
+    <div class="scard accent"><div class="n">${below60}</div><div class="l">Below 60%</div></div>
+  </div>
+
+  ${legendHtml}
+
+  ${sectionsHtml}
+
+  <div class="rpt-footer">
+    <span>${escHtml(filtersText)}</span>
+    <span>ENT Teaching Register &middot; ${escHtml(now)}</span>
+  </div>
+</div>
+<button class="print-btn" onclick="window.print()">&#128438; Print / Save as PDF</button>
+</body>
+</html>`;
+}
+
+/* ============================================================
+   KIOSK (QR form target)
+   ============================================================ */
+// Anonymous QR sign-in for a teaching day that has not been published to the
+// cloud yet (see the Check-in tab). Deliberately does not touch remoteDB()/saveDB()
+// or anything requiring an organiser login — it only ever calls the two RPCs
+// below, which are the sole anon-accessible surface onto the register data.
+async function bootKiosk(sessId){
+  document.body.classList.add('kiosk');
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('appMain').style.display='none';
+  document.getElementById('mainNav').style.display='none';
+  const card=document.getElementById('kioskCard'); card.style.display='block';
+
+  const {data:roster,error} = await sb.rpc('public_roster');
+  if(error){
+    document.getElementById('kioskSess').textContent='Could not reach the register.';
+    return;
+  }
+  const trainees=(roster&&roster.trainees)||[];
+  const sessions=(roster&&roster.sessions)||[];
+  const s=sessions.find(x=>x.id===sessId);
+  document.getElementById('kioskSess').textContent = s? `${fmtMonth(s.month)} · ${s.title}` : 'Session not found';
+  const sel=document.getElementById('kTrainee');
+  sel.innerHTML = trainees.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(t=>`<option value="${escHtml(t.id)}">${escHtml(t.name)}</option>`).join('');
+  document.getElementById('kSubmit').onclick=async()=>{
+    const t=sel.value; const g=document.getElementById('kGrade').value;
+    if(!t||!s)return;
+    if(!g){ toast('Please select your grade'); return; }
+    const {error:rpcErr} = await sb.rpc('record_local_checkin', {p_trainee_id:t, p_session_id:sessId, p_grade:g});
+    if(rpcErr){ toast('Could not sign you in — please try again'); return; }
+    const name=(trainees.find(x=>x.id===t)||{}).name||'You';
+    document.getElementById('kSubmit').style.display='none';
+    document.querySelectorAll('#kioskCard .field').forEach(f=>f.style.display='none');
+    document.getElementById('kDone').style.display='block';
+    document.getElementById('kDoneMsg').textContent = name+' ('+g+'), you\'re signed in for '+s.title+'.';
+  };
+}
+
+/* ============================================================
+   SEED DATA — built from the uploaded spreadsheet
+   ============================================================ */
+function seedData(){
+  const sessions=[
+    {id:'s01',month:'2025-08',title:'Teaching session'},
+    {id:'s02',month:'2025-09',title:'Teaching session'},
+    {id:'s03',month:'2025-10',title:'Teaching session'},
+    {id:'s04',month:'2025-11',title:'Teaching session'},
+    {id:'s05',month:'2026-01',title:'Paediatric ENT WYT'},
+    {id:'s06',month:'2026-03',title:'Balance Wythenshawe'},
+    {id:'s07',month:'2026-04',title:'Paeds ENT Preston'},
+    {id:'s08',month:'2026-05',title:'Paeds ENT Bolton'},
+  ];
+  // attendance grid from Summary_table (1 = present); index aligns to sessions above
+  const grid={
+    'Alex Collingwood':[1,1,0,1,1,1,0,1],'Althwadi Noora':[1,0,1,1,1,0,0,0],
+    'Anastasha Herman':[1,0,1,0,1,1,0,0],'Angus Hotchkies':[1,1,1,1,1,1,0,0],
+    'Arshad Zubair':[1,1,0,1,0,1,1,1],'Atia Khan':[1,1,1,0,1,0,1,1],
+    'Bhargavi Chandrasekar':[0,1,1,0,0,0,0,0],'Ciaran Walsh':[1,1,1,0,0,0,1,1],
+    'Dickson Dewantoro':[1,1,1,1,0,0,1,1],'Ding Yang':[1,0,0,1,1,1,1,1],
+    'Dorota Chudek':[0,1,1,1,1,0,0,0],'Elliot Heward':[1,0,0,0,0,0,0,0],
+    'Emma Hogg':[0,1,1,0,1,0,1,0],'Gabrielle Thompson':[1,0,0,0,0,1,0,0],
+    'George McNally':[1,1,1,1,1,0,1,1],'Guy Shetrit':[1,1,1,1,1,0,0,1],
+    'Hamza Qureshi':[0,1,1,0,1,1,1,0],'Hannah Emerson':[1,1,1,1,1,1,0,1],
+    'Haris Duvnjak':[1,0,1,0,0,1,1,0],'Haseem Raja':[1,1,1,1,1,1,0,1],
+    'Jessica Daniels':[1,0,0,1,1,1,0,0],'Jonny Abbas':[1,0,1,1,1,0,0,0],
+    'Joseph Stansfield':[1,1,1,1,1,1,1,1],'Katharine Hamlett':[1,0,0,0,1,0,0,0],
+    'Kristijonas Milinis':[1,0,0,0,0,0,0,0],'Kristina Lee':[1,1,0,1,0,0,0,0],
+    'Mahmoud Al Aaraj':[1,1,1,1,0,1,0,1],'Michael Chu':[1,1,1,1,0,1,1,1],
+    'Mila Roode':[0,0,0,0,1,1,0,0],'Milad Golsharifi':[1,1,1,1,1,0,0,0],
+    'Mohammed Abdelaziz':[1,1,1,1,1,1,1,1],'Nimisha Vallabh':[0,0,0,0,0,1,0,1],
+    'Randa Ghazal':[0,1,1,0,1,1,0,1],'Rebecca Harrison':[1,1,1,1,1,1,1,0],
+    'Rohan Pinto':[1,0,1,1,0,0,0,0],'Rohma Abrar':[0,0,0,0,0,0,1,1],
+    'Rosie Wright':[1,1,1,1,1,0,1,1],'Rupali Sawant':[1,1,1,1,1,0,0,0],
+    'Sara Mahmood':[1,1,1,1,1,1,1,1],'Sara Timms':[0,0,0,0,0,1,0,1],
+    'Sarah Akbar':[1,1,1,0,0,0,0,1],'Sarah Dawes':[0,0,0,0,1,0,0,0],
+    'Shivani Parihar':[1,1,1,1,1,1,0,0],'Stefan Linton':[1,1,1,1,1,1,1,0],
+    'Tim Davies':[0,0,0,1,0,1,0,0],'Tom Hampton':[1,0,1,1,0,0,0,0],
+    'Wisha Gul':[0,0,0,0,0,1,1,1],
+  };
+  const grades={'Alex Collingwood':'ST3','Althwadi Noora':'ST3','Anastasha Herman':'ST7','Angus Hotchkies':'ST3','Arshad Zubair':'ST7','Atia Khan':'ST5','Bhargavi Chandrasekar':'','Ciaran Walsh':'ST4','Dickson Dewantoro':'ST3','Ding Yang':'ST8','Dorota Chudek':'ST6','Elliot Heward':'','Emma Hogg':'ST6','Gabrielle Thompson':'ST7','George McNally':'ST7','Guy Shetrit':'ST3','Hamza Qureshi':'ST4','Hannah Emerson':'ST8','Haris Duvnjak':'ST3','Haseem Raja':'ST6','Jessica Daniels':'ST7','Jonny Abbas':'ST7','Joseph Stansfield':'ST6','Katharine Hamlett':'ST7','Kristijonas Milinis':'','Kristina Lee':'','Mahmoud Al Aaraj':'ST4','Michael Chu':'ST6','Mila Roode':'ST6','Milad Golsharifi':'ST4','Mohammed Abdelaziz':'ST5','Nimisha Vallabh':'ST7','Randa Ghazal':'ST3','Rebecca Harrison':'ST7','Rohan Pinto':'','Rohma Abrar':'ST4','Rosie Wright':'ST6','Rupali Sawant':'ST8','Sara Mahmood':'ST6','Sara Timms':'ST8','Sarah Akbar':'ST5','Sarah Dawes':'ST8','Shivani Parihar':'ST4','Stefan Linton':'ST6','Tim Davies':'ST6','Tom Hampton':'','Wisha Gul':'ST5'};
+
+  const trainees=[]; const attendance={};
+  Object.keys(grid).forEach((name,i)=>{
+    const id='t'+String(i).padStart(2,'0');
+    trainees.push({id,name});
+    const g=grades[name]||'';
+    grid[name].forEach((v,j)=>{ if(v) attendance[id+'|'+sessions[j].id]={grade:g}; });
+  });
+  const T = n => (trainees.find(t=>t.name===n)||{}).id;
+
+  // long-term status from Trainee_Status sheet
+  const status=[
+    {id:uid(),trainee:T('Kristijonas Milinis'),type:'cct',start:null,end:'2025-08'},
+    {id:uid(),trainee:T('Elliot Heward'),type:'cct',start:null,end:'2025-08'},
+    {id:uid(),trainee:T('Kristina Lee'),type:'cct',start:null,end:'2025-09'},
+    {id:uid(),trainee:T('Rupali Sawant'),type:'cct',start:null,end:'2026-01'},
+    {id:uid(),trainee:T('Rohan Pinto'),type:'cct',start:null,end:'2026-01'},
+    {id:uid(),trainee:T('Milad Golsharifi'),type:'idt_out',start:'2026-02',end:null},
+    {id:uid(),trainee:T('Sarah Akbar'),type:'mat',start:'2025-10',end:null},
+    {id:uid(),trainee:T('Bhargavi Chandrasekar'),type:'mat',start:'2025-10',end:null},
+    {id:uid(),trainee:T('Nimisha Vallabh'),type:'mat',start:'2025-07',end:null},
+    {id:uid(),trainee:T('Katharine Hamlett'),type:'mat',start:'2025-08',end:null},
+    {id:uid(),trainee:T('Gabrielle Thompson'),type:'mat',start:'2025-08',end:null},
+    {id:uid(),trainee:T('Mila Roode'),type:'mat',start:'2025-07',end:null},
+  ].filter(s=>s.trainee);
+
+  // sample excused absences from Excused_Absences sheet (month-level)
+  const mIdx={'2025-08':'s01','2025-09':'s02','2025-10':'s03','2025-11':'s04','2026-01':'s05','2026-03':'s06','2026-04':'s07','2026-05':'s08'};
+  const exRaw=[
+    ['Alex Collingwood','2025-10','Post on call rest'],['Alex Collingwood','2026-04','Annual Leave'],
+    ['Anastasha Herman','2025-09','Annual Leave'],['Anastasha Herman','2025-11','Emailed apology'],['Anastasha Herman','2026-04','Emailed apology'],['Anastasha Herman','2026-05','Theatre commitments'],
+    ['Arshad Zubair','2026-01','Sickness'],['Arshad Zubair','2025-10','Annual Leave'],
+    ['Ciaran Walsh','2025-11','On-call commitments'],['Ciaran Walsh','2026-01','Sickness'],['Ciaran Walsh','2026-03','Sickness'],
+    ['Dickson Dewantoro','2026-01','Annual Leave'],['Dickson Dewantoro','2026-03','Annual Leave'],
+    ['Ding Yang','2025-09','Emailed apology'],['Ding Yang','2025-10','Post on call rest'],
+    ['Dorota Chudek','2026-03','LTFT day'],
+    ['Emma Hogg','2025-11','LTFT day'],['Emma Hogg','2026-05','Study Leave (Exam/course)'],['Emma Hogg','2025-08','LTFT day'],['Emma Hogg','2026-03','LTFT day'],
+    ['Gabrielle Thompson','2026-05','Annual Leave'],
+    ['Guy Shetrit','2026-03','Annual Leave'],['Guy Shetrit','2026-04','On-call commitments'],
+    ['Hamza Qureshi','2025-11','Childcare'],['Hamza Qureshi','2025-08','Sickness'],['Hamza Qureshi','2026-05','On-call commitments'],
+    ['Haris Duvnjak','2025-11','Annual Leave'],['Haris Duvnjak','2026-01','Annual Leave'],['Haris Duvnjak','2026-05','Annual Leave'],['Haris Duvnjak','2025-09','Post on-call rest'],
+    ['Jessica Daniels','2025-09','Emailed apology'],['Jessica Daniels','2025-10','Emailed apology'],
+    ['Jonny Abbas','2025-09','Emailed apology'],['Jonny Abbas','2026-05','LTFT day'],['Jonny Abbas','2026-03','LTFT day'],['Jonny Abbas','2026-04','LTFT day'],
+    ['Kristijonas Milinis','2026-01','Emailed apology'],['Mahmoud Al Aaraj','2026-01','Emailed apology'],['Michael Chu','2026-01','Emailed apology'],
+    ['Rebecca Harrison','2026-05','Emailed apology'],['Rohan Pinto','2025-09','Emailed apology'],
+    ['Sarah Dawes','2026-03','LTFT day'],['Sarah Dawes','2026-04','LTFT day'],['Sarah Dawes','2026-05','LTFT day'],
+    ['Shivani Parihar','2026-04','Theatre commitments'],['Shivani Parihar','2026-05','Theatre commitments'],
+    ['Tim Davies','2025-09','Study Leave (Exam/course)'],['Tim Davies','2025-10','Emailed apology'],['Tim Davies','2026-01','Emailed apology'],['Tim Davies','2026-05','Annual Leave'],['Tim Davies','2026-04','Post on-call rest'],['Tim Davies','2025-08','Annual Leave'],
+    ['Tom Hampton','2025-11','Sickness'],['Tom Hampton','2026-01','Sickness'],
+    ['Haseem Raja','2026-04','Study Leave (Exam/course)'],
+    ['Atia Khan','2025-11','Study Leave (Exam/course)'],['Atia Khan','2026-03','Annual Leave'],
+  ];
+  const excused=[];
+  exRaw.forEach(([n,m,r])=>{ const t=T(n), s=mIdx[m]; if(t&&s) excused.push({id:uid(),trainee:t,session:s,reason:r,ts:Date.now()}); });
+
+  return {trainees,sessions,attendance,excused,status};
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+// Loads the register and renders the app. Only ever runs once a Supabase
+// session exists — everything it touches (register_store) requires the
+// authenticated role.
+function normaliseDB(db){
+  db.trainees??=[]; db.sessions??=[]; db.attendance??={}; db.excused??=[]; db.status??=[];
+  // migrate legacy 'idt' (single transfer type) to idt_out
+  db.status.forEach(s=>{ if(s.type==='idt') s.type='idt_out'; });
+  return db;
+}
+
+// Grades are refreshed against the register as loaded, which also backfills
+// t.grade for data saved before trainees carried one.
+function refreshGradesAndSave(){
+  if(refreshGrades()) saveDB();
+}
+
+let wired = false;
+function wireOnce(){
+  if(wired) return;
+  wired = true;
+  wire();
+  initMonthPickers();
+  updateStatusHelper();
+}
+
+// Paint from the cached copy immediately, then reconcile with the database.
+// Waiting for Supabase before drawing anything made every visit to the register
+// -- including coming back from the session console -- sit on a blank page for a
+// network round trip, which is most of what "going back is slow" was.
+async function bootApp(){
+  hideLogin();
+  const cached = cachedDB();
+  dbReady = remoteDB();                // starts now; deliberately not awaited yet
+
+  if(cached){
+    DB = normaliseDB(cached);
+    refreshGrades();
+    setSyncStatus('Showing your saved copy — checking the database…');
+    wireOnce();
+    renderAll();
+    applyTabHash();                    // honour index.html#checkin and friends
+  }
+
+  const remote = await dbReady;
+  if(remote && !dbDirty){
+    // Re-render only when the database actually differs, so a refresh never
+    // interrupts something being typed. If the organiser has already changed
+    // something, their copy stands and saveDB() will push it.
+    const differs = !cached || JSON.stringify(remote) !== JSON.stringify(cached);
+    DB = normaliseDB(remote);
+    const regraded = refreshGrades();
+    wireOnce();
+    if(differs){ renderAll(); applyTabHash(); }
+    if(regraded) saveDB();
+  } else if(remote){
+    wireOnce();
+  } else if(!cached){
+    DB = normaliseDB(seedData());
+    wireOnce();
+    renderAll();
+    applyTabHash();
+    await saveDB();
+  }
+}
+
+// Deferred scripts finish before DOMContentLoaded, so supabase-js is guaranteed
+// to be there by the time this runs -- without it having blocked first paint.
+function whenReady(fn){
+  if(document.readyState==='loading') addEventListener('DOMContentLoaded',fn,{once:true});
+  else fn();
+}
+
+whenReady(async function(){
+  if(typeof supabase==='undefined'){
+    showLogin('Could not load the sign-in library. Check your connection and reload.');
+    return;
+  }
+  // An invite or password-recovery link lands here with a token in the URL
+  // hash (#access_token=...&type=invite|recovery). supabase-js consumes and
+  // strips that hash as soon as it processes the session, so grab the type
+  // now, synchronously, before creating the client -- it's gone a moment later.
+  const linkType = new URLSearchParams(location.hash.replace(/^#/,'')).get('type');
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  const params=new URLSearchParams(location.search);
+  if(params.has('form')){
+    // Anonymous sign-in for an unpublished session's QR — never gated by login.
+    bootKiosk(params.get('form'));
+    return;
+  }
+
+  wireLogin();
+  // supabase-js exchanges the link's token for a session before the
+  // getSession() below runs. For a recovery link it also fires a
+  // PASSWORD_RECOVERY event; an invite link instead just signs the user in
+  // (invited users have no password yet to "recover"), so it wouldn't be
+  // caught by that event alone. Either way, show the set-password form
+  // instead of booting straight into the app with a session the user hasn't
+  // knowingly chosen -- and, for invites, hasn't set a password for at all.
+  let recovering = linkType==='invite' || linkType==='recovery';
+  if(recovering) showReset(linkType==='invite');
+  sb.auth.onAuthStateChange((event)=>{
+    if(event==='PASSWORD_RECOVERY'){ recovering=true; showReset(linkType==='invite'); }
+    else if(event==='SIGNED_OUT') showLogin();
+  });
+  const {data:{session}} = await sb.auth.getSession();
+  if(recovering){ /* showReset() already called above */ }
+  else if(session){ await bootApp(); }
+  else { showLogin(); }
+});
+</script>
+</body>
+</html>

@@ -15,6 +15,14 @@ interface ResourceViewerProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/**
+ * Decide how a file should be shown.
+ *
+ * Nothing here may hand the URL to a third-party viewer: file URLs are short-lived
+ * *signed* Supabase URLs, so embedding one in an external service (Google's gview,
+ * Office Online) hands that service read access to clinical training material. Office
+ * documents are therefore offered as a download rather than rendered inline.
+ */
 function getViewerUrl(url: string): { url: string; type: "pdf" | "office" | "direct" } | null {
   if (!url) return null;
   const lowerUrl = url.toLowerCase().split("?")[0];
@@ -28,10 +36,7 @@ function getViewerUrl(url: string): { url: string; type: "pdf" | "office" | "dir
     lowerUrl.endsWith(".pptx") || lowerUrl.endsWith(".ppt") ||
     lowerUrl.endsWith(".xlsx") || lowerUrl.endsWith(".xls")
   ) {
-    return {
-      url: `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`,
-      type: "office",
-    };
+    return { url, type: "office" };
   }
 
   return { url, type: "direct" };
@@ -172,16 +177,27 @@ export function ResourceViewer({ resource, open, onOpenChange }: ResourceViewerP
                 type="application/pdf"
                 className="w-full h-full"
               >
-                <iframe
-                  src={`https://docs.google.com/gview?url=${encodeURIComponent(viewerUrl.url)}&embedded=true`}
-                  className="w-full h-full border-0"
-                  title={resource.title}
+                <OfflineFallback
+                  title="This browser can't display the PDF inline"
+                  description="Download it or open it in a new tab to read it."
+                  url={viewerUrl.url}
+                  onDownload={canDownload ? handleDownload : undefined}
+                  downloading={downloading}
                 />
               </object>
+            ) : viewerUrl.type === "office" ? (
+              <OfflineFallback
+                title="Office documents open in your own apps"
+                description="Word, PowerPoint and Excel files are downloaded rather than previewed here, so the file is never passed to an external viewer."
+                url={viewerUrl.url}
+                onDownload={canDownload ? handleDownload : undefined}
+                downloading={downloading}
+              />
             ) : (
               <iframe
                 src={viewerUrl.url}
                 className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                 title={resource.title}
               />
             )
@@ -206,5 +222,41 @@ export function ResourceViewer({ resource, open, onOpenChange }: ResourceViewerP
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function OfflineFallback({
+  title, description, url, onDownload, downloading,
+}: {
+  title: string;
+  description: string;
+  url: string;
+  onDownload?: () => void;
+  downloading?: boolean;
+}) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+      <FileText className="h-10 w-10 text-muted-foreground/40" />
+      <div className="space-y-1">
+        <p className="text-sm font-medium">{title}</p>
+        <p className="max-w-sm text-xs text-muted-foreground">{description}</p>
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        {onDownload && (
+          <Button type="button" size="sm" className="gap-1.5" disabled={downloading} onClick={onDownload}>
+            {downloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            {downloading ? "Downloading…" : "Download"}
+          </Button>
+        )}
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+        >
+          Open in new tab <ExternalLink className="h-3 w-3" />
+        </a>
+      </div>
+    </div>
   );
 }
