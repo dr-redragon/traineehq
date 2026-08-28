@@ -564,19 +564,34 @@ as $$
   from public.profiles p;
 $$;
 
-revoke all on function public.get_profile_display_names() from public;
-grant execute on function public.get_profile_display_names() to authenticated;
+-- Supabase's default privileges on the public schema grant EXECUTE on every new
+-- function to anon, authenticated and service_role at creation time, so `anon`
+-- must be revoked BY NAME -- "revoke from public" alone leaves those explicit
+-- grants in place and the helpers stay callable over /rest/v1/rpc without a
+-- session. get_profile_display_names would otherwise hand every user's name to
+-- an anonymous caller, and the predicates would let one probe whether a given
+-- uuid is an admin.
+revoke execute on function public.has_role(uuid, public.app_role) from public, anon;
+revoke execute on function public.is_admin(uuid) from public, anon;
+revoke execute on function public.is_facilitator_for(uuid, uuid) from public, anon;
+revoke execute on function public.can_access_specialty(uuid, uuid) from public, anon;
+revoke execute on function public.can_manage_resource(uuid, uuid) from public, anon;
+revoke execute on function public.get_profile_display_names() from public, anon;
 
-revoke all on function public.has_role(uuid, public.app_role) from public;
-revoke all on function public.is_admin(uuid) from public;
-revoke all on function public.is_facilitator_for(uuid, uuid) from public;
-revoke all on function public.can_access_specialty(uuid, uuid) from public;
-revoke all on function public.can_manage_resource(uuid, uuid) from public;
+-- RLS policy expressions are evaluated as the querying role, so signed-in users
+-- must keep EXECUTE on the predicates their policies reference.
 grant execute on function public.has_role(uuid, public.app_role) to authenticated;
 grant execute on function public.is_admin(uuid) to authenticated;
 grant execute on function public.is_facilitator_for(uuid, uuid) to authenticated;
 grant execute on function public.can_access_specialty(uuid, uuid) to authenticated;
 grant execute on function public.can_manage_resource(uuid, uuid) to authenticated;
+grant execute on function public.get_profile_display_names() to authenticated;
+
+-- A trigger function on auth.users; nothing should reach it through the API.
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+-- Keep functions added later out of anon's reach by default.
+alter default privileges in schema public revoke execute on functions from anon;
 
 -- ============================================================================
 -- ROW LEVEL SECURITY
