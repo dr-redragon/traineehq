@@ -15,6 +15,7 @@ Last updated: 2026-08-28.
 | 1.1 | **Copy the storage files.** Run `scripts/migrate-storage.mjs` with both service-role keys. 11 files, ~70 KB. | you | Until this runs, those 11 resources appear in the app but fail to download. Everything else already works. |
 | 1.2 | **Set `RESEND_API_KEY`** on project `twuvscymudpnokzfsqoy` (Edge Functions → Secrets). Optionally `CONTACT_FORWARD_TO`. | you | Every email path fails silently without it: invites, access-request confirmations, the contact form. |
 | 1.3 | **Get this branch live.** Merge `claude/website-code-evaluation-ynx8kf` into `main`, or deploy it. | you | None of the work in this branch is running anywhere yet. `main`, and therefore the Lovable preview, is still the old code pointing at the old, near-empty database. |
+| 1.4 | **Turn on GitHub Pages**: Settings → Pages → Source = **GitHub Actions**. Pages on a *private* repo needs GitHub Pro/Team/Enterprise — on Free, make the repo public first. | you | The deploy workflow is committed and runs on every push to this branch, but it cannot publish until Pages is enabled, and it will fail until then. |
 
 ## 2. Security and data protection
 

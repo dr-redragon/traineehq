@@ -53,7 +53,8 @@ const App = () => (
         <AuthCacheSync />
         <Toaster />
         <Sonner />
-        <BrowserRouter>
+        {/* BASE_URL is "/" locally and "/<repo>/" on GitHub Pages. */}
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
           <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />
