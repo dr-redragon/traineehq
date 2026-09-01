@@ -1,0 +1,36 @@
+# Netlify deployment.
+#
+# Works with a private repository on the free tier, so the code stays private
+# while the built site is reachable from any device without a GitHub login.
+#
+# Setup: Netlify → Add new site → Import from Git → pick this repo. Choose the
+# branch you want to review (the build settings below are picked up
+# automatically). Every push to that branch redeploys.
+#
+# No environment variables are needed: .env is committed and holds only the
+# Supabase URL and the publishable (anon) key, both of which are designed to
+# ship in a browser bundle. Never add a service-role key here — it would be
+# baked into the client bundle and readable by anyone.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# The app is a single-page app with client-side routing, so every path has to
+# fall through to index.html or a deep link like /specialty/<id> 404s. status
+# 200 (not 301) keeps the URL intact so the router can read it.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# The site is a sign-in page for a private tool; keep it out of search results.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

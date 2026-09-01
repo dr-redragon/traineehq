@@ -38,6 +38,7 @@ export function AppSidebar() {
         .from("specialties")
         .select("id, short_name, icon_name, color, parent_specialty_id, sort_order")
         .eq("is_active", true)
+        .is("deleted_at", null)
         .order("sort_order");
       if (activeDeanery) {
         query = query.eq("deanery_id", activeDeanery.id);

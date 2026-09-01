@@ -109,7 +109,8 @@ const SpecialtyDetail = () => {
         .from("specialties")
         .select("*")
         .eq("id", id!)
-        .single();
+        .is("deleted_at", null)
+        .maybeSingle();
       if (error) throw error;
       return data;
     },

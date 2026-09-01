@@ -1,0 +1,75 @@
+name: Deploy to GitHub Pages
+
+# Builds the app and publishes it to GitHub Pages so it can be reviewed from any
+# device without a GitHub login.
+#
+# Before the first run, in Settings → Pages, set "Source" to "GitHub Actions".
+# Note that Pages on a PRIVATE repository requires GitHub Pro, Team or
+# Enterprise; on a Free plan the repository has to be public first.
+#
+# Publishing makes the built site reachable by anyone with the URL. That is the
+# sign-in page and the client bundle only — every table is behind row-level
+# security and the bundle carries just the publishable (anon) key, which is
+# designed to be public. No service-role key is ever bundled.
+
+on:
+  push:
+    # The review branch, so the site can be seen before anything merges.
+    branches:
+      - main
+      - claude/website-code-evaluation-ynx8kf
+  workflow_dispatch:
+
+# Allow the workflow to publish, but nothing else.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; don't cancel a run that is mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # package-lock.json is out of sync with package.json, so `npm ci` fails.
+      # Until that is resolved (see docs/OUTSTANDING.md), install without it.
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build
+        env:
+          # Project sites are served from https://<owner>.github.io/<repo>/.
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+        run: npm run build
+
+      # GitHub Pages has no server-side routing: a deep link like /specialty/123
+      # is a 404 until the SPA loads. Serving the same shell as 404.html lets the
+      # router take over and render the right page.
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

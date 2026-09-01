@@ -11,12 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2, Megaphone } from "lucide-react";
 import { toast } from "sonner";
+import { useDeanery } from "@/contexts/DeaneryContext";
 import type { Tables } from "@/integrations/supabase/types";
 
 const emptyForm = { title: "", content: "", is_active: true };
 
 export function AdminAnnouncements() {
   const queryClient = useQueryClient();
+  const { activeDeanery } = useDeanery();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Tables<"announcements"> | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -38,8 +40,11 @@ export function AdminAnnouncements() {
         }).eq("id", editing.id);
         if (error) throw error;
       } else {
+        // Without deanery_id the dashboard's deanery filter excludes it and the
+        // announcement is invisible to everyone.
         const { error } = await supabase.from("announcements").insert({
           title: form.title, content: form.content, is_active: form.is_active,
+          deanery_id: activeDeanery?.id ?? null,
         });
         if (error) throw error;
       }

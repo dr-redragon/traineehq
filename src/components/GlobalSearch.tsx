@@ -44,6 +44,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
         .from("specialties")
         .select("id, short_name, name, icon_name, color")
         .or(`short_name.ilike.${orIlikePattern(debouncedQuery)},name.ilike.${orIlikePattern(debouncedQuery)}`)
+        .is("deleted_at", null)
         .limit(5);
       return data ?? [];
     },

@@ -44,6 +44,7 @@ const RequestAccess = () => {
         .select("id, short_name, parent_specialty_id")
         .eq("deanery_id", deaneryId)
         .eq("is_active", true)
+        .is("deleted_at", null)
         .order("sort_order");
       return data ?? [];
     },

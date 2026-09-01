@@ -12,7 +12,7 @@ export function SpecialtiesWidget() {
   const { data: specialties } = useQuery({
     queryKey: ["my-specialties", activeDeanery?.id],
     queryFn: async () => {
-      let query = supabase.from("specialties").select("*").eq("is_active", true).order("sort_order");
+      let query = supabase.from("specialties").select("*").eq("is_active", true).is("deleted_at", null).order("sort_order");
       if (activeDeanery) query = query.eq("deanery_id", activeDeanery.id);
       const { data, error } = await query;
       if (error) throw error;

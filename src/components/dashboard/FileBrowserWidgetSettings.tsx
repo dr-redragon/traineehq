@@ -39,7 +39,7 @@ export function FileBrowserWidgetSettings({
   const { data: specialties } = useQuery({
     queryKey: ["fbw-cfg-specialties", activeDeanery?.id],
     queryFn: async () => {
-      let q = supabase.from("specialties").select("id, short_name, name").eq("is_active", true).order("sort_order");
+      let q = supabase.from("specialties").select("id, short_name, name").eq("is_active", true).is("deleted_at", null).order("sort_order");
       if (activeDeanery) q = q.eq("deanery_id", activeDeanery.id);
       const { data, error } = await q;
       if (error) throw error;
