@@ -33,6 +33,7 @@ const TRAINING_GRADES = [
 ];
 
 const roleIcons: Record<string, typeof Shield> = {
+  super_admin: Shield,
   admin: Shield,
   facilitator: UserCheck,
   trainee: Eye,
@@ -81,6 +82,7 @@ const MyProfile = () => {
         .select("role")
         .eq("user_id", user.id);
       if (error) throw error;
+      if (data?.some((r) => r.role === "super_admin")) return "super_admin";
       if (data?.some((r) => r.role === "admin")) return "admin";
       if (data?.some((r) => r.role === "facilitator")) return "facilitator";
       return "trainee";
@@ -197,7 +199,7 @@ const MyProfile = () => {
           <CardContent className="p-5 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <RoleIcon className="h-4 w-4 text-accent" />
-              <Badge variant={userRole === "admin" ? "destructive" : userRole === "facilitator" ? "default" : "secondary"} className="text-xs capitalize">
+              <Badge variant={userRole === "admin" || userRole === "super_admin" ? "destructive" : userRole === "facilitator" ? "default" : "secondary"} className="text-xs capitalize">
                 {userRole}
               </Badge>
             </div>

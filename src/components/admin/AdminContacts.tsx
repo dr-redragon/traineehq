@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Pencil, Trash2, Mail, Search, Archive } from "lucide-react";
 import { toast } from "sonner";
+import { useDeanery } from "@/contexts/DeaneryContext";
 import { contactCategories } from "@/lib/contacts";
 import type { Tables } from "@/integrations/supabase/types";
 import type { Enums } from "@/integrations/supabase/types";
@@ -30,6 +31,7 @@ const emptyForm = { name: "", role: "", category: "tpd" as Enums<"contact_catego
 
 export function AdminContacts() {
   const queryClient = useQueryClient();
+  const { activeDeanery } = useDeanery();
   const [search, setSearch] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -61,6 +63,7 @@ export function AdminContacts() {
         name: form.name, role: form.role, category: form.category,
         organisation: form.organisation, email: form.email,
         phone: form.phone || null, specialty_id: form.specialty_id === "none" ? null : form.specialty_id, archived: form.archived,
+        deanery_id: activeDeanery?.id ?? null,
       };
       if (editing) {
         const { error } = await supabase.from("contacts").update(payload).eq("id", editing.id);

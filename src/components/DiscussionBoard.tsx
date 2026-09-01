@@ -233,7 +233,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const isAdmin = role === "admin";
+  const isAdmin = role === "admin" || role === "super_admin";
   const isFacilitator = role === "facilitator";
   const canPin = isAdmin || isFacilitator;
 

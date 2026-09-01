@@ -185,7 +185,12 @@ export function AddResourceDialog({ subsectionId, specialtyId, existingSubheadin
         .limit(1);
       const nextOrder = ((existing?.[0]?.sort_order ?? -1) + 1);
 
-      const finalSubheading = subheading === "__new__" ? customSubheading.trim() : subheading;
+      // "none" is the Select's sentinel for "No subheading" — storing it verbatim
+      // created a phantom group called "none".
+      const finalSubheading =
+        subheading === "__new__" ? customSubheading.trim()
+        : subheading === "none" ? ""
+        : subheading;
 
       const { error } = await supabase.from("resources").insert({
         title: title.trim(),

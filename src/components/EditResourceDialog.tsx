@@ -101,7 +101,11 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
 
       if (file) {
         const ext = file.name.split(".").pop();
-        const path = `${subsectionId}/${crypto.randomUUID()}.${ext}`;
+        // Must match the {specialtyId}/{subsectionId}/ layout every other writer
+        // uses — the storage policies key on the second path segment.
+        const { data: sub } = await supabase
+          .from("subsections").select("specialty_id").eq("id", subsectionId).single();
+        const path = `${sub?.specialty_id ?? "unknown"}/${subsectionId}/${crypto.randomUUID()}.${ext}`;
         const { error: uploadErr } = await supabase.storage.from("resources").upload(path, file);
         if (uploadErr) throw uploadErr;
         fileUrl = path;
@@ -119,6 +123,8 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
         file_url: fileUrl,
         subheading: finalSubheading,
         subsection_id: subsectionId,
+        // Keep the displayed size in step with the file actually stored.
+        file_size: file ? file.size : (removeFile ? null : (resource as any).file_size),
       } as any).eq("id", resource.id);
       if (error) throw error;
     },

@@ -14,6 +14,11 @@ import { Search, UserPlus, Shield, Trash2, Settings, UserCheck, Eye, Crown } fro
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type RoleName = "super_admin" | "admin" | "facilitator" | "trainee";
 
@@ -556,9 +561,34 @@ export function AdminUsers() {
                         <Button variant="ghost" size="icon" title="Manage permissions" onClick={() => openPermissions(p)}>
                           <Settings className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" title="Delete user" onClick={() => deleteUser.mutate(p.user_id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" title="Remove user">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Remove {p.first_name} {p.last_name}?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This removes their profile, roles and specialty assignments.
+                                Their sign-in account is not deleted, so they can still log in
+                                with no access until an administrator restores them.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() => deleteUser.mutate(p.user_id)}
+                              >
+                                Remove user
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
