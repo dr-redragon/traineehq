@@ -4,9 +4,25 @@ Running list of what still needs doing, and who has to do it. Items marked
 **you** need a credential, a decision or a dashboard action that automation in
 this repo cannot perform.
 
-Last updated: 2026-08-28.
+Last updated: 2026-09-01.
 
 ---
+
+## 0. Data protection — act on these first
+
+| # | Item | Owner | Status |
+|---|------|-------|--------|
+| 0.1 | **Make `dr-redragon/ent-teaching-register` private** (Settings → General → Danger Zone). | you | **Not done.** One click, and the fastest way to close what remains. |
+| 0.2 | **Scrub the leaked cohort from that repo's history**, then ask GitHub Support to purge cached objects. Run `scripts/scrub-register-history.sh`. | you | **Not done.** The data is out of the current files but still in every earlier commit. Rewrites all commit hashes and force-pushes, so do 0.1 first and read the script header. |
+| 0.3 | Remove the cohort from the **served files**. | done | Commit `c30acce` on that repo: 46 named trainees with sickness, maternity and LTFT records removed from `index.html`, plus a real name used as a placeholder on the public check-in page. |
+| 0.4 | **Close anonymous access to the register database.** | done | `public_roster()` (leaked all 52 names), `record_local_checkin()` and `sessions` select are no longer callable by `anon`. Data untouched — 52 trainees, 11 sessions, 273 attendance marks, 84 excused, 17 status records all verified present. |
+| 0.5 | **One anonymous write path is still open**: `register-api` runs as service-role and only gates `ORGANISER_ACTIONS`, so anyone can still call `check-in` — marking attendance and adding names to the roster. Fix: add `"check-in"` to the `ORGANISER_ACTIONS` set (~line 666 of `supabase/functions/register-api/index.ts`) and redeploy. | you | **Not done.** Left to you deliberately: the deployed function is version 13 (1 Sep) and ahead of the repo snapshot (28 Aug), so it needs changing in your own workflow rather than overwritten from here. |
+| 0.6 | **The register repo is behind its deployment** — `register-api` v13 was deployed after the last repo commit. Reconcile them. | you | **Not done.** Whatever is live is not fully represented in git. |
+
+*Note: with 0.4 applied, anonymous QR self-check-in no longer works — attendance is
+recorded by a signed-in organiser via `mark-attended`. That follows from "no access
+without a password". Anonymous feedback submission still works: it writes only and
+discloses no personal data. Say if you want that closed too.*
 
 ## 1. Before the new Supabase project is fully usable
 
@@ -15,7 +31,7 @@ Last updated: 2026-08-28.
 | 1.1 | **Copy the storage files.** Run `scripts/migrate-storage.mjs` with both service-role keys. 11 files, ~70 KB. | you | Until this runs, those 11 resources appear in the app but fail to download. Everything else already works. |
 | 1.2 | **Set `RESEND_API_KEY`** on project `twuvscymudpnokzfsqoy` (Edge Functions → Secrets). Optionally `CONTACT_FORWARD_TO`. | you | Every email path fails silently without it: invites, access-request confirmations, the contact form. |
 | 1.3 | **Get this branch live.** Merge `claude/website-code-evaluation-ynx8kf` into `main`, or deploy it. | you | None of the work in this branch is running anywhere yet. `main`, and therefore the Lovable preview, is still the old code pointing at the old, near-empty database. |
-| 1.4 | **Turn on GitHub Pages**: Settings → Pages → Source = **GitHub Actions**. Pages on a *private* repo needs GitHub Pro/Team/Enterprise — on Free, make the repo public first. | you | The deploy workflow is committed and runs on every push to this branch, but it cannot publish until Pages is enabled, and it will fail until then. |
+| 1.4 | **Deploy for review via Netlify or Vercel** — `netlify.toml` and `vercel.json` are committed; import the repo and pick this branch. | you | Gives a review URL on any device with no GitHub login, while the repo stays **private**. Preferred over GitHub Pages: publishing this repo would expose its git history (see 0.2). |
 
 ## 2. Security and data protection
 
