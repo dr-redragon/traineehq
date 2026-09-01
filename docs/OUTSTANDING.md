@@ -4,25 +4,43 @@ Running list of what still needs doing, and who has to do it. Items marked
 **you** need a credential, a decision or a dashboard action that automation in
 this repo cannot perform.
 
-Last updated: 2026-09-01.
+Last updated: 2026-09-01 (second pass).
 
 ---
 
-## 0. Data protection — act on these first
+## 0. Data protection
 
 | # | Item | Owner | Status |
 |---|------|-------|--------|
-| 0.1 | **Make `dr-redragon/ent-teaching-register` private** (Settings → General → Danger Zone). | you | **Not done.** One click, and the fastest way to close what remains. |
-| 0.2 | **Scrub the leaked cohort from that repo's history**, then ask GitHub Support to purge cached objects. Run `scripts/scrub-register-history.sh`. | you | **Not done.** The data is out of the current files but still in every earlier commit. Rewrites all commit hashes and force-pushes, so do 0.1 first and read the script header. |
-| 0.3 | Remove the cohort from the **served files**. | done | Commit `c30acce` on that repo: 46 named trainees with sickness, maternity and LTFT records removed from `index.html`, plus a real name used as a placeholder on the public check-in page. |
-| 0.4 | **Close anonymous access to the register database.** | done | `public_roster()` (leaked all 52 names), `record_local_checkin()` and `sessions` select are no longer callable by `anon`. Data untouched — 52 trainees, 11 sessions, 273 attendance marks, 84 excused, 17 status records all verified present. |
-| 0.5 | **One anonymous write path is still open**: `register-api` runs as service-role and only gates `ORGANISER_ACTIONS`, so anyone can still call `check-in` — marking attendance and adding names to the roster. Fix: add `"check-in"` to the `ORGANISER_ACTIONS` set (~line 666 of `supabase/functions/register-api/index.ts`) and redeploy. | you | **Not done.** Left to you deliberately: the deployed function is version 13 (1 Sep) and ahead of the repo snapshot (28 Aug), so it needs changing in your own workflow rather than overwritten from here. |
-| 0.6 | **The register repo is behind its deployment** — `register-api` v13 was deployed after the last repo commit. Reconcile them. | you | **Not done.** Whatever is live is not fully represented in git. |
+| 0.1 | Make `dr-redragon/ent-teaching-register` private. | you | **Skipped at your request** — you asked that it stay public. Everything below was done without it. |
+| 0.2 | **Scrub the leaked cohort from that repo's history.** | done | History rewritten with `git-filter-repo` and force-pushed. All 10 branches and 72 commits preserved; 34 versions of `index.html` and 7 of `checkin.html` cleaned. Verified from a fresh clone of GitHub: no cohort name survives in any blob. Local backup bundle at `/var/tmp/ent-register-BACKUP-before-scrub.bundle` (this sandbox only — take your own copy if you want one). |
+| 0.2b | **Ask GitHub Support to purge cached objects.** | you | **Not done — I have no way to contact GitHub Support.** Text to send is below. Until they purge, the old objects may still be reachable by direct SHA and through forks or existing clones. |
+| 0.3 | Remove the cohort from the served files. | done | Commit `c30acce`, since rewritten to `f3d4213`. |
+| 0.4 | Close anonymous access to the register database. | done | `public_roster()`, `record_local_checkin()` and `sessions` select no longer callable by `anon`. Data verified intact: 52 trainees, 11 sessions, 273 attendance marks, 84 excused, 17 status records. |
+| 0.5 | **Gate the anonymous `check-in` write path.** | done in code, **deploy pending** | Committed as `657d7e8`. Run **`supabase functions deploy register-api`** to make it live — until then the endpoint is still callable. I could not deploy it from here: the MCP tool needs the 43 KB source inline and hand-copying a live production function risks a typo breaking attendance. |
+| 0.6 | ~~The register repo is behind its deployment.~~ | **withdrawn — I was wrong** | I inferred drift from timestamps (v13 on 1 Sep vs a 28 Aug push). Comparing the actual sources shows they match: one blank line, plus unicode escapes rendered literally in the API response. No reconciliation needed. |
 
-*Note: with 0.4 applied, anonymous QR self-check-in no longer works — attendance is
-recorded by a signed-in organiser via `mark-attended`. That follows from "no access
-without a password". Anonymous feedback submission still works: it writes only and
-discloses no personal data. Say if you want that closed too.*
+*With 0.4 applied, anonymous QR self-check-in no longer works — attendance is recorded
+by a signed-in organiser via `mark-attended`. That follows from "no access without a
+password". Anonymous feedback submission still works: it writes only and discloses no
+personal data. Say if you want that closed too.*
+
+### Text for GitHub Support (0.2b)
+
+> Repository: https://github.com/dr-redragon/ent-teaching-register
+>
+> This repository's history contained personal data (names and health-related
+> absence records) committed in error. The history has been rewritten with
+> git-filter-repo and force-pushed, so the affected objects are now unreferenced.
+> Please permanently purge the unreferenced objects and any cached views of them,
+> including the pre-rewrite commits, so they can no longer be reached by SHA or
+> through the API.
+>
+> Pre-rewrite branch tips, for reference:
+> main c30accec3890fadbe6b31c96340df0b649e4e607;
+> organiser-login-consolidation 20b9ee810a52c24e3c9f5d2be1b668a57814c62e;
+> trainee-emails-and-inline-feedback-push 7ec68afdac5ea1093153250a30bb55fdb361edb3;
+> plus seven claude/* branches.
 
 ## 1. Before the new Supabase project is fully usable
 
@@ -37,28 +55,27 @@ discloses no personal data. Say if you want that closed too.*
 
 | # | Item | Owner | Why it matters |
 |---|------|-------|----------------|
-| 2.1 | **Apply `supabase/migrations/20260828160000_revoke_anon_on_legacy_register_store.sql`** to the old Lovable project (`dvrzoglirpnoafjrobhn`). | you | That project's `register_store` still grants `anon` select/insert/update. The publishable key is in every shipped bundle, so the historical attendance data — names, sickness, maternity, OOP — is readable and overwritable by anyone until this runs. |
+| 2.1 | ~~Apply the legacy `register_store` lockdown to the old Lovable project.~~ | **done** | Applied to `dvrzoglirpnoafjrobhn`: `anon` has no access, `authenticated` is read-only, the row is preserved. |
 | 2.2 | **Review the RLS policies** in `supabase/schema/0001_traineehq_baseline.sql`. The table in `supabase/schema/README.md` summarises what each role can see and change. | you | These could not be copied — the original project's policies were never in version control. They are written from how the app behaves, and RLS is the *only* authorisation boundary in this app. |
 | 2.3 | **Decide what happens to the old projects**: `7e1e88ab` / `dvrzoglirpnoafjrobhn` (near-empty, holds the register blob) and `6cec5550` (the real source data, plus 167 MB of storage). | you | Don't delete either until 1.1 is done and the new project is verified in use. |
 | 2.4 | **Check whether Supabase project `efaexgqxdbcaykwhfwkn` is yours.** One resource row stored an absolute URL to it; the path has been normalised, but the reference came from somewhere. | you | If it isn't yours, files may have been served from a third party's project. |
 | 2.5 | Account deletion still only removes the `profiles` row — the auth user, and the ability to sign in, survive. Needs a service-role edge function. | dev | The GDPR copy on the profile page promises otherwise. The new schema cascades correctly *if* the `auth.users` row is deleted; the app just never deletes it. |
 
-## 3. Known bugs, not yet fixed
+## 3. Known bugs
 
-Carried over from `docs/CODEBASE-EVALUATION.md`; none of these were in scope for
-the cleanup and security passes.
+**Fixed** in commit `ef9ff19`: invisible announcements (and the same `deanery_id`
+omission on contacts) · soft-deleted specialties showing everywhere · `super_admin`
+unable to pin/delete discussions and mis-badged on the profile page · the `"none"`
+subheading sentinel · `EditResourceDialog`'s wrong storage prefix and stale
+`file_size` · one-click user deletion now confirms.
 
-- **New announcements are invisible.** `AdminAnnouncements` never sets `deanery_id`, but the dashboard filters on it. The one migrated announcement has it set and shows fine; anything created in the admin panel will not. Same omission in `AdminContacts`.
-- **Soft-deleted specialties stay visible.** Delete sets `deleted_at` and leaves `is_active` true; nothing outside the admin list filters on `deleted_at`.
-- **Drag-to-reorder is gone** from the resource browser — `handleDragEnd` returns early on a row-to-row drop.
-- **"Watch discussion" has a dashboard widget but no way to watch anything.**
-- **Subheadings are local state only** and vanish on refresh until a file is assigned. Needs a real table.
-- Choosing "No subheading" in `AddResourceDialog` stores the literal string `"none"`.
-- `EditResourceDialog` uploads replacements to the wrong storage prefix and doesn't refresh `file_size`.
-- Deleting a user in the admin panel takes one click with no confirmation.
-- Storage objects are never garbage-collected on delete or replace — that is why 212 of 223 objects in the old bucket are orphans.
+**Still open** — each needs more than a contained edit:
+
+- **Drag-to-reorder is gone** from the resource browser: `handleDragEnd` returns early on a row-to-row drop. Restoring it means reinstating sort-order writes in `DriveBrowser`.
+- **"Watch discussion" has a dashboard widget but no way to watch anything** — needs a button and an insert into `watched_discussions`.
+- **Subheadings are local state only** and vanish on refresh until a file is assigned. Needs a real table and a migration.
+- **Storage objects are never garbage-collected** on delete or replace — the cause of the 212 orphans in the old bucket. Needs deletion wired into the resource delete/replace paths.
 - Password change has no re-authentication; editing your profile email diverges from the auth email you sign in with.
-- `super_admin` is not recognised in `DiscussionBoard` (can't pin or delete) or on the profile page (shows as trainee).
 
 ## 4. Promised in the README, never built
 
@@ -69,9 +86,9 @@ obfuscation · privacy, terms and cookie links are all `href="#"`.
 
 ## 5. Housekeeping
 
-- `package-lock.json` is stale — `npm ci` fails outright. Only `bun.lock` is current. Pick one lockfile.
-- `playwright.config.ts` imports `lovable-agent-playwright-config`, which is not in `package.json`.
-- 130 ESLint errors remain, almost all `no-explicit-any` from bypassing the generated Supabase types.
+- ~~`package-lock.json` is stale~~ — **fixed**: regenerated and `npm ci` verified working.
+- ~~`playwright.config.ts` imports a missing package~~ — **fixed**: config and fixture are now standalone.
+- 131 ESLint errors remain, almost all `no-explicit-any` from bypassing the generated Supabase types.
 - The test suite is one placeholder assertion.
 - `supabase/migrations/` still holds two old Lovable migrations that target a project the app no longer uses.
 
