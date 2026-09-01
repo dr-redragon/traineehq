@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -552,7 +552,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "fk_profiles_specialty"
+            foreignKeyName: "profiles_specialty_id_fkey"
             columns: ["specialty_id"]
             isOneToOne: false
             referencedRelation: "specialties"
@@ -566,27 +566,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      register_store: {
-        Row: {
-          created_at: string
-          data: Json
-          id: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          data?: Json
-          id: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          data?: Json
-          id?: string
-          updated_at?: string
-        }
-        Relationships: []
       }
       resource_folders: {
         Row: {
@@ -1029,6 +1008,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: { _user_id: string }; Returns: boolean }
       is_facilitator_for: {
         Args: { _specialty_id: string; _user_id: string }
         Returns: boolean
