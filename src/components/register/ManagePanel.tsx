@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CalendarPlus, Pencil, Trash2, UserPlus } from "lucide-react";
+import { CalendarPlus, ChevronDown, Pencil, Trash2, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,10 +17,16 @@ import { MonthInput } from "@/components/register/MonthInput";
 import {
   newId, removeSession, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/register/blob";
+import {
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { activeStatusType, isFormerTrainee } from "@/lib/register/eligibility";
+import { STATUS_SHORT, statusRangeText } from "@/lib/register/statusText";
 import { GRADES } from "@/lib/register/constants";
 import { formatMonth, sessionsSorted } from "@/lib/register/months";
+import { cn } from "@/lib/utils";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
-import type { RegisterBlob } from "@/lib/register/types";
+import type { RegisterBlob, RegisterTrainee } from "@/lib/register/types";
 
 const NONE = "__none__";
 
@@ -34,8 +40,16 @@ export function ManagePanel({
   const [trainee, setTrainee] = useState<{ id?: string; name: string; grade: string; email: string } | null>(null);
   const [session, setSession] = useState<{ id?: string; title: string; month: string } | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; detail: string; run: () => void } | null>(null);
+  const [showFormer, setShowFormer] = useState(false);
 
   const sessions = sessionsSorted(blob.sessions);
+
+  // Somebody who has CCT'd or transferred out drops out of the working roster
+  // and into the list below it. Nothing about their record changes — every past
+  // year's figures still include them, which is the whole point.
+  const byName = [...blob.trainees].sort((a, b) => a.name.localeCompare(b.name));
+  const current = byName.filter((t) => !isFormerTrainee(blob, t.id));
+  const former = byName.filter((t) => isFormerTrainee(blob, t.id));
 
   const saveTrainee = () => {
     if (!trainee?.name.trim()) return;
@@ -58,6 +72,49 @@ export function ManagePanel({
     setSession(null);
   };
 
+  const row = (t: RegisterTrainee) => {
+    const status = activeStatusType(blob, t.id);
+    const departed = isFormerTrainee(blob, t.id);
+
+    return (
+      <div key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium">{t.name}</p>
+          {t.email
+            ? <p className="truncate text-xs text-muted-foreground">{t.email}</p>
+            : <p className="truncate text-xs text-muted-foreground/70">No email on file</p>}
+        </div>
+
+        {departed && status && (
+          <Badge variant="outline" className="whitespace-nowrap text-[10px]"
+                 title={statusRangeText(status)}>
+            {STATUS_SHORT[status.type]}
+            {(status.end || status.start) && ` · ${formatMonth(status.end || status.start, "en-GB")}`}
+          </Badge>
+        )}
+        {t.grade && <Badge variant="secondary" className="text-[10px]">{t.grade}</Badge>}
+
+        {canEdit && (
+          <div className="flex gap-1">
+            <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Edit ${t.name}`}
+              onClick={() => setTrainee({ id: t.id, name: t.name, grade: t.grade ?? "", email: t.email ?? "" })}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
+              aria-label={`Remove ${t.name}`}
+              onClick={() => setConfirm({
+                label: `Remove ${t.name}?`,
+                detail: "Their attendance, excusals and long-term status go too. Nothing else is affected.",
+                run: () => onEdit((b) => removeTrainee(b, t.id)),
+              })}>
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-10">
       {/* -------------------------------------------------------- trainees -- */}
@@ -66,7 +123,8 @@ export function ManagePanel({
           <div>
             <h2 className="text-sm font-semibold">Trainees</h2>
             <p className="text-xs text-muted-foreground">
-              {blob.trainees.length} on the roster
+              {current.length} on the roster
+              {former.length > 0 && ` · ${former.length} former`}
             </p>
           </div>
           {canEdit && (
@@ -83,33 +141,38 @@ export function ManagePanel({
         {blob.trainees.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nobody on the roster yet.</p>
         ) : (
-          <div className="divide-y rounded-lg border">
-            {[...blob.trainees].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
-              <div key={t.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{t.name}</p>
-                  {t.email && <p className="truncate text-xs text-muted-foreground">{t.email}</p>}
-                </div>
-                {t.grade && <Badge variant="secondary" className="text-[10px]">{t.grade}</Badge>}
-                {canEdit && (
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Edit ${t.name}`}
-                      onClick={() => setTrainee({ id: t.id, name: t.name, grade: t.grade ?? "", email: t.email ?? "" })}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label={`Remove ${t.name}`}
-                      onClick={() => setConfirm({
-                        label: `Remove ${t.name}?`,
-                        detail: "Their attendance, excusals and long-term status go too. Nothing else is affected.",
-                        run: () => onEdit((b) => removeTrainee(b, t.id)),
-                      })}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <>
+            {current.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Everybody on this register has completed training or transferred out —
+                they are in the list below.
+              </p>
+            ) : (
+              <div className="divide-y rounded-lg border">{current.map(row)}</div>
+            )}
+
+            {former.length > 0 && (
+              <Collapsible open={showFormer} onOpenChange={setShowFormer} className="pt-1">
+                <CollapsibleTrigger asChild>
+                  <Button variant="outline" size="sm" className="w-full justify-between text-xs">
+                    <span>
+                      Former trainees (CCT'd or transferred out) · {former.length}
+                    </span>
+                    <ChevronDown
+                      className={cn("h-4 w-4 transition-transform", showFormer && "rotate-180")}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="divide-y rounded-lg border opacity-80">{former.map(row)}</div>
+                  <p className="mt-2 text-[11px] text-muted-foreground">
+                    They stay in every past year's figures. Change or clear the status on the
+                    Long-term status tab to bring somebody back into the roster.
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
         )}
       </section>
 

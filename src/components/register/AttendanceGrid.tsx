@@ -5,16 +5,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { activeStatusType } from "@/lib/register/eligibility";
+import { STATUS_SHORT, statusRangeText } from "@/lib/register/statusText";
 import { computeRows, type SortKey } from "@/lib/register/report";
 import { formatMonth } from "@/lib/register/months";
 import { toggleAttendance } from "@/lib/register/blob";
 import type { RegisterBlob, RegisterSession } from "@/lib/register/types";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import { cn } from "@/lib/utils";
-
-const STATUS_LABEL: Record<string, string> = {
-  cct: "CCT", idt_in: "IDT in", idt_out: "IDT out", mat: "Leave", oop: "OOP", active: "Active",
-};
 
 /** The colour bands the original register used: 80 and 60 per cent. */
 function pctClass(pct: number | null) {
@@ -133,8 +130,15 @@ export function AttendanceGrid({
 
                   <td className="px-2 py-1.5">
                     {status && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        {STATUS_LABEL[status.type] ?? status.type}
+                      // The specific status, and the dates behind it on hover:
+                      // "Leave" for both maternity and out-of-programme would
+                      // hide a difference that matters at an ARCP.
+                      <Badge
+                        variant="secondary"
+                        className="whitespace-nowrap text-[10px]"
+                        title={statusRangeText(status)}
+                      >
+                        {STATUS_SHORT[status.type]}
                       </Badge>
                     )}
                   </td>

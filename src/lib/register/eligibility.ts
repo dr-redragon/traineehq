@@ -122,3 +122,19 @@ export function isOnLeave(blob: RegisterBlob, traineeId: string, atMonth?: strin
   const st = activeStatusType(blob, traineeId, atMonth);
   return !!st && (st.type === "mat" || st.type === "oop");
 }
+
+/**
+ * Has this trainee left the programme?
+ *
+ * CCT or a transfer out — the two one-way departures. Leave is deliberately not
+ * one of them: somebody on maternity or OOP is coming back, and filing them with
+ * the people who have gone would be both wrong and unkind.
+ *
+ * Nothing about their record changes when this turns true. They move out of the
+ * working roster and stay in every past year's figures, which is the point —
+ * a report for 2024/25 must not change because somebody CCT'd in 2026.
+ */
+export function isFormerTrainee(blob: RegisterBlob, traineeId: string, atMonth?: string): boolean {
+  const st = activeStatusType(blob, traineeId, atMonth);
+  return !!st && (st.type === "cct" || st.type === "idt_out");
+}

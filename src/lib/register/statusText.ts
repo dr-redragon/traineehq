@@ -15,6 +15,22 @@ import { academicYearOf, formatMonth } from "./months";
  * months apart but sit in different reporting years.
  */
 
+/**
+ * The short form, for a badge beside a name.
+ *
+ * Every type gets its own words: "Leave" for both mat and oop would hide the
+ * difference between somebody on maternity leave and somebody out of programme
+ * doing a PhD, which are not the same conversation at an ARCP.
+ */
+export const STATUS_SHORT: Record<RegisterStatus["type"], string> = {
+  active:  "Active",
+  cct:     "CCT",
+  mat:     "Mat leave",
+  oop:     "OOP",
+  idt_in:  "IDT in",
+  idt_out: "IDT out",
+};
+
 export const STATUS_LABELS: Record<RegisterStatus["type"], string> = {
   active:  "Active",
   cct:     "CCT",

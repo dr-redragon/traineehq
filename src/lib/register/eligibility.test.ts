@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeStatusType, cellState, isEligible, isExcused, isOnLeave } from "./eligibility";
+import { activeStatusType, cellState, isEligible, isExcused, isFormerTrainee, isOnLeave } from "./eligibility";
 import { EMPTY_REGISTER, type RegisterBlob, type RegisterStatus } from "./types";
 
 function blobWith(status: Partial<RegisterStatus>[] = [], extra: Partial<RegisterBlob> = {}): RegisterBlob {
@@ -280,5 +280,33 @@ describe("isOnLeave", () => {
     expect(isOnLeave(blobWith([{ type: "cct", end: "2025-01" }]), "t1", "2025-06")).toBe(false);
     expect(isOnLeave(blobWith([{ type: "idt_out", start: "2025-01" }]), "t1", "2025-06")).toBe(false);
     expect(isOnLeave(blobWith(), "t1", "2025-06")).toBe(false);
+  });
+});
+
+describe("isFormerTrainee", () => {
+  it("is true for the two one-way departures", () => {
+    expect(isFormerTrainee(blobWith([{ type: "cct", end: "2025-01" }]), "t1", "2026-01")).toBe(true);
+    expect(isFormerTrainee(blobWith([{ type: "idt_out", start: "2025-01" }]), "t1", "2026-01")).toBe(true);
+  });
+
+  it("is false for leave — somebody on leave is coming back", () => {
+    expect(isFormerTrainee(blobWith([{ type: "mat", start: "2025-01" }]), "t1", "2025-06")).toBe(false);
+    expect(isFormerTrainee(blobWith([{ type: "oop", start: "2025-01" }]), "t1", "2025-06")).toBe(false);
+  });
+
+  it("is false for an arrival, and for nothing recorded", () => {
+    expect(isFormerTrainee(blobWith([{ type: "idt_in", start: "2025-01" }]), "t1", "2026-01")).toBe(false);
+    expect(isFormerTrainee(blobWith(), "t1", "2026-01")).toBe(false);
+    expect(isFormerTrainee(blobWith([{ type: "active" }]), "t1", "2026-01")).toBe(false);
+  });
+
+  it("stays true however long ago it was — a departure does not expire", () => {
+    expect(isFormerTrainee(blobWith([{ type: "cct", end: "2000-01" }]), "t1", "2099-01")).toBe(true);
+  });
+
+  it("does not treat expired leave as a departure", () => {
+    // The leave has ended, so activeStatusType returns nothing at all.
+    expect(isFormerTrainee(blobWith([{ type: "mat", start: "2024-01", end: "2024-06" }]), "t1", "2026-01"))
+      .toBe(false);
   });
 });

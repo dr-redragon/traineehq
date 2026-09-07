@@ -225,9 +225,12 @@ reading and writing through `save_register()` with the version guard.
 **Done:**
 1. ✅ Attendance dashboard — `AttendanceGrid.tsx`. Year tabs, the cell grid with
    click-to-toggle, search, sorting, "hide trainees not in programme", raw vs
-   adjusted percentages with the original's 80/60 colour bands.
+   adjusted percentages with the original's 80/60 colour bands, and the specific
+   long-term status per trainee (`Mat leave`, `OOP`, `CCT`, `IDT in/out`) rather
+   than one word for all of them.
 2. ✅ Trainees and teaching days — `ManagePanel.tsx`, with `MonthInput.tsx`
-   carrying `parseMonth`'s forgiving entry across.
+   carrying `parseMonth`'s forgiving entry across, and the original's collapsed
+   **Former trainees** list for anyone CCT'd or transferred out.
 2b. ✅ Long-term status — `StatusPanel.tsx`, its own tab as in the original, with
    `statusText.ts` porting the per-type wording ("completes after Mar 2026
    (2025/26)", "excluded from Sept 2025 → ongoing") and its tests.
