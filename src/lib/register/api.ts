@@ -5,6 +5,8 @@ import type {
   RegisterBlob,
   RegisterDirectoryEntry,
   RegisterMember,
+  RegisterPerson,
+  RegisterRole,
   RegisterStore,
 } from "./types";
 
@@ -102,6 +104,20 @@ export async function fetchRegisterRequests(registerId: string): Promise<Registe
 }
 
 /**
+ * Names and addresses for the people connected to one register — its members,
+ * and anyone who has asked to join it.
+ *
+ * Answers only a member of that register, and only about people already
+ * connected to it; `profiles` itself stays readable to its owner and to
+ * TraineeHQ admins alone.
+ */
+export async function fetchRegisterPeople(registerId: string): Promise<RegisterPerson[]> {
+  const { data, error } = await untyped.rpc("register_people", { _register_id: registerId });
+  raise(error);
+  return (data ?? []) as RegisterPerson[];
+}
+
+/**
  * Specialties the caller could start a register for: ones they can see, that do
  * not have a register already.
  *
@@ -164,6 +180,47 @@ export async function decideRegisterAccess(
     _note: note?.trim() || null,
   });
   raise(error);
+}
+
+export async function setRegisterMemberRole(
+  registerId: string,
+  userId: string,
+  role: RegisterRole,
+): Promise<void> {
+  const { error } = await untyped.rpc("set_register_member_role", {
+    _register_id: registerId,
+    _user_id: userId,
+    _role: role,
+  });
+  raise(error);
+}
+
+/**
+ * Add somebody by email, creating their account if they do not have one.
+ *
+ * Goes through an edge function rather than an RPC because it may need to make
+ * an auth user, which needs the service role. The function repeats every rule
+ * RLS would have applied, since the service role bypasses them.
+ */
+export async function inviteToRegister(
+  registerId: string,
+  email: string,
+  role: RegisterRole = "editor",
+): Promise<{ created: boolean; email_sent: boolean }> {
+  const { data, error } = await supabase.functions.invoke("register-invite", {
+    body: {
+      register_id: registerId,
+      email: email.trim().toLowerCase(),
+      role,
+      redirect_to: `${window.location.origin}/registers`,
+    },
+  });
+
+  if (error) throw new Error(error.message);
+  const result = data as { error?: string; created?: boolean; email_sent?: boolean };
+  if (result?.error) throw new Error(result.error);
+
+  return { created: !!result?.created, email_sent: !!result?.email_sent };
 }
 
 export async function removeRegisterMember(registerId: string, userId: string): Promise<void> {

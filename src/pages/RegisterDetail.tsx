@@ -1,6 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Lock } from "lucide-react";
+import { ArrowLeft, Lock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -92,14 +92,21 @@ export default function RegisterDetail() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">
-          {entry.specialty_name}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {entry.deanery_name} · {entry.member_count}{" "}
-          {entry.member_count === 1 ? "member" : "members"}
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="font-display text-2xl font-semibold tracking-tight">
+            {entry.specialty_name}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {entry.deanery_name} · {entry.member_count}{" "}
+            {entry.member_count === 1 ? "member" : "members"}
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to={`/registers/${entry.slug}/access`}>
+            <Users className="mr-1.5 h-3.5 w-3.5" /> Access
+          </Link>
+        </Button>
       </div>
 
       <Card>

@@ -17,6 +17,7 @@ import NotFound from "./pages/NotFound";
 import RequestAccess from "./pages/RequestAccess";
 import RegisterDirectory from "./pages/RegisterDirectory";
 import RegisterDetail from "./pages/RegisterDetail";
+import RegisterAccess from "./pages/RegisterAccess";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { DeaneryProvider } from "./contexts/DeaneryContext";
@@ -93,6 +94,7 @@ const App = () => (
             >
               <Route index element={<RegisterDirectory />} />
               <Route path=":slug" element={<RegisterDetail />} />
+              <Route path=":slug/access" element={<RegisterAccess />} />
             </Route>
 
             {/* Admins only */}

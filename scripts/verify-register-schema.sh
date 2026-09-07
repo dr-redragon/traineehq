@@ -16,6 +16,9 @@
 #                Ends by running the seed migration with no operator account
 #                present, which must apply cleanly and change nothing.
 #
+#                Then 20260907110000_register_access_admin.sql and its own
+#                assertions, on the membership that scenario leaves behind.
+#
 #   B  seed      20260907100000_seed_first_register.sql against a project that
 #                still carries the legacy public.register_store table.
 #
@@ -35,6 +38,7 @@ SCHEMA="$REPO_ROOT/supabase/schema"
 MIGRATIONS="$REPO_ROOT/supabase/migrations"
 TENANCY="$MIGRATIONS/20260907090000_register_multi_tenancy.sql"
 SEED="$MIGRATIONS/20260907100000_seed_first_register.sql"
+ACCESS="$MIGRATIONS/20260907110000_register_access_admin.sql"
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }
 
@@ -90,6 +94,11 @@ apply tenancy "$SCHEMA/test/register-assertions.sql"
 echo "  - seed migration with no operator account"
 psql_as tenancy -f "$SEED"
 psql_as tenancy -f "$SCHEMA/test/seed-noop-assertions.sql"
+
+apply tenancy "$ACCESS"
+echo "  - re-applying the access-admin migration (idempotency)"
+psql_as tenancy -f "$ACCESS"
+apply tenancy "$SCHEMA/test/access-admin-assertions.sql"
 
 # ---------------------------------------------------------------- scenario B --
 echo "==> B  seed"

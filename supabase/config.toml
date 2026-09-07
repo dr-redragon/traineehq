@@ -12,6 +12,13 @@ project_id = "dvrzoglirpnoafjrobhn"
 [functions.invite-user]
 verify_jwt = true
 
+# Adds somebody to a teaching register, creating their account if they have none.
+# Requires a signed-in caller, and checks in code that they are a member of the
+# register in question — the service role bypasses RLS, so that check has to be
+# made rather than inherited.
+[functions.register-invite]
+verify_jwt = true
+
 [functions.zip-resources]
 verify_jwt = true
 

@@ -58,6 +58,14 @@ export interface RegisterAccessRequest {
   created_at: string;
 }
 
+/** Someone connected to a register: a member, or an applicant to it. */
+export interface RegisterPerson {
+  user_id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string | null;
+}
+
 /** A specialty that has no register yet, and so can have one created for it. */
 export interface CreatableSpecialty {
   id: string;

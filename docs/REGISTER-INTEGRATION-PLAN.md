@@ -50,7 +50,8 @@ These were decided up front. Do not re-litigate them without saying so.
 
 - `supabase/migrations/20260907090000_register_multi_tenancy.sql`
 - Enum `register_role`; tables `registers`, `register_members`,
-  `register_access_requests`, `register_invites`, `register_stores`.
+  `register_access_requests`, `register_stores`. (`register_invites` was created
+  here too and dropped again in Stage 5 — see there for why.)
 - Helpers `is_register_member`, `is_register_owner`, `can_create_register`.
 - RPCs `create_register`, `request_register_access`, `decide_register_access`,
   `save_register`, `remove_register_member`.
@@ -161,20 +162,44 @@ the Supabase project first.
 
 ---
 
-### [ ] Stage 5 — Access administration
+### [x] Stage 5 — Access administration
 **Goal.** Requests, invites and membership are managed from inside the register.
 
-- Approve / refuse pending requests (any member; never your own request).
-- Member list; remove member and transfer/leave (owner only, never the last owner).
-- Invites: `invite_to_register` + `accept_register_invite` RPCs, and an edge
-  function to send the email — reuse the pattern in
-  `supabase/functions/invite-user/`, which already provisions an `auth.users` row
-  and sends a set-password link. Raw invite tokens are emailed, never returned to
-  the browser; only `token_hash` is stored.
-- Route for accepting an invite, usable by someone with no account yet.
+- `supabase/migrations/20260907110000_register_access_admin.sql`
+- `supabase/functions/register-invite/` — adds someone by email, creating their
+  account if they have none, and emails them a set-password link. Mirrors
+  `invite-user/`. Every rule is re-checked in code, because the service role
+  bypasses RLS.
+- `src/pages/RegisterAccess.tsx` at `/registers/:slug/access` — requests to
+  approve or refuse, the member list with promote/demote/remove/leave, and the
+  add-by-email form. `src/hooks/useRegisterAccess.ts`.
+- `register_people()` — names and addresses for a register's members and
+  applicants, answerable only to a member of it. Needed because an owner may hold
+  no TraineeHQ admin role, and `profiles` is readable only by its owner and by
+  admins.
 
-**Done when.** A person with no TraineeHQ account can be invited, set a password,
-and land in the register as an editor.
+**Two changes of mind, both recorded in the migration:**
+
+1. **`register_invites` is dropped.** Stage 1 built a hashed-token, click-to-accept
+   flow. It was ceremony: this project already invites people to TraineeHQ by
+   creating the account and assigning the role outright, `granted_by` gives the
+   same audit trail, and anyone added can leave on their own. Dropping it removes
+   a credential store from the schema rather than leaving it unused. The table
+   never held a row.
+2. **Admitting someone is now one rule.** Stage 1 let any member approve a request
+   but only an owner add somebody directly — two answers to the same question.
+   Both are now "any member", with the role capped at editor unless the caller is
+   an owner. Promote, demote and remove stay with owners.
+
+Also: member roles move behind `set_register_member_role()`, because the
+last-owner rule cannot be written as a row predicate — it depends on how many
+other rows exist, and the old policy would have let the only owner demote
+themselves into a register nobody could administer.
+
+**Done when.** ⚠️ 51 schema assertions pass (up from 36), 130 unit tests green,
+tsc and ESLint clean on the new files, build succeeds, and all three
+`/registers` routes verified in Chromium to mount and gate correctly.
+**The signed-in paths and the edge function still need a live project.**
 
 **Depends on.** Stages 1, 4.
 
