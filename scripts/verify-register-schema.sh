@@ -42,6 +42,7 @@ SEED="$MIGRATIONS/20260907100000_seed_first_register.sql"
 ACCESS="$MIGRATIONS/20260907110000_register_access_admin.sql"
 LIVE="$MIGRATIONS/20260907120000_register_live_sessions.sql"
 GRANTS="$MIGRATIONS/20260907130000_register_grants_lockdown.sql"
+APIFN="$MIGRATIONS/20260907140000_register_api_functions.sql"
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }
 
@@ -112,6 +113,11 @@ apply tenancy "$GRANTS"
 echo "  - re-applying the grants lockdown (idempotency)"
 psql_as tenancy -f "$GRANTS"
 apply tenancy "$SCHEMA/test/grants-assertions.sql"
+
+apply tenancy "$APIFN"
+echo "  - re-applying the register-api functions (idempotency)"
+psql_as tenancy -f "$APIFN"
+apply tenancy "$SCHEMA/test/api-functions-assertions.sql"
 
 # ---------------------------------------------------------------- scenario B --
 echo "==> B  seed"

@@ -282,12 +282,28 @@ flagged twice in this document. Both empty, nothing read them.
 trainees* — assertion 2 of `live-sessions-assertions.sql`, with two registers and
 a published session in each.
 
-**Still to do:** port `register-api` into `supabase/functions/register-api/` —
-the three-tier auth (anon / member / owner) with the member tier checking
-`is_register_member` rather than "any signed-in user". Publishing a day,
-recording an attendee, submitting feedback and editing a form all have to run
-through it: there is no insert/update/delete policy or grant on any of these
-tables for either browser role.
+**Edge function done** — `supabase/functions/register-api/index.ts`, plus the two
+RPCs it needs in `20260907140000_register_api_functions.sql`
+(`register_enrol_trainee`, `register_record_feedback`, both service-role only).
+
+Two tiers, and the middle one is the port:
+- **anon** — `check-in`, `submit-feedback`. Authority is the session link; the
+  register is always derived from the session id.
+- **member** — `create-session`, `session-status`, `mark-attended`, `get-form`,
+  `save-form`, `reset-feedback`. The original asked "is this a signed-in user",
+  because one register meant anybody signed in ran it. Now it asks "is this user
+  a member of the register this action touches", per call.
+
+Where a call names both a session and a register, **the session decides** — so a
+caller cannot pair a session in register A with a register id in register B and
+have the looser of the two checked.
+
+**Not ported, deliberately whole rather than half:** `send-certificate`,
+`certificate-preview`, `email-feedback-link`, `chase-absences`. All four need
+pdf-lib and a Resend sender, all four mail real trainees, and the certificate
+template needs somewhere to take a register's name from — a single-tenant
+certificate says "ENT Teaching Register" in its footer, which is wrong for every
+other register.
 
 **Depends on.** Stage 1.
 
