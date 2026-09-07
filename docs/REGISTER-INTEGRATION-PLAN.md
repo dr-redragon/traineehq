@@ -215,22 +215,39 @@ tsc and ESLint clean on the new files, build succeeds, and all three
 
 ---
 
-### [ ] Stage 6 — Port the register UI
+### [~] Stage 6 — Port the register UI
 **Goal.** The register itself, as React components, register-scoped throughout.
 
-The bulk of the work — `index.html` is 3,342 lines. Port panel by panel, each
-reading and writing through `save_register()` with the version guard:
+The bulk of the work — `index.html` is 3,342 lines. Ported panel by panel, each
+reading and writing through `save_register()` with the version guard.
 
-1. Attendance dashboard (the grid, year tabs, "hide not in programme").
-2. Trainees & sessions (roster, monthly calendar, edit dialogs).
-3. Reports (per-year / combined / both, the include-cohort checkboxes).
-4. Live session & QR check-in.
-5. Feedback reporting.
-6. Certificates.
-7. Users & access — replaced by Stage 5's UI, not ported.
+**Done:**
+1. ✅ Attendance dashboard — `AttendanceGrid.tsx`. Year tabs, the cell grid with
+   click-to-toggle, search, sorting, "hide trainees not in programme", raw vs
+   adjusted percentages with the original's 80/60 colour bands.
+2. ✅ Trainees, teaching days and long-term status — `ManagePanel.tsx`, with
+   `MonthInput.tsx` carrying `parseMonth`'s forgiving entry across.
+7. ✅ Users & access — Stage 5's UI, not ported.
+
+**The foundation, and the part worth reviewing:**
+- `src/lib/register/blob.ts` — every edit as a pure, immutable function of the
+  blob, with 23 tests. Removing a trainee takes their attendance, excusals and
+  status with them; removing a teaching day takes its marks and excusals.
+- `src/hooks/useRegisterStore.ts` — edits are passed as **functions**, not
+  finished blobs, precisely so a rejected save can be replayed on top of
+  whatever the other person wrote. Four attempts, then it fails loudly.
+
+**Still to do:**
+3. ⬜ Reports (per-year / combined / both, include-cohort checkboxes). Blob-only,
+   so it needs nothing from Stage 7 — the next piece of this stage.
+4. ⬜ Live session & QR check-in — **needs Stage 7**.
+5. ⬜ Feedback reporting — **needs Stage 7**.
+6. ⬜ Certificates — **needs Stage 7**.
 
 **Done when.** Every panel works against a seeded register, and two browser tabs
 editing at once produce a clean version-conflict retry rather than silent loss.
+⚠️ The conflict retry is unit-covered by `blob.ts`'s purity test but has **not
+been exercised with two real browsers** yet.
 
 **Depends on.** Stages 3, 4.
 
