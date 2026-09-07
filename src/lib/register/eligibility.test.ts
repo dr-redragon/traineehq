@@ -153,16 +153,16 @@ describe("isExcused", () => {
     excused: [{ id: "e1", trainee: "t1", session: "s1", reason: "On call", ts: "" }],
   });
 
-  it("excuses the month of the excused session", () => {
-    expect(isExcused(blob, "t1", "2026-01")).toBe(true);
+  it("excuses the session it was logged against", () => {
+    expect(isExcused(blob, "t1", "s1")).toBe(true);
   });
 
-  it("does not excuse other months", () => {
-    expect(isExcused(blob, "t1", "2026-02")).toBe(false);
+  it("does not excuse other sessions", () => {
+    expect(isExcused(blob, "t1", "s2")).toBe(false);
   });
 
   it("does not excuse another trainee", () => {
-    expect(isExcused(blob, "t2", "2026-01")).toBe(false);
+    expect(isExcused(blob, "t2", "s1")).toBe(false);
   });
 
   it("ignores an excusal pointing at a session that no longer exists", () => {
@@ -170,12 +170,12 @@ describe("isExcused", () => {
       sessions: [],
       excused: [{ id: "e1", trainee: "t1", session: "gone", reason: "", ts: "" }],
     });
-    expect(isExcused(orphaned, "t1", "2026-01")).toBe(false);
+    expect(isExcused(orphaned, "t1", "s1")).toBe(false);
   });
 
-  it("excuses every session sharing that month", () => {
-    // Logged against one session but matched by month — so a second teaching day
-    // in the same month is excused too. Carried over from the original.
+  it("excuses only the named session where a month holds two", () => {
+    // The intentional change from the original, which matched on month and so
+    // excused both teaching days.
     const twoInAMonth = blobWith([], {
       sessions: [
         { id: "s1", month: "2026-01", title: "First" },
@@ -183,7 +183,8 @@ describe("isExcused", () => {
       ],
       excused: [{ id: "e1", trainee: "t1", session: "s1", reason: "", ts: "" }],
     });
-    expect(isExcused(twoInAMonth, "t1", "2026-01")).toBe(true);
+    expect(isExcused(twoInAMonth, "t1", "s1")).toBe(true);
+    expect(isExcused(twoInAMonth, "t1", "s1b")).toBe(false);
   });
 });
 
@@ -215,6 +216,20 @@ describe("cellState", () => {
       excused: [{ id: "e1", trainee: "t1", session: "s1", reason: "", ts: "" }],
     });
     expect(cellState(blob, "t1", session)).toBe("present");
+  });
+
+  it("excuses only the session named, where a month holds two", () => {
+    const twoInAMonth = blobWith([], {
+      sessions: [
+        { id: "s1", month: "2026-01", title: "First" },
+        { id: "s1b", month: "2026-01", title: "Second" },
+      ],
+      excused: [{ id: "e1", trainee: "t1", session: "s1", reason: "", ts: "" }],
+    });
+    expect(cellState(twoInAMonth, "t1", { id: "s1", month: "2026-01", title: "First" }))
+      .toBe("excused");
+    expect(cellState(twoInAMonth, "t1", { id: "s1b", month: "2026-01", title: "Second" }))
+      .toBe("absent");
   });
 
   it("reports excused, then absent", () => {

@@ -13,6 +13,14 @@
  *
  * The legacy half is deliberately unmodernised: `any`, `var`-style flow and all.
  * Tidying it would defeat the purpose, which is that it is the original code.
+ *
+ * ONE INTENTIONAL DIVERGENCE. The original matched an excusal on the *month* of
+ * the session it was logged against; the port matches the session itself. The two
+ * agree entirely on registers with at most one teaching day a month, which is
+ * every real one, so the randomised fixtures below are generated that way and
+ * still assert exact agreement. The case where they differ is asserted
+ * separately, at the bottom, so the difference is pinned down rather than
+ * papered over.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, prefer-const */
 import { describe, expect, it } from "vitest";
@@ -98,9 +106,20 @@ const TYPES = ["active", "cct", "idt_in", "idt_out", "mat", "oop"] as const;
 const MONTHS = ["2024-08", "2025-01", "2025-08", "2025-09", "2026-02", "2026-07", "2026-08", null];
 
 function randomBlob() {
+  // One teaching day a month, as every real register runs. Where a month held
+  // two, the ported excusal rule intentionally differs from the original — see
+  // the header, and the dedicated test below.
+  const pool: string[] = [];
+  for (let y = 2024; y <= 2026; y++) {
+    for (let m = 1; m <= 12; m++) pool.push(`${y}-${String(m).padStart(2, "0")}`);
+  }
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rnd() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
   const sessions = Array.from({ length: 1 + Math.floor(rnd() * 6) }, (_, i) => ({
     id: `s${i}`,
-    month: `${2024 + Math.floor(rnd() * 3)}-${String(1 + Math.floor(rnd() * 12)).padStart(2, "0")}`,
+    month: pool[i],
     title: `S${i}`,
   }));
   const trainees = Array.from({ length: 1 + Math.floor(rnd() * 3) }, (_, i) => ({
@@ -145,6 +164,29 @@ describe("parity with the original implementation", () => {
     }
   });
 
+  it("differs from the original only where one month holds two teaching days", () => {
+    const blob = {
+      trainees: [{ id: "t1", name: "Alice" }],
+      sessions: [
+        { id: "s1", month: "2026-01", title: "First" },
+        { id: "s2", month: "2026-01", title: "Second" },
+      ],
+      attendance: {},
+      excused: [{ id: "e1", trainee: "t1", session: "s1", reason: "", ts: "" }],
+      status: [],
+    } as any;
+    DB = blob;
+
+    // Both agree the excused day is excused.
+    expect(cellState(blob, "t1", blob.sessions[0])).toBe("excused");
+    expect(origCellState("t1", blob.sessions[0])).toBe("excused");
+
+    // They part company on the second day of the same month: the original
+    // excused it too, the port marks it absent.
+    expect(origCellState("t1", blob.sessions[1])).toBe("excused");
+    expect(cellState(blob, "t1", blob.sessions[1])).toBe("absent");
+  });
+
   it("eligibility, excusal, cell state and row totals agree over 400 random registers", () => {
     for (let n = 0; n < 400; n++) {
       const blob = randomBlob();
@@ -153,7 +195,7 @@ describe("parity with the original implementation", () => {
       for (const t of blob.trainees) {
         for (const s of blob.sessions) {
           expect(isEligible(blob, t.id, s.month)).toBe(origIsEligible(t.id, s.month));
-          expect(isExcused(blob, t.id, s.month)).toBe(origIsExcused(t.id, s.month));
+          expect(isExcused(blob, t.id, s.id)).toBe(origIsExcused(t.id, s.month));
           expect(cellState(blob, t.id, s)).toBe(origCellState(t.id, s));
         }
 

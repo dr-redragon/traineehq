@@ -117,10 +117,17 @@ and neither variants of each.
 
 **And beyond it** — `parity.test.ts` runs the ported rules against the *original*
 functions, copied verbatim out of `index.html`, over 400 randomised registers,
-every month boundary from 2023 to 2027, and 29 forms of typed month. They agree
-exactly. It is kept rather than deleted: until the Stage 10 cutover both
-registers are live against the same cohort, so a drift between them would mean
-two systems reporting different attendance for the same trainee.
+every month boundary from 2023 to 2027, and 29 forms of typed month. It is kept
+rather than deleted: until the Stage 10 cutover both registers are live against
+the same cohort, so a drift between them would mean two systems reporting
+different attendance for the same trainee.
+
+**One intentional divergence**, made deliberately after the port: an excusal now
+applies to the session it was logged against, where the original applied it to
+that session's whole month. The two agree on any register with one teaching day a
+month, so the randomised fixtures are generated that way and still assert exact
+agreement; the case where they differ has its own test. No data migration is
+needed — an excusal has always been stored against a session id.
 
 **Depends on.** Nothing.
 

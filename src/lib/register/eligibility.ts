@@ -60,19 +60,19 @@ export function isEligible(blob: RegisterBlob, traineeId: string, month: string)
 }
 
 /**
- * Has this trainee been excused for this month?
+ * Has this trainee been excused from this session?
  *
- * Note the granularity: an excusal is logged against a session, but matched by
- * that session's *month*. With the usual one teaching day a month the two are
- * the same thing; where a month holds two, excusing one excuses both. Carried
- * over from the original as-is.
+ * Matched on the session itself. The original register matched on the session's
+ * *month* instead, so where a month held two teaching days, excusing one excused
+ * both — the only intentional behaviour change made during the port, and the one
+ * divergence `parity.test.ts` records rather than enforces.
+ *
+ * Existing data needs no migration: an excusal has always been stored against a
+ * session id, and this simply stops widening it to the month. Registers with the
+ * usual one teaching day a month are unaffected either way.
  */
-export function isExcused(blob: RegisterBlob, traineeId: string, month: string): boolean {
-  return blob.excused.some((e) => {
-    if (e.trainee !== traineeId) return false;
-    const session = blob.sessions.find((s) => s.id === e.session);
-    return !!session && session.month === month;
-  });
+export function isExcused(blob: RegisterBlob, traineeId: string, sessionId: string): boolean {
+  return blob.excused.some((e) => e.trainee === traineeId && e.session === sessionId);
 }
 
 /** How one trainee/session cell reads. Ineligibility outranks everything else. */
@@ -83,7 +83,7 @@ export function cellState(
 ): CellState {
   if (!isEligible(blob, traineeId, session.month)) return "na";
   if (isPresent(blob, traineeId, session.id)) return "present";
-  if (isExcused(blob, traineeId, session.month)) return "excused";
+  if (isExcused(blob, traineeId, session.id)) return "excused";
   return "absent";
 }
 
