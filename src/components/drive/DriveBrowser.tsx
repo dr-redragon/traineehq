@@ -20,7 +20,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   ChevronRight, FolderPlus, ListPlus, Upload, Plus, X, Trash2, Download,
-  FolderInput, CheckSquare, FolderClosed, FileText, MoreVertical, ArrowLeft,
+  FolderInput, CheckSquare, ListChecks, FolderClosed, FileText, MoreVertical, ArrowLeft,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FileRow, FolderRow } from "@/components/drive/DriveRow";
@@ -28,6 +28,7 @@ import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
 import { AddResourceDialog } from "@/components/AddResourceDialog";
 import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
+import { uploadErrorMessage } from "@/lib/storageUtils";
 import type { Tables } from "@/integrations/supabase/types";
 
 const UNGROUPED = "__ungrouped__";
@@ -86,6 +87,7 @@ export function DriveBrowser({
   const [manualSubheadings, setManualSubheadings] = useState<string[]>([]);
   const [selection, setSelection] = useState<Set<string>>(new Set()); // ids of selected items (files or `folder-row:id`)
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false); // "Select" pressed: tapping a row ticks it
 
   const [activeDrag, setActiveDrag] = useState<DragItem | null>(null);
   const [activeDropId, setActiveDropId] = useState<string | null>(null);
@@ -169,7 +171,7 @@ export function DriveBrowser({
       return;
     }
     // Once selection mode is active, plain clicks add/remove items instead of clearing.
-    if (selection.size > 0) {
+    if (selectMode || selection.size > 0) {
       const next = new Set(selection);
       if (next.has(id)) next.delete(id); else next.add(id);
       setSelection(next);
@@ -181,6 +183,7 @@ export function DriveBrowser({
   };
 
   const clearSelection = () => setSelection(new Set());
+  const exitSelectMode = () => { setSelectMode(false); setSelection(new Set()); };
 
   const allVisibleSelected =
     visibleIds.length > 0 && visibleIds.every((id) => selection.has(id));
@@ -398,13 +401,14 @@ export function DriveBrowser({
       }
 
       setUploadProgress({ current: 0, total: dropped.length, fileName: "" });
+      let failed = 0;
       for (let i = 0; i < dropped.length; i++) {
         const { folderName, file } = dropped[i];
         setUploadProgress({ current: i + 1, total: dropped.length, fileName: file.name });
         const ext = file.name.split(".").pop();
         const path = `${specialtyId}/${subsection.id}/${crypto.randomUUID()}.${ext}`;
         const { error: ue } = await supabase.storage.from("resources").upload(path, file);
-        if (ue) { toast.error(`Failed: ${file.name}`); continue; }
+        if (ue) { failed++; toast.error(uploadErrorMessage(ue, file)); continue; }
         const targetFolderId = dest.folderId ?? (folderName ? folderIdMap[folderName] ?? null : null);
         await supabase.from("resources").insert({
           title: file.name.replace(/\.[^.]+$/, ""),
@@ -418,7 +422,8 @@ export function DriveBrowser({
           file_size: file.size,
         } as any);
       }
-      toast.success(`Uploaded ${dropped.length} file${dropped.length === 1 ? "" : "s"}`);
+      const uploaded = dropped.length - failed;
+      if (uploaded > 0) toast.success(`Uploaded ${uploaded} file${uploaded === 1 ? "" : "s"}`);
       queryClient.invalidateQueries({ queryKey: ["resources"] });
       queryClient.invalidateQueries({ queryKey: ["resource-folders"] });
     } catch (e: any) {
@@ -525,10 +530,11 @@ export function DriveBrowser({
               selected={selection.has(`folder-row:${f.id}`)}
               onClick={(e) => {
                 if (e.shiftKey || e.metaKey || e.ctrlKey) { handleRowClick(`folder-row:${f.id}`, e); return; }
-                if (selection.size > 0) { handleRowClick(`folder-row:${f.id}`, e); return; }
+                if (selectMode || selection.size > 0) { handleRowClick(`folder-row:${f.id}`, e); return; }
                 setCurrentFolderId(f.id); clearSelection();
               }}
               canManage={canManage}
+              selectMode={selectMode}
               onOpen={() => { setCurrentFolderId(f.id); clearSelection(); }}
               onRename={() => { setRenameFolderId(f.id); setRenameFolderName(f.name); }}
               onDelete={() => setDeleteFolderId(f.id)}
@@ -542,6 +548,7 @@ export function DriveBrowser({
               selected={selection.has(r.id)}
               onClick={(e) => handleRowClick(r.id, e)}
               canManage={canManage}
+              selectMode={selectMode}
               existingSubheadings={allSubheadings}
               onDelete={(id) => deleteResource.mutate(id)}
               onMove={(id) => { setMoveTargetIds([id]); setMoveDialogOpen(true); }}
@@ -582,10 +589,11 @@ export function DriveBrowser({
                   selected={selection.has(`folder-row:${f.id}`)}
                   onClick={(e) => {
                     if (e.shiftKey || e.metaKey || e.ctrlKey) { handleRowClick(`folder-row:${f.id}`, e); return; }
-                    if (selection.size > 0) { handleRowClick(`folder-row:${f.id}`, e); return; }
+                    if (selectMode || selection.size > 0) { handleRowClick(`folder-row:${f.id}`, e); return; }
                     setCurrentFolderId(f.id); clearSelection();
                   }}
                   canManage={canManage}
+                  selectMode={selectMode}
                   onOpen={() => { setCurrentFolderId(f.id); clearSelection(); }}
                   onRename={() => { setRenameFolderId(f.id); setRenameFolderName(f.name); }}
                   onDelete={() => setDeleteFolderId(f.id)}
@@ -599,6 +607,7 @@ export function DriveBrowser({
                   selected={selection.has(r.id)}
                   onClick={(e) => handleRowClick(r.id, e)}
                   canManage={canManage}
+                  selectMode={selectMode}
                   existingSubheadings={allSubheadings}
                   onDelete={(id) => deleteResource.mutate(id)}
                   onMove={(id) => { setMoveTargetIds([id]); setMoveDialogOpen(true); }}
@@ -635,6 +644,7 @@ export function DriveBrowser({
             selected={selection.has(r.id)}
             onClick={(e) => handleRowClick(r.id, e)}
             canManage={canManage}
+            selectMode={selectMode}
             existingSubheadings={allSubheadings}
             onDelete={(id) => deleteResource.mutate(id)}
             onMove={(id) => { setMoveTargetIds([id]); setMoveDialogOpen(true); }}
@@ -719,6 +729,18 @@ export function DriveBrowser({
         />
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
           {visibleIds.length > 0 && (
+            <Button
+              variant={selectMode ? "secondary" : "outline"}
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={() => (selectMode ? exitSelectMode() : setSelectMode(true))}
+              aria-pressed={selectMode}
+            >
+              <ListChecks className="h-3.5 w-3.5" />
+              {selectMode ? "Done" : "Select"}
+            </Button>
+          )}
+          {selectMode && visibleIds.length > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -850,7 +872,7 @@ export function DriveBrowser({
                 </Button>
               </>
             )}
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={clearSelection}>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exitSelectMode}>
               <X className="h-4 w-4" />
             </Button>
           </div>

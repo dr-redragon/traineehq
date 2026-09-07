@@ -13,6 +13,7 @@ import { UploadProgressBar } from "@/components/UploadProgressBar";
 import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { Constants } from "@/integrations/supabase/types";
 import { getDroppedFiles, detectResourceType } from "@/lib/fileDropUtils";
+import { uploadErrorMessage } from "@/lib/storageUtils";
 
 interface AddResourceDialogProps {
   subsectionId: string;
@@ -134,7 +135,7 @@ export function AddResourceDialog({ subsectionId, specialtyId, existingSubheadin
         const ext = file.name.split(".").pop();
         const path = `${specialtyId}/${subsectionId}/${crypto.randomUUID()}.${ext}`;
         const { error: uploadErr } = await supabase.storage.from("resources").upload(path, file);
-        if (uploadErr) { toast.error(`Failed: ${file.name}`); continue; }
+        if (uploadErr) { toast.error(uploadErrorMessage(uploadErr, file)); continue; }
 
         const folderId = folderName ? folderIdMap[folderName] ?? null : null;
 
@@ -151,7 +152,7 @@ export function AddResourceDialog({ subsectionId, specialtyId, existingSubheadin
         } as any);
         successCount++;
       }
-      toast.success(`${successCount} file${successCount === 1 ? "" : "s"} uploaded`);
+      if (successCount > 0) toast.success(`${successCount} file${successCount === 1 ? "" : "s"} uploaded`);
       queryClient.invalidateQueries({ queryKey: ["resources"] });
       queryClient.invalidateQueries({ queryKey: ["resource-folders"] });
       resetForm();
@@ -171,7 +172,7 @@ export function AddResourceDialog({ subsectionId, specialtyId, existingSubheadin
         const ext = file.name.split(".").pop();
         const path = `${specialtyId}/${subsectionId}/${crypto.randomUUID()}.${ext}`;
         const { error: uploadErr } = await supabase.storage.from("resources").upload(path, file);
-        if (uploadErr) throw uploadErr;
+        if (uploadErr) throw new Error(uploadErrorMessage(uploadErr, file));
         fileUrl = path;
       }
 

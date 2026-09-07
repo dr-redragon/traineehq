@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import { RichText } from "@/components/RichText";
+import { RichTextArea } from "@/components/RichTextArea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Megaphone, ChevronDown, Plus, Trash2, X, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
@@ -144,9 +145,9 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
                 <div className="flex-1 min-w-0">
                   {editingId === notice.id ? (
                     <div className="space-y-2">
-                      <Textarea
+                      <RichTextArea
                         value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
+                        onChange={setEditContent}
                         rows={3}
                         className="text-sm"
                         autoFocus
@@ -162,7 +163,7 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
                     </div>
                   ) : (
                     <>
-                      <p className="text-sm whitespace-pre-wrap">{notice.content}</p>
+                      <p className="text-sm whitespace-pre-wrap"><RichText text={notice.content} /></p>
                       <p className="text-[10px] text-muted-foreground mt-1">
                         {getAuthorName(notice.author_id)} · {timeAgo(notice.created_at)}
                       </p>
@@ -194,9 +195,9 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
 
             {adding && (
               <div className="space-y-2">
-                <Textarea
+                <RichTextArea
                   value={newContent}
-                  onChange={(e) => setNewContent(e.target.value)}
+                  onChange={setNewContent}
                   placeholder="Write a notice for this specialty…"
                   rows={3}
                   className="text-sm"
