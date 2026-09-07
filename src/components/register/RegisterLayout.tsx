@@ -29,7 +29,10 @@ export function RegisterLayout() {
       <header className="border-b bg-card print:hidden">
         <div className="mx-auto max-w-6xl px-4">
           <div className="flex h-14 items-center gap-2">
-            <Link to="/registers" className="flex min-w-0 items-center gap-2">
+            {/* Back to TraineeHQ, not to the register list — the logo is the
+                TraineeHQ mark, so it should do what that mark does everywhere
+                else. The register list is one click away in the breadcrumbs. */}
+            <Link to="/dashboard" className="flex min-w-0 items-center gap-2">
               <img src={logoDark} alt="" className="h-7 w-auto shrink-0" />
               <span className="hidden truncate font-display text-sm font-semibold tracking-tight sm:inline">
                 Teaching registers

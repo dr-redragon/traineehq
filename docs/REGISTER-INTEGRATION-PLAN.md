@@ -45,7 +45,7 @@ These were decided up front. Do not re-litigate them without saying so.
 | 4 | **No god-mode read.** A `super_admin` can manage membership but cannot silently read a register's data — they must grant themselves, which is recorded in `register_members.granted_by`. |
 | 5 | Roles are **`owner` and `editor` only**. No viewer role — trainees reach check-in and feedback anonymously, exactly as they do today. |
 | 6 | **Nobody is auto-granted access.** You either create a register, are invited to one, or request access to one from the directory. |
-| 7 | **One register per specialty**, enforced by `unique (specialty_id)`. `specialties` is already deanery-scoped, so this *is* "one per specialty per deanery". A duplicate creation attempt becomes "that exists — request access instead". |
+| 7 | ~~One register per specialty, enforced by `unique (specialty_id)`.~~ **Revised in `20260907150000`.** That assumed `specialties` was a per-deanery list; on real data all 26 belong to North West and Northern has none, so it is a single catalogue and ENT could have exactly one register in existence. Registers now carry their own `deanery_id` and are unique per **(deanery, specialty)**. A duplicate within one deanery still becomes "that exists — request access instead". |
 | 8 | **Any member can approve** join requests for their register. Approval is therefore transitive; accepted deliberately. Only an `owner` can remove members or delete the register. |
 | 9 | The register keeps its **single JSONB blob** shape (`register_stores.data`), now one row per register, plus a `version` column for optimistic concurrency. Normalising into rows is a later, invisible migration behind `save_register()`. |
 | 10 | Non-admin members reach the register by **direct link** (`/registers`). No TraineeHQ sidebar entry, no membership-gated nav. `AppSidebar.tsx` is untouched. |
@@ -61,7 +61,8 @@ These were decided up front. Do not re-litigate them without saying so.
 - `supabase/migrations/20260907090000_register_multi_tenancy.sql`
 - Enum `register_role`; tables `registers`, `register_members`,
   `register_access_requests`, `register_stores`. (`register_invites` was created
-  here too and dropped again in Stage 5 — see there for why.)
+  here too and dropped again in Stage 5 — see there for why. `registers` gained
+  its own `deanery_id` in `20260907150000` — see decision 7.)
 - Helpers `is_register_member`, `is_register_owner`, `can_create_register`.
 - RPCs `create_register`, `request_register_access`, `decide_register_access`,
   `save_register`, `remove_register_member`.
@@ -365,10 +366,13 @@ Carry these forward until answered; none block Stage 1.
 
 1. ~~**Seed owner for the ENT register.**~~ Answered: Mohammed Abdelaziz,
    `mabdelaziz@outlook.com`. Implemented in Stage 2.
-2. **Missing specialty on self-serve creation.** `registers.specialty_id`
-   references TraineeHQ's admin-managed `specialties`. If someone wants a register
-   for a specialty nobody has added, they are blocked. Should `create_register`
-   be allowed to create the specialty row for their own deanery?
+2. ~~**Missing specialty on self-serve creation.**~~ Partly answered by
+   `20260907150000`: the specialty picker now offers the whole active catalogue
+   for any deanery you can create in, so a deanery with no specialty rows of its
+   own is no longer stuck. Still open in the narrower sense — a specialty that is
+   in no deanery's catalogue at all still needs adding under Admin → Specialties
+   first. The consequence to weigh is that `registers.deanery_id` and
+   `specialties.deanery_id` may now differ.
 3. **Transitive approval** (decision 8) — leave as specified, or restrict
    approval to `owner`? One line either way in `decide_register_access`.
 

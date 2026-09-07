@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  useCreatableSpecialties, useCreateRegister, useGroupedRegisters, useRequestRegisterAccess,
+  useCreatableDeaneries, useCreatableSpecialties, useCreateRegister,
+  useGroupedRegisters, useRequestRegisterAccess,
 } from "@/hooks/useRegisters";
 import { useRegister } from "@/contexts/RegisterContext";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -45,11 +46,13 @@ export default function RegisterDirectory() {
   const [requesting, setRequesting] = useState<RegisterDirectoryEntry | null>(null);
   const [reason, setReason] = useState("");
   const [creating, setCreating] = useState(false);
+  const [deaneryId, setDeaneryId] = useState("");
   const [specialtyId, setSpecialtyId] = useState("");
 
   const requestAccess = useRequestRegisterAccess();
   const createRegister = useCreateRegister();
-  const { data: creatable } = useCreatableSpecialties(creating);
+  const { data: deaneries } = useCreatableDeaneries(creating);
+  const { data: creatable } = useCreatableSpecialties(deaneryId || undefined);
 
   // Mirrors can_create_register() in the database: a TraineeHQ admin, or anyone
   // who already holds a register. The server is the authority — this only keeps
@@ -73,13 +76,14 @@ export default function RegisterDirectory() {
   };
 
   const submitCreate = () => {
-    if (!specialtyId) return;
+    if (!deaneryId || !specialtyId) return;
     createRegister.mutate(
-      { specialtyId },
+      { deaneryId, specialtyId },
       {
         onSuccess: () => {
           toast.success("Register created. You are its owner.");
           setCreating(false);
+          setDeaneryId("");
           setSpecialtyId("");
         },
         onError: (e: Error) => toast.error(e.message),
@@ -241,34 +245,69 @@ export default function RegisterDirectory() {
       </Dialog>
 
       {/* --------------------------------------------------- create dialog -- */}
-      <Dialog open={creating} onOpenChange={setCreating}>
+      <Dialog
+        open={creating}
+        onOpenChange={(open) => {
+          setCreating(open);
+          if (!open) { setDeaneryId(""); setSpecialtyId(""); }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create a register</DialogTitle>
             <DialogDescription>
-              One register per specialty. You become its owner, and can then admit
-              other people to it.
+              One register per specialty in each deanery. You become its owner, and can
+              then admit other people to it.
             </DialogDescription>
           </DialogHeader>
 
-          {creatable && creatable.length === 0 ? (
+          {deaneries && deaneries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              Every specialty you can see already has a register. If the one you want is
-              missing, it needs adding under Admin → Specialties first.
+              There is no deanery you can create a register in. Registers can be started
+              by an administrator, or by anyone who already belongs to one.
             </p>
           ) : (
-            <div className="space-y-2">
-              <Label htmlFor="specialty" className="text-xs">Specialty</Label>
-              <Select value={specialtyId} onValueChange={setSpecialtyId}>
-                <SelectTrigger id="specialty">
-                  <SelectValue placeholder="Choose a specialty" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(creatable ?? []).map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="deanery" className="text-xs">Deanery</Label>
+                <Select
+                  value={deaneryId}
+                  onValueChange={(v) => { setDeaneryId(v); setSpecialtyId(""); }}
+                >
+                  <SelectTrigger id="deanery">
+                    <SelectValue placeholder="Choose a deanery" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(deaneries ?? []).map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="specialty" className="text-xs">Specialty</Label>
+                <Select value={specialtyId} onValueChange={setSpecialtyId} disabled={!deaneryId}>
+                  <SelectTrigger id="specialty">
+                    <SelectValue
+                      placeholder={deaneryId ? "Choose a specialty" : "Choose a deanery first"}
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(creatable ?? []).map((sp) => (
+                      <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+
+                {deaneryId && creatable && creatable.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Every specialty already has a register in that deanery. If the one you
+                    want is missing from the list entirely, it needs adding under
+                    Admin → Specialties first.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 
@@ -278,7 +317,7 @@ export default function RegisterDirectory() {
             </Button>
             <Button
               onClick={submitCreate}
-              disabled={!specialtyId || createRegister.isPending}
+              disabled={!deaneryId || !specialtyId || createRegister.isPending}
             >
               {createRegister.isPending ? "Creating…" : "Create register"}
             </Button>

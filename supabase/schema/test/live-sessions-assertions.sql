@@ -15,9 +15,10 @@
 -- ----------------------------------------------------------------------------
 begin;
 
-insert into public.registers (id, specialty_id, name, slug)
+insert into public.registers (id, deanery_id, specialty_id, name, slug)
 values ('9e000000-0000-4000-8000-00000000000b',
-        '50000000-0000-4000-8000-000000000002',   -- Mersey Urology
+        'd0000000-0000-4000-8000-000000000001',   -- Mersey
+        '50000000-0000-4000-8000-000000000002',   -- Urology
         'Mersey · Urology', 'mersey-urology');
 
 insert into public.register_stores (register_id, data) values

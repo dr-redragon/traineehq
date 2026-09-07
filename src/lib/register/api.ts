@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  CreatableDeanery,
   CreatableSpecialty,
   RegisterAccessRequest,
   RegisterBlob,
@@ -136,41 +137,45 @@ export async function fetchRegisterPeople(registerId: string): Promise<RegisterP
 }
 
 /**
- * Specialties the caller could start a register for: ones they can see, that do
- * not have a register already.
+ * The deaneries this person may open a register in.
  *
- * RLS on `specialties` does the "can see" half — for an admin that is their own
- * deanery, for a trainee the specialties they are enrolled on — which is the same
- * rule `create_register()` enforces server-side. This query only keeps the
- * picker from offering something the RPC would refuse.
+ * Deliberately its own question rather than a filter on `deaneries`: the rule
+ * mixes a TraineeHQ role with existing register membership, and answering it
+ * client-side would mean reading `user_roles` for everybody.
  */
-export async function fetchCreatableSpecialties(): Promise<CreatableSpecialty[]> {
-  const [specialties, registers] = await Promise.all([
-    untyped
-      .from("specialties")
-      .select("id, name, short_name, deanery_id")
-      .eq("is_active", true)
-      .is("deleted_at", null)
-      .order("name"),
-    untyped.from("registers").select("specialty_id"),
-  ]);
+export async function fetchCreatableDeaneries(): Promise<CreatableDeanery[]> {
+  const { data, error } = await untyped.rpc("register_creatable_deaneries");
+  raise(error);
+  return (data ?? []) as CreatableDeanery[];
+}
 
-  raise(specialties.error);
-  raise(registers.error);
-
-  const taken = new Set(
-    ((registers.data ?? []) as { specialty_id: string }[]).map((r) => r.specialty_id),
-  );
-
-  return ((specialties.data ?? []) as CreatableSpecialty[]).filter((s) => !taken.has(s.id));
+/**
+ * The specialties still open in that deanery — the whole active catalogue, minus
+ * the ones already registered there.
+ *
+ * Not filtered by `specialties.deanery_id`: in practice the catalogue belongs to
+ * a single deanery, so doing that would leave every other one with nothing to
+ * choose. See 20260907150000.
+ */
+export async function fetchCreatableSpecialties(
+  deaneryId: string,
+): Promise<CreatableSpecialty[]> {
+  const { data, error } = await untyped.rpc("register_creatable_specialties", {
+    _deanery_id: deaneryId,
+  });
+  raise(error);
+  return (data ?? []) as CreatableSpecialty[];
 }
 
 // ---------------------------------------------------------------------------
 // Writes — all through RPCs, so their rules cannot be sidestepped
 // ---------------------------------------------------------------------------
 
-export async function createRegister(specialtyId: string, name?: string): Promise<string> {
+export async function createRegister(
+  deaneryId: string, specialtyId: string, name?: string,
+): Promise<string> {
   const { data, error } = await untyped.rpc("create_register", {
+    _deanery_id: deaneryId,
     _specialty_id: specialtyId,
     _name: name?.trim() || null,
   });

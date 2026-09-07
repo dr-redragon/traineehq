@@ -96,13 +96,45 @@ describe("buildReport", () => {
       expect(report.sections[0].rows.map((r) => r.trainee.name)).toEqual(["Alice", "Bob"]);
     });
 
-    it("hides rows with no eligible session, leave included", () => {
-      // Stricter than the dashboard's filter, which spares somebody on leave.
-      // A report row that could only ever read "—" is noise.
+    it("keeps somebody on leave for the whole period", () => {
+      // Leave is not absence. Omitting them reads as though they were never on
+      // the programme, which for an ARCP is worse than a blank.
       const onLeave = blob({
         status: [{ id: "s1", trainee: "t3", type: "mat", start: "2020-01", end: null }],
       });
       const report = buildReport(onLeave, { years: ["2025/26"], hideNoEligible: true });
+
+      expect(report.sections[0].rows.map((r) => r.trainee.name)).toEqual(["Alice", "Bob", "Carol"]);
+      expect(report.sections[0].rows.find((r) => r.trainee.name === "Carol")!.adjPct).toBeNull();
+    });
+
+    it("keeps somebody on leave for only part of the period", () => {
+      const partial = blob({
+        status: [{ id: "s1", trainee: "t3", type: "mat", start: "2025-08", end: "2025-10" }],
+      });
+      const report = buildReport(partial, { years: ["2025/26"], hideNoEligible: true });
+      expect(report.sections[0].rows.map((r) => r.trainee.name)).toEqual(["Alice", "Bob", "Carol"]);
+    });
+
+    it("still drops somebody who was never on the programme", () => {
+      // CCT'd long before this year: not a leave, a departure.
+      const gone = blob({
+        status: [{ id: "s1", trainee: "t3", type: "cct", start: null, end: "2020-01" }],
+      });
+      const report = buildReport(gone, { years: ["2025/26"], hideNoEligible: true });
+      expect(report.sections[0].rows.map((r) => r.trainee.name)).toEqual(["Alice", "Bob"]);
+    });
+
+    it("judges leave as at the end of the period, not today", () => {
+      // Leave that ended before this year, then a transfer out: by the last month
+      // in scope they were neither on leave nor on the programme.
+      const returned = blob({
+        status: [
+          { id: "s1", trainee: "t3", type: "mat", start: "2020-01", end: "2020-06" },
+          { id: "s2", trainee: "t3", type: "idt_out", start: "2021-01", end: null },
+        ],
+      });
+      const report = buildReport(returned, { years: ["2025/26"], hideNoEligible: true });
       expect(report.sections[0].rows.map((r) => r.trainee.name)).toEqual(["Alice", "Bob"]);
     });
 

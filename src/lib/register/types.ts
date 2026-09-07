@@ -66,12 +66,18 @@ export interface RegisterPerson {
   email: string | null;
 }
 
-/** A specialty that has no register yet, and so can have one created for it. */
+/** A deanery this user may open a register in. */
+export interface CreatableDeanery {
+  id: string;
+  name: string;
+  short_name: string;
+}
+
+/** A specialty with no register yet in the chosen deanery. */
 export interface CreatableSpecialty {
   id: string;
   name: string;
   short_name: string;
-  deanery_id: string;
 }
 
 // ---------------------------------------------------------------------------

@@ -93,8 +93,10 @@ begin
       join public.deaneries d on d.id = s.deanery_id
      where s.id = _spec;
 
-    insert into public.registers (specialty_id, name, slug, created_by)
-    values (_spec, _label, _slug, _uid)
+    insert into public.registers (deanery_id, specialty_id, name, slug, created_by)
+    select d.id, _spec, _label, _slug, _uid
+      from public.specialties s join public.deaneries d on d.id = s.deanery_id
+     where s.id = _spec
     returning id into _reg;
 
     raise notice 'Created register "%" (%).', _label, _slug;

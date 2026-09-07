@@ -175,7 +175,10 @@ export interface ReportOptions {
   includeCct?: boolean;
   /** Keep trainees who transferred out of the deanery. */
   includeIdtOut?: boolean;
-  /** Drop trainees with no eligible session in the section. */
+  /**
+   * Drop trainees who were not in the programme for this period at all.
+   * Anyone on maternity or OOP leave is kept regardless — see `buildReport`.
+   */
   hideNoEligible?: boolean;
 }
 
@@ -198,13 +201,15 @@ export interface Report {
 /**
  * Build the attendance report.
  *
- * Note that `hideNoEligible` is stricter here than the dashboard's "hide
- * trainees not in programme": a report drops anybody with no eligible session
- * full stop, including somebody on maternity or OOP leave for the whole period,
- * where the dashboard keeps them visible. That is deliberate in the original and
- * kept — a dashboard is a working view where someone on leave should still be
- * findable, and a report is a statement about attendance, where a row that could
- * only ever read "—" is noise.
+ * `hideNoEligible` matches the dashboard's "hide trainees not in programme"
+ * exactly: it drops somebody who was never in the programme for this period —
+ * CCT'd, transferred out, not yet arrived — and keeps anybody who had even one
+ * eligible teaching day, as well as anybody on maternity or OOP leave.
+ *
+ * Leave is not absence. Someone away for the whole year still belongs on the
+ * report, showing an adjusted figure of "—" rather than vanishing from it: an
+ * omission reads as though they were never on the programme, which for an ARCP
+ * is a worse answer than a blank.
  */
 export function buildReport(blob: RegisterBlob, options: ReportOptions): Report {
   const {
@@ -233,13 +238,22 @@ export function buildReport(blob: RegisterBlob, options: ReportOptions): Report 
     trainees = trainees.filter((t) => !hasStatus(blob, t.id, "idt_out"));
   }
 
+  // Judged as at the last month in scope, so a past year is judged by where the
+  // trainee stood then rather than where they stand today.
+  const keep = (rows: AttendanceRow[], sessions: RegisterSession[]) => {
+    if (!hideNoEligible || !sessions.length) return rows;
+    const cutoff = sessions[sessions.length - 1].month;
+    return rows.filter((r) => r.eligible > 0 || isOnLeave(blob, r.trainee.id, cutoff));
+  };
+
   const section = (
     title: string, subtitle: string, sessions: RegisterSession[],
   ): ReportSection => {
-    let rows = trainees.map((t) => computeRow(blob, t, sessions));
-    if (hideNoEligible) rows = rows.filter((r) => r.eligible > 0);
-    rows.sort((a, b) => a.trainee.name.localeCompare(b.trainee.name));
-    return { title, subtitle, sessions, rows };
+    const rows = keep(trainees.map((t) => computeRow(blob, t, sessions)), sessions);
+    return {
+      title, subtitle, sessions,
+      rows: [...rows].sort((a, b) => a.trainee.name.localeCompare(b.trainee.name)),
+    };
   };
 
   // One year selected is a single table whatever the layout says.
@@ -263,8 +277,7 @@ export function buildReport(blob: RegisterBlob, options: ReportOptions): Report 
     }
   }
 
-  let overall = trainees.map((t) => computeRow(blob, t, inScope));
-  if (hideNoEligible) overall = overall.filter((r) => r.eligible > 0);
+  const overall = keep(trainees.map((t) => computeRow(blob, t, inScope)), inScope);
 
   return { sections, overall, sessions: inScope, years: selected };
 }

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createRegister,
+  fetchCreatableDeaneries,
   fetchCreatableSpecialties,
   fetchMyRegisterMemberships,
   fetchRegisterDirectory,
@@ -34,14 +35,25 @@ export function useGroupedRegisters() {
   return { ...query, grouped: groupDirectory(query.data ?? []) };
 }
 
-/** Specialties with no register yet, which the caller is allowed to see. */
-export function useCreatableSpecialties(enabled = true) {
+/** The deaneries this person may open a register in. */
+export function useCreatableDeaneries(enabled = true) {
   const { data: user } = useCurrentUser();
 
   return useQuery({
-    queryKey: ["register-creatable-specialties", user?.id],
-    queryFn: fetchCreatableSpecialties,
+    queryKey: ["register-creatable-deaneries", user?.id],
+    queryFn: fetchCreatableDeaneries,
     enabled: !!user && enabled,
+  });
+}
+
+/** The specialties still open in one deanery. */
+export function useCreatableSpecialties(deaneryId: string | undefined) {
+  const { data: user } = useCurrentUser();
+
+  return useQuery({
+    queryKey: ["register-creatable-specialties", deaneryId, user?.id],
+    queryFn: () => fetchCreatableSpecialties(deaneryId!),
+    enabled: !!user && !!deaneryId,
   });
 }
 
@@ -49,13 +61,18 @@ export function useCreateRegister() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ specialtyId, name }: { specialtyId: string; name?: string }) =>
-      createRegister(specialtyId, name),
+    mutationFn: ({ deaneryId, specialtyId, name }:
+      { deaneryId: string; specialtyId: string; name?: string }) =>
+      createRegister(deaneryId, specialtyId, name),
     onSuccess: () => {
-      // The new register changes both lists: it appears in the directory as
-      // yours, and leaves the set of specialties still available to create.
+      // The new register changes three lists: it appears in the directory as
+      // yours, leaves the specialties still open in that deanery, and — for
+      // somebody who held no register until now — adds a deanery they may
+      // create in.
       queryClient.invalidateQueries({ queryKey: ["register-directory"] });
       queryClient.invalidateQueries({ queryKey: ["register-creatable-specialties"] });
+      queryClient.invalidateQueries({ queryKey: ["register-creatable-deaneries"] });
+      queryClient.invalidateQueries({ queryKey: ["my-register-memberships"] });
     },
   });
 }

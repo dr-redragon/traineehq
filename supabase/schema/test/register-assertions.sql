@@ -53,7 +53,8 @@ set local test.uid = '11111111-0000-4000-8000-000000000002';
 do $$
 declare _id uuid;
 begin
-  _id := public.create_register('50000000-0000-4000-8000-000000000001', null);
+  _id := public.create_register('d0000000-0000-4000-8000-000000000001',
+                                '50000000-0000-4000-8000-000000000001', null);
 
   if _id is null then
     raise exception 'FAIL 1: create_register returned null';
@@ -90,11 +91,12 @@ set local test.uid = '11111111-0000-4000-8000-000000000002';
 
 do $$
 begin
-  perform public.create_register('50000000-0000-4000-8000-000000000001', null);
-  raise exception 'FAIL 2: a second register was allowed for the same specialty';
+  perform public.create_register('d0000000-0000-4000-8000-000000000001',
+                                 '50000000-0000-4000-8000-000000000001', null);
+  raise exception 'FAIL 2: a second register was allowed for the same specialty in the same deanery';
 exception when others then
   if sqlerrm not like 'A register already exists%' then raise; end if;
-  raise notice 'ok  2  duplicate register refused';
+  raise notice 'ok  2  a duplicate in the same deanery is refused';
 end $$;
 rollback;
 
@@ -107,10 +109,11 @@ set local test.uid = '11111111-0000-4000-8000-000000000002';
 
 do $$
 begin
-  perform public.create_register('50000000-0000-4000-8000-000000000003', null);
+  perform public.create_register('d0000000-0000-4000-8000-000000000002',
+                                 '50000000-0000-4000-8000-000000000003', null);
   raise exception 'FAIL 3: Mersey admin created a register in Wessex';
 exception when others then
-  if sqlerrm not like 'That specialty is not one%' then raise; end if;
+  if sqlerrm not like 'That is not a deanery%' then raise; end if;
   raise notice 'ok  3  admin confined to their own deanery';
 end $$;
 rollback;

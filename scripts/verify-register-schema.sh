@@ -43,6 +43,7 @@ ACCESS="$MIGRATIONS/20260907110000_register_access_admin.sql"
 LIVE="$MIGRATIONS/20260907120000_register_live_sessions.sql"
 GRANTS="$MIGRATIONS/20260907130000_register_grants_lockdown.sql"
 APIFN="$MIGRATIONS/20260907140000_register_api_functions.sql"
+DEANERY="$MIGRATIONS/20260907150000_registers_per_deanery.sql"
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }
 
@@ -91,6 +92,14 @@ apply tenancy "$SCHEMA/0001_traineehq_baseline.sql"
 apply tenancy "$TENANCY"
 echo "  - re-applying the tenancy migration (idempotency)"
 psql_as tenancy -f "$TENANCY"
+
+# Applied here rather than in filename order: it changes create_register's
+# signature, so every assertion below calls the shape the app actually ships.
+# The migrations in between do not touch the columns it alters.
+apply tenancy "$DEANERY"
+echo "  - re-applying the per-deanery migration (idempotency)"
+psql_as tenancy -f "$DEANERY"
+
 apply tenancy "$SCHEMA/test/register-assertions.sql"
 
 # The seed migration on a project where the operator has not signed up. It must
@@ -118,6 +127,7 @@ apply tenancy "$APIFN"
 echo "  - re-applying the register-api functions (idempotency)"
 psql_as tenancy -f "$APIFN"
 apply tenancy "$SCHEMA/test/api-functions-assertions.sql"
+apply tenancy "$SCHEMA/test/per-deanery-assertions.sql"
 
 # ---------------------------------------------------------------- scenario B --
 echo "==> B  seed"
@@ -125,6 +135,7 @@ apply seed "$SCHEMA/test/stubs.sql"
 apply seed "$SCHEMA/0001_traineehq_baseline.sql"
 apply seed "$SCHEMA/test/seed-fixture.sql"
 apply seed "$TENANCY"
+apply seed "$DEANERY"
 apply seed "$SEED"
 echo "  - re-applying the seed migration (idempotency)"
 psql_as seed -f "$SEED"

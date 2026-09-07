@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { FileText, Printer } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -122,7 +123,7 @@ export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; regist
                 checked={hideNoEligible}
                 onCheckedChange={(v) => setHideNoEligible(v === true)}
               />
-              Hide anyone with no eligible day
+              Hide anyone not in programme
             </Label>
           </div>
 
@@ -157,10 +158,17 @@ export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; regist
           </div>
 
           <div className="flex flex-wrap gap-2 sm:col-span-3">
+            {/* Enabled even with nothing ticked: a disabled button with no
+                explanation leaves people hunting for what is wrong. */}
             <Button
               size="sm"
-              disabled={!selected.length}
-              onClick={() => setGenerated(true)}
+              onClick={() => {
+                if (!selected.length) {
+                  toast.error("Select at least one academic year to create a report.");
+                  return;
+                }
+                setGenerated(true);
+              }}
             >
               <FileText className="mr-1.5 h-4 w-4" /> Generate report
             </Button>
@@ -174,6 +182,7 @@ export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; regist
                 Choose at least one academic year.
               </p>
             )}
+
           </div>
         </CardContent>
       </Card>
