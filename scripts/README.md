@@ -1,12 +1,53 @@
-# Migration scripts
+# Scripts
 
-Two standalone scripts for moving TraineeHQ from one Supabase project to another.
-They are independent of the app — nothing imports them, and they can be run
-against any pair of projects that share the schema in `supabase/schema/`.
+Standalone tooling, independent of the app — nothing imports any of it.
 
-Node 18+ and `npm install` (they use `pg` and `@supabase/supabase-js`).
+- **`verify-register-schema.sh`** — checks the register tenancy migration against
+  a throwaway database. No credentials, nothing to point at.
+- **`migrate-database.mjs`**, **`migrate-storage.mjs`** — move TraineeHQ from one
+  Supabase project to another. Node 18+ and `npm install` (they use `pg` and
+  `@supabase/supabase-js`).
 
-## Order
+---
+
+## verify-register-schema.sh
+
+```sh
+./scripts/verify-register-schema.sh
+```
+
+Builds a scratch PostgreSQL 16 cluster in a temp directory, applies stubs for the
+Supabase-managed `auth` and `storage` schemas, then the baseline, then
+`supabase/migrations/20260907090000_register_multi_tenancy.sql`, then the
+assertions in `supabase/schema/test/register-assertions.sql` — and deletes the
+cluster afterwards. It never touches a real project, so it is safe to run
+anywhere and needs no secrets.
+
+It re-runs the migration a second time to prove it is idempotent, then asserts
+the access rules the multi-register design depends on, connecting as the same
+`anon` and `authenticated` roles PostgREST uses:
+
+- membership is an explicit grant — enrolment on a specialty confers nothing, and
+  a `super_admin` reads no register data until granted;
+- the directory is browsable by someone with no access at all (which is why it is
+  a security-definer function and not a view);
+- nobody approves their own request for access, at either layer;
+- the last owner of a register cannot be removed;
+- the blob can only be written through `save_register()`, and a write built on a
+  stale read is refused rather than silently winning.
+
+Requires the PostgreSQL 16 server binaries (`initdb`, `pg_ctl`) — on
+Debian/Ubuntu, `apt-get install postgresql-16`. Set `PGBIN` if they live
+somewhere other than `/usr/lib/postgresql/16/bin`.
+
+---
+
+## Migrating between projects
+
+Two scripts for moving TraineeHQ from one Supabase project to another. They can
+be run against any pair of projects that share the schema in `supabase/schema/`.
+
+### Order
 
 1. Run `supabase/schema/0001_traineehq_baseline.sql` against the empty target.
 2. `migrate-database.mjs` — rows, including auth users.
@@ -14,7 +55,7 @@ Node 18+ and `npm install` (they use `pg` and `@supabase/supabase-js`).
 
 Both are safe to re-run and both take `--dry-run`.
 
-## migrate-database.mjs
+### migrate-database.mjs
 
 ```sh
 SOURCE_DATABASE_URL='postgres://...' \
@@ -45,7 +86,7 @@ Two details that will bite anyone writing this by hand: `auth.users.confirmed_at
 and `auth.identities.email` are **generated columns** and reject explicit values,
 so the script builds its column list from `information_schema` and skips them.
 
-## migrate-storage.mjs
+### migrate-storage.mjs
 
 ```sh
 SOURCE_SUPABASE_URL='https://<ref>.supabase.co' SOURCE_SERVICE_ROLE_KEY='...' \
