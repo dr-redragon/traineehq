@@ -94,23 +94,35 @@ no-op on both a second run and a project where the account does not exist.
 
 ---
 
-### [ ] Stage 3 — Extract the register's pure logic, with tests
+### [x] Stage 3 — Extract the register's pure logic, with tests
 **Goal.** De-risk the port by lifting the logic out of the DOM first.
 
-From `ent-teaching-register/index.html` into `src/lib/register/`:
-- `eligibility.ts` — the `active` / `cct` / `idt_in` / `idt_out` / `mat` / `oop`
-  window rules (the model comment at `index.html:1024`).
+From `ent-teaching-register/index.html` into `src/lib/register/`, each taking the
+blob as an argument instead of reaching for the global `DB`:
 - `months.ts` — `parseMonth`, month formatting, academic-year (Aug–Jul) bucketing.
-- `report.ts` — per-year and combined attendance tables and percentages.
-- ~~`types.ts` — the `DB` blob shape as TypeScript.~~ Landed early, with Stage 4:
-  `src/lib/register/types.ts`. The rules that read it are still to come.
+- `attendance.ts` — the `"<trainee>|<session>"` map, the legacy `true` mark, and
+  `latestGrade`'s rule that a past year never shows a grade held later.
+- `eligibility.ts` — the `active` / `cct` / `idt_in` / `idt_out` / `mat` / `oop`
+  window rules, plus leave that expires by itself without the row being touched.
+- `report.ts` — raw vs adjusted percentages, and the row filter/sort.
+- `types.ts` — landed early, with Stage 4.
 
-These are pure functions with no DOM, so they lift across nearly unchanged.
+`attendance.ts` is a fourth module this plan did not originally name: the blob
+accessors are needed by both `eligibility.ts` and `report.ts`, and belong in
+neither.
 
-**Done when.** Vitest covers each rule in the eligibility table, including the
-`start`-only / `end`-only / neither variants, and `npm test` is green.
+**Done when.** ✅ 128 tests green, `tsc` and ESLint clean, build succeeds. Every
+row of the eligibility table is covered, including the `start`-only, `end`-only
+and neither variants of each.
 
-**Depends on.** Nothing. Can run in parallel with Stage 2.
+**And beyond it** — `parity.test.ts` runs the ported rules against the *original*
+functions, copied verbatim out of `index.html`, over 400 randomised registers,
+every month boundary from 2023 to 2027, and 29 forms of typed month. They agree
+exactly. It is kept rather than deleted: until the Stage 10 cutover both
+registers are live against the same cohort, so a drift between them would mean
+two systems reporting different attendance for the same trainee.
+
+**Depends on.** Nothing.
 
 ---
 
