@@ -8,27 +8,19 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MonthInput } from "@/components/register/MonthInput";
 import {
-  newId, removeSession, removeStatus, removeTrainee, upsertSession, upsertStatus, upsertTrainee,
+  newId, removeSession, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/register/blob";
 import { GRADES } from "@/lib/register/constants";
 import { formatMonth, sessionsSorted } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
-import type { RegisterBlob, RegisterStatus } from "@/lib/register/types";
-
-const STATUS_TYPES: { value: RegisterStatus["type"]; label: string; hint: string }[] = [
-  { value: "cct",     label: "CCT — completed training", hint: "Not counted after this month." },
-  { value: "mat",     label: "Maternity / paternity leave", hint: "Not counted across the window." },
-  { value: "oop",     label: "Out of programme", hint: "Not counted across the window." },
-  { value: "idt_in",  label: "Transferred in (IDT)", hint: "Not counted before this month." },
-  { value: "idt_out", label: "Transferred out (IDT)", hint: "Not counted from this month on." },
-];
+import type { RegisterBlob } from "@/lib/register/types";
 
 const NONE = "__none__";
 
@@ -41,11 +33,9 @@ export function ManagePanel({
 }) {
   const [trainee, setTrainee] = useState<{ id?: string; name: string; grade: string; email: string } | null>(null);
   const [session, setSession] = useState<{ id?: string; title: string; month: string } | null>(null);
-  const [status, setStatus] = useState<Partial<RegisterStatus> | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; detail: string; run: () => void } | null>(null);
 
   const sessions = sessionsSorted(blob.sessions);
-  const nameOf = (id: string) => blob.trainees.find((t) => t.id === id)?.name ?? "Unknown";
 
   const saveTrainee = () => {
     if (!trainee?.name.trim()) return;
@@ -66,18 +56,6 @@ export function ManagePanel({
       month: session.month,
     }));
     setSession(null);
-  };
-
-  const saveStatus = () => {
-    if (!status?.trainee || !status.type) return;
-    onEdit((b) => upsertStatus(b, {
-      id: status.id ?? newId(),
-      trainee: status.trainee!,
-      type: status.type!,
-      start: status.start || null,
-      end: status.end || null,
-    }));
-    setStatus(null);
   };
 
   return (
@@ -184,62 +162,6 @@ export function ManagePanel({
         )}
       </section>
 
-      {/* ---------------------------------------------------------- status -- */}
-      <section className="space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h2 className="text-sm font-semibold">Long-term status</h2>
-            <p className="text-xs text-muted-foreground">
-              Months outside a trainee's active window count towards neither attendance nor
-              the total, so leave never reads as a poor record.
-            </p>
-          </div>
-          {canEdit && (
-            <Button size="sm" variant="outline" className="w-full sm:w-auto"
-              onClick={() => setStatus({ type: "mat" })}>
-              Add status
-            </Button>
-          )}
-        </div>
-
-        {blob.status.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nothing recorded.</p>
-        ) : (
-          <div className="divide-y rounded-lg border">
-            {blob.status.map((s) => (
-              <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{nameOf(s.trainee)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {STATUS_TYPES.find((t) => t.value === s.type)?.label ?? s.type}
-                    {" · "}
-                    {s.start ? formatMonth(s.start, "en-GB") : "open"}
-                    {" – "}
-                    {s.end ? formatMonth(s.end, "en-GB") : "open"}
-                  </p>
-                </div>
-                {canEdit && (
-                  <div className="flex gap-1">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Edit status"
-                      onClick={() => setStatus(s)}>
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label="Remove status"
-                      onClick={() => setConfirm({
-                        label: "Remove this status?",
-                        detail: `${nameOf(s.trainee)} becomes eligible for every teaching day again.`,
-                        run: () => onEdit((b) => removeStatus(b, s.id)),
-                      })}>
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
       {/* -------------------------------------------------- trainee dialog -- */}
       <Dialog open={!!trainee} onOpenChange={(o) => !o && setTrainee(null)}>
         <DialogContent>
@@ -306,64 +228,6 @@ export function ManagePanel({
             <Button onClick={saveSession} disabled={!session?.title.trim() || !session?.month}>
               Save
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* --------------------------------------------------- status dialog -- */}
-      <Dialog open={!!status} onOpenChange={(o) => !o && setStatus(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{status?.id ? "Edit status" : "Add status"}</DialogTitle>
-            <DialogDescription>
-              {STATUS_TYPES.find((t) => t.value === status?.type)?.hint}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="st-trainee" className="text-xs">Trainee</Label>
-              <Select value={status?.trainee ?? ""}
-                onValueChange={(v) => setStatus((s) => ({ ...s, trainee: v }))}>
-                <SelectTrigger id="st-trainee"><SelectValue placeholder="Choose" /></SelectTrigger>
-                <SelectContent>
-                  {[...blob.trainees].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="st-type" className="text-xs">Type</Label>
-              <Select value={status?.type ?? "mat"}
-                onValueChange={(v) => setStatus((s) => ({ ...s, type: v as RegisterStatus["type"] }))}>
-                <SelectTrigger id="st-type"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {STATUS_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="st-start" className="text-xs">From</Label>
-                <MonthInput id="st-start" value={status?.start ?? ""}
-                  onChange={(m) => setStatus((s) => ({ ...s, start: m || null }))} />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="st-end" className="text-xs">To</Label>
-                <MonthInput id="st-end" value={status?.end ?? ""}
-                  onChange={(m) => setStatus((s) => ({ ...s, end: m || null }))} />
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              Leave a month empty to leave that end open — a leave with no end date runs on
-              indefinitely, and one with no start counts only after the return.
-            </p>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setStatus(null)}>Cancel</Button>
-            <Button onClick={saveStatus} disabled={!status?.trainee || !status?.type}>Save</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

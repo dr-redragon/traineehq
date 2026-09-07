@@ -226,8 +226,14 @@ reading and writing through `save_register()` with the version guard.
 1. ✅ Attendance dashboard — `AttendanceGrid.tsx`. Year tabs, the cell grid with
    click-to-toggle, search, sorting, "hide trainees not in programme", raw vs
    adjusted percentages with the original's 80/60 colour bands.
-2. ✅ Trainees, teaching days and long-term status — `ManagePanel.tsx`, with
-   `MonthInput.tsx` carrying `parseMonth`'s forgiving entry across.
+2. ✅ Trainees and teaching days — `ManagePanel.tsx`, with `MonthInput.tsx`
+   carrying `parseMonth`'s forgiving entry across.
+2b. ✅ Long-term status — `StatusPanel.tsx`, its own tab as in the original, with
+   `statusText.ts` porting the per-type wording ("completes after Mar 2026
+   (2025/26)", "excluded from Sept 2025 → ongoing") and its tests.
+2c. ✅ Excused absences — `ExcusalsPanel.tsx`, its own year-scoped tab. Was
+   missing entirely: `addExcusal`/`removeExcusal` existed in `blob.ts` with
+   nothing calling them, so an excusal could not be logged from the UI at all.
 3. ✅ Reports — `ReportPanel.tsx` on `buildReport()`. Year selection, the three
    layouts, the include-cohort switches, content toggles and summary-only, with
    the controls and the app chrome removed from the printed page.

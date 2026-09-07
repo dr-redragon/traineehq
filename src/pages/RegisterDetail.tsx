@@ -8,6 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttendanceGrid } from "@/components/register/AttendanceGrid";
 import { ManagePanel } from "@/components/register/ManagePanel";
 import { ReportPanel } from "@/components/register/ReportPanel";
+import { StatusPanel } from "@/components/register/StatusPanel";
+import { ExcusalsPanel } from "@/components/register/ExcusalsPanel";
 import { YearTabs } from "@/components/register/YearTabs";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
 import { useRegisterStore } from "@/hooks/useRegisterStore";
@@ -111,9 +113,13 @@ export default function RegisterDetail() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <Tabs defaultValue="attendance">
-          <TabsList className="print:hidden">
+          {/* Scrolls rather than wrapping or shrinking on a phone: five tabs
+              squeezed into 375px are unreadable and unhittable. */}
+          <TabsList className="flex h-auto w-full justify-start overflow-x-auto print:hidden">
             <TabsTrigger value="attendance" className="text-xs">Attendance</TabsTrigger>
-            <TabsTrigger value="manage" className="text-xs">Trainees &amp; teaching days</TabsTrigger>
+            <TabsTrigger value="manage" className="text-xs">Trainees &amp; days</TabsTrigger>
+            <TabsTrigger value="status" className="text-xs">Long-term status</TabsTrigger>
+            <TabsTrigger value="excused" className="text-xs">Excused absences</TabsTrigger>
             <TabsTrigger value="reports" className="text-xs">Reports</TabsTrigger>
           </TabsList>
 
@@ -124,6 +130,14 @@ export default function RegisterDetail() {
 
           <TabsContent value="manage" className="mt-4">
             <ManagePanel blob={blob} onEdit={edit} canEdit />
+          </TabsContent>
+
+          <TabsContent value="status" className="mt-4">
+            <StatusPanel blob={blob} onEdit={edit} canEdit />
+          </TabsContent>
+
+          <TabsContent value="excused" className="mt-4">
+            <ExcusalsPanel blob={blob} onEdit={edit} canEdit />
           </TabsContent>
 
           <TabsContent value="reports" className="mt-4">
