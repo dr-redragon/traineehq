@@ -415,14 +415,22 @@ set local test.uid = '11111111-0000-4000-8000-000000000003';
 
 do $$
 begin
-  -- Stopped by the grant, before RLS is even consulted: authenticated holds
-  -- SELECT on register_stores and nothing more, so the only way to write the
-  -- blob is save_register() and its version guard.
-  update public.register_stores set data = '{"hacked":true}'::jsonb
-   where register_id = (select id from public.registers where slug = 'mersey-ent');
-  raise exception 'FAIL 14: a member updated register_stores directly';
-exception when insufficient_privilege then
-  raise notice 'ok 14  direct writes to register_stores are denied';
+  -- Asserted as an outcome, not a mechanism. Before 20260907130000 the grant is
+  -- present and row-level security refuses the row; after it, the grant is gone
+  -- and the statement is rejected outright. Either way the blob is unchanged,
+  -- and either way save_register()'s version guard cannot be sidestepped.
+  begin
+    update public.register_stores set data = '{"hacked":true}'::jsonb
+     where register_id = (select id from public.registers where slug = 'mersey-ent');
+  exception when insufficient_privilege then
+    null;
+  end;
+
+  if (select data ? 'hacked' from public.register_stores
+       where register_id = (select id from public.registers where slug = 'mersey-ent')) then
+    raise exception 'FAIL 14: a direct update bypassed save_register';
+  end if;
+  raise notice 'ok 14  direct writes to register_stores change nothing';
 end $$;
 rollback;
 
@@ -510,29 +518,37 @@ begin
 end $$;
 rollback;
 
+-- Asserted as an outcome. Until 20260907130000 strips the grants Supabase hands
+-- out by default, anon may issue the statement and row-level security returns
+-- nothing; afterwards the statement itself is refused. Reaching no data is the
+-- property; grants-assertions.sql checks the grant layer separately.
 begin;
 set local role anon;
 do $$
+declare _n bigint;
 begin
   begin
-    perform count(*) from public.registers;
-    raise exception 'FAIL 18b: anon can select from registers';
+    select count(*) into _n from public.registers;
   exception when insufficient_privilege then
-    raise notice 'ok 18b anon cannot select registers';
+    _n := 0;
   end;
+  if _n <> 0 then raise exception 'FAIL 18b: anon read % registers', _n; end if;
+  raise notice 'ok 18b anon reads no registers';
 end $$;
 rollback;
 
 begin;
 set local role anon;
 do $$
+declare _n bigint;
 begin
   begin
-    perform count(*) from public.register_stores;
-    raise exception 'FAIL 18c: anon can select register data';
+    select count(*) into _n from public.register_stores;
   exception when insufficient_privilege then
-    raise notice 'ok 18c anon cannot select register data';
+    _n := 0;
   end;
+  if _n <> 0 then raise exception 'FAIL 18c: anon read % register rows', _n; end if;
+  raise notice 'ok 18c anon reads no register data';
 end $$;
 rollback;
 

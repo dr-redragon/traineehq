@@ -16,7 +16,8 @@
 #                Ends by running the seed migration with no operator account
 #                present, which must apply cleanly and change nothing.
 #
-#                Then 20260907110000_register_access_admin.sql and its own
+#                Then 20260907110000_register_access_admin.sql and
+#                20260907120000_register_live_sessions.sql with their own
 #                assertions, on the membership that scenario leaves behind.
 #
 #   B  seed      20260907100000_seed_first_register.sql against a project that
@@ -39,6 +40,8 @@ MIGRATIONS="$REPO_ROOT/supabase/migrations"
 TENANCY="$MIGRATIONS/20260907090000_register_multi_tenancy.sql"
 SEED="$MIGRATIONS/20260907100000_seed_first_register.sql"
 ACCESS="$MIGRATIONS/20260907110000_register_access_admin.sql"
+LIVE="$MIGRATIONS/20260907120000_register_live_sessions.sql"
+GRANTS="$MIGRATIONS/20260907130000_register_grants_lockdown.sql"
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }
 
@@ -99,6 +102,16 @@ apply tenancy "$ACCESS"
 echo "  - re-applying the access-admin migration (idempotency)"
 psql_as tenancy -f "$ACCESS"
 apply tenancy "$SCHEMA/test/access-admin-assertions.sql"
+
+apply tenancy "$LIVE"
+echo "  - re-applying the live-sessions migration (idempotency)"
+psql_as tenancy -f "$LIVE"
+apply tenancy "$SCHEMA/test/live-sessions-assertions.sql"
+
+apply tenancy "$GRANTS"
+echo "  - re-applying the grants lockdown (idempotency)"
+psql_as tenancy -f "$GRANTS"
+apply tenancy "$SCHEMA/test/grants-assertions.sql"
 
 # ---------------------------------------------------------------- scenario B --
 echo "==> B  seed"

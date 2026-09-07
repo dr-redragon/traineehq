@@ -253,20 +253,41 @@ been exercised with two real browsers** yet.
 
 ---
 
-### [ ] Stage 7 — Register-aware live-session backend
+### [~] Stage 7 — Register-aware live-session backend
 **Goal.** The check-in / feedback / certificate backend, multi-tenant.
 
-- Port `register-api` from the register repo into `supabase/functions/register-api/`.
-- Add `register_id` to `sessions`, `attendees`, `feedback_responses`,
-  `form_templates`; backfill; make it `not null`.
-- Keep the three-tier auth (anon / member / owner), with the member tier now
-  checking `is_register_member` rather than "any signed-in user".
-- **Security-critical:** scope the anonymous roster RPC by session → register.
-  Today it returns every trainee; multi-tenant, an unscoped version leaks one
-  deanery's roster to another's QR code.
+**Schema done** — `supabase/migrations/20260907120000_register_live_sessions.sql`.
+The four tables did not exist in this project at all (the real ones live in the
+standalone register), so rather than adding `register_id` and backfilling, they
+were created scoped from the outset: `register_sessions`, `register_attendees`,
+`register_feedback`, `register_forms`.
 
-**Done when.** A check-in link for register A cannot enumerate register B's
-trainees, proven by a test against the RPC.
+Every anonymous door is keyed on the **session**, with the register derived from
+it server-side. A visitor holds a link and nothing else; there is deliberately no
+function that takes a register id.
+
+Two things came out stricter than the original:
+- **`register_record_checkin` derives the blob's session key** from the session
+  row. The original took it from the browser, so any caller could write a mark
+  against any teaching day in the register.
+- **Anon cannot list sessions.** The original grants `select` on `sessions` with
+  `using (true)`, survivable with one register and not with many — it would
+  expose every deanery's teaching schedule. `register_public_session()` returns
+  one session by id instead, so a link opens a door rather than a filing cabinet.
+
+Also dropped `teaching_sessions` and `attendance_records` — the abandoned sketch
+flagged twice in this document. Both empty, nothing read them.
+
+**Done when.** ✅ *A check-in link for register A cannot enumerate register B's
+trainees* — assertion 2 of `live-sessions-assertions.sql`, with two registers and
+a published session in each.
+
+**Still to do:** port `register-api` into `supabase/functions/register-api/` —
+the three-tier auth (anon / member / owner) with the member tier checking
+`is_register_member` rather than "any signed-in user". Publishing a day,
+recording an attendee, submitting feedback and editing a form all have to run
+through it: there is no insert/update/delete policy or grant on any of these
+tables for either browser role.
 
 **Depends on.** Stage 1.
 
@@ -331,6 +352,35 @@ Carry these forward until answered; none block Stage 1.
 3. **Transitive approval** (decision 8) — leave as specified, or restrict
    approval to `owner`? One line either way in `decide_register_access`.
 
+## The grants mistake, and what it says about the harness
+
+Worth reading before adding a table to this schema.
+
+Supabase ships with `alter default privileges in schema public grant all on
+tables to anon, authenticated, service_role`, so **every table is granted to both
+browser roles the moment it is created**. Stages 1 and 7 each granted what they
+wanted and stated "anon gets nothing at all here". Both were wrong on the live
+project: anon and authenticated held select/insert/update/delete on all eight
+register tables.
+
+Nothing was exposed — RLS is enabled and forced everywhere, and no table has a
+policy for anon or for the write paths, so a browser got zero rows and changed
+zero rows. But PostgREST checks grants *before* RLS, and only one of the two
+layers was doing any work. `save_register()`'s version guard in particular was
+documented as impossible to sidestep, and was, only because RLS refused the
+direct `UPDATE` rather than because the grant was absent.
+
+`20260907130000_register_grants_lockdown.sql` revokes everything from both roles
+and re-grants exactly what each needs, then closes the default so a table added
+later starts private.
+
+**The harness was the real failure.** `supabase/schema/test/stubs.sql` did not
+reproduce those default privileges, so "anon cannot select X" passed against a
+database where nothing had granted anon anything — proving the fixture, not the
+migration. The stubs now include them, which is what surfaced this; assertions
+that check a *mechanism* which changes across migrations were rewritten to check
+the *outcome*, and `grants-assertions.sql` checks the grant layer on its own.
+
 ## Repository housekeeping found along the way
 
 Neither blocks this work, but both will confuse someone.
@@ -338,7 +388,6 @@ Neither blocks this work, but both will confuse someone.
 - `supabase/config.toml` declares `project_id = "dvrzoglirpnoafjrobhn"`, but
   `.env` points at `twuvscymudpnokzfsqoy`. Reconcile before running the Supabase
   CLI against this project.
-- `public.teaching_sessions` and `public.attendance_records` exist in the baseline
-  and are unused — an earlier, abandoned sketch of this feature. They are the
-  natural target for the eventual normalisation in decision 9; until then they are
-  dead weight and should either be used or dropped.
+- ~~`public.teaching_sessions` and `public.attendance_records` are unused dead
+  weight.~~ **Resolved** — dropped in Stage 7, superseded by the register-scoped
+  `register_sessions` and the blob's own attendance map. Both were empty.

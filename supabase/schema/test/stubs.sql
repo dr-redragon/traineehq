@@ -54,3 +54,25 @@ $$;
 
 grant usage on schema auth, storage to anon, authenticated, service_role;
 grant select on auth.users to authenticated;
+
+-- ----------------------------------------------------------------------------
+-- Supabase's default privileges
+--
+-- A real Supabase project ships with these, so every table and function created
+-- afterwards is granted to anon and authenticated unless a migration says
+-- otherwise. Reproducing them here is the difference between a test database
+-- that behaves like production and one that flatters it: without these lines the
+-- "anon cannot select X" assertions pass because nothing granted anon anything,
+-- which proves the test fixture rather than the migration.
+--
+-- This was not hypothetical. Stages 1 and 7 both claimed "anon gets nothing at
+-- all here", both passed against a stub database without these grants, and both
+-- were wrong on the live project — RLS still withheld every row, but the grant
+-- underneath was there. 20260907130000 revokes them explicitly.
+-- ----------------------------------------------------------------------------
+alter default privileges in schema public
+  grant all on tables to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on functions to anon, authenticated, service_role;
+alter default privileges in schema public
+  grant all on sequences to anon, authenticated, service_role;
