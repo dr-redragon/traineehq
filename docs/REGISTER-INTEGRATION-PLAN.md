@@ -65,18 +65,30 @@ These were decided up front. Do not re-litigate them without saying so.
 
 ---
 
-### [ ] Stage 2 — Seed the first register from the legacy blob
+### [x] Stage 2 — Seed the first register from the legacy blob
 **Goal.** The existing ENT attendance history becomes register #1, with an owner.
 
-- One-off migration reading the legacy `public.register_store` row (`id='default'`,
-  left read-only by `20260828160000_revoke_anon_on_legacy_register_store.sql`)
-  into a `register_stores` row.
-- Create the ENT specialty's register and insert the seed owner.
-- **Decide first:** which account is the seed owner. Until someone is inserted,
-  the register is unreachable by design (decision 6).
+- `supabase/migrations/20260907100000_seed_first_register.sql`
+- Seed owner: **Mohammed Abdelaziz — `mabdelaziz@outlook.com`**, the same address
+  the standalone register bootstraps its own administrator from, so one person
+  owns both while the two systems run side by side.
+- Also promotes that account to TraineeHQ `super_admin`. Separate grant, and
+  neither implies the other (decision 3) — it is held because it is the
+  operator's account, not because owning a register confers it.
+- Copies the legacy `public.register_store` row (`id='default'`, left read-only by
+  `20260828160000_revoke_anon_on_legacy_register_store.sql`) into `register_stores`.
+- Picks the ENT specialty in the owner's own deanery where their profile names
+  one, else the first ENT specialty there is — the legacy register predates
+  deaneries and carries no hint of which one it belongs to.
+- Idempotent and order-tolerant: with no such account yet it applies cleanly,
+  changes nothing, and says so. Re-run it after signing up.
+- **The import is one-shot.** A re-run will not overwrite a register that already
+  holds data, so anything entered in the old register *after* seeding has to be
+  brought across by hand (or the `register_stores` row cleared first).
 
-**Done when.** A named account can select its own `register_stores` row through
-PostgREST and no other account can.
+**Done when.** ✅ Verified in scenario B of `verify-register-schema.sh`: the owner
+reads their register through RLS, no other account can, and the migration is a
+no-op on both a second run and a project where the account does not exist.
 
 **Depends on.** Stage 1.
 
@@ -228,7 +240,8 @@ is read-only.
 
 Carry these forward until answered; none block Stage 1.
 
-1. **Seed owner for the ENT register** — which account? (Blocks Stage 2.)
+1. ~~**Seed owner for the ENT register.**~~ Answered: Mohammed Abdelaziz,
+   `mabdelaziz@outlook.com`. Implemented in Stage 2.
 2. **Missing specialty on self-serve creation.** `registers.specialty_id`
    references TraineeHQ's admin-managed `specialties`. If someone wants a register
    for a specialty nobody has added, they are blocked. Should `create_register`

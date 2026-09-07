@@ -16,16 +16,16 @@ Standalone tooling, independent of the app — nothing imports any of it.
 ./scripts/verify-register-schema.sh
 ```
 
-Builds a scratch PostgreSQL 16 cluster in a temp directory, applies stubs for the
-Supabase-managed `auth` and `storage` schemas, then the baseline, then
-`supabase/migrations/20260907090000_register_multi_tenancy.sql`, then the
-assertions in `supabase/schema/test/register-assertions.sql` — and deletes the
-cluster afterwards. It never touches a real project, so it is safe to run
-anywhere and needs no secrets.
+Builds a scratch PostgreSQL 16 cluster in a temp directory, runs two independent
+scenarios in two databases, and deletes the cluster afterwards. It never touches
+a real project, so it is safe to run anywhere and needs no secrets. Every
+migration is applied twice to prove it is idempotent.
 
-It re-runs the migration a second time to prove it is idempotent, then asserts
-the access rules the multi-register design depends on, connecting as the same
-`anon` and `authenticated` roles PostgREST uses:
+**A — tenancy.** Stubs, the baseline, then
+`20260907090000_register_multi_tenancy.sql`, then
+`supabase/schema/test/register-assertions.sql`. Asserts the access rules the
+multi-register design depends on, connecting as the same `anon` and
+`authenticated` roles PostgREST uses:
 
 - membership is an explicit grant — enrolment on a specialty confers nothing, and
   a `super_admin` reads no register data until granted;
@@ -35,6 +35,16 @@ the access rules the multi-register design depends on, connecting as the same
 - the last owner of a register cannot be removed;
 - the blob can only be written through `save_register()`, and a write built on a
   stale read is refused rather than silently winning.
+
+It ends by applying the seed migration to a project whose operator account does
+not exist, which must apply cleanly and change nothing.
+
+**B — seed.** The same, plus `supabase/schema/test/seed-fixture.sql`, which
+recreates the legacy `public.register_store` table a live project still carries.
+Then `20260907100000_seed_first_register.sql` and its assertions: the operator
+becomes a `super_admin` and the sole owner of one register on the ENT specialty,
+the legacy blob arrives intact, and a re-run neither duplicates anything nor
+overwrites a register that has since been used.
 
 Requires the PostgreSQL 16 server binaries (`initdb`, `pg_ctl`) — on
 Debian/Ubuntu, `apt-get install postgresql-16`. Set `PGBIN` if they live
