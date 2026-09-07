@@ -26,7 +26,7 @@ export function RegisterLayout() {
         to a logo and two buttons does not fit 375px — so on small screens it
         drops to its own full-width row instead of being squeezed.
       */}
-      <header className="border-b bg-card">
+      <header className="border-b bg-card print:hidden">
         <div className="mx-auto max-w-6xl px-4">
           <div className="flex h-14 items-center gap-2">
             <Link to="/registers" className="flex min-w-0 items-center gap-2">
@@ -102,7 +102,7 @@ export function RegisterLayout() {
         <Outlet />
       </main>
 
-      <footer className="border-t py-4">
+      <footer className="border-t py-4 print:hidden">
         <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 text-xs text-muted-foreground">
           <BookOpen className="h-3.5 w-3.5" />
           Attendance registers for specialty teaching programmes.

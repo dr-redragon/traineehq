@@ -1,6 +1,6 @@
 import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
 import { cellState, isOnLeave, type CellState } from "./eligibility";
-import { sessionsSorted } from "./months";
+import { academicYearOf, academicYearRange, sessionsInYear, sessionsSorted } from "./months";
 
 /**
  * Turning attendance into the numbers the register reports.
@@ -158,4 +158,138 @@ export function computeRows(
 /** Every trainee's row across every session in the register. */
 export function computeAllRows(blob: RegisterBlob, options?: RowOptions): RowResult {
   return computeRows(blob, sessionsSorted(blob.sessions), options);
+}
+
+// ---------------------------------------------------------------------------
+// Reports
+// ---------------------------------------------------------------------------
+
+export type ReportLayout = "per" | "combined" | "both";
+
+export interface ReportOptions {
+  /** Academic year labels, e.g. ["2025/26"]. */
+  years: string[];
+  /** Ignored when only one year is selected — one year is one table either way. */
+  layout?: ReportLayout;
+  /** Keep trainees who have completed training. */
+  includeCct?: boolean;
+  /** Keep trainees who transferred out of the deanery. */
+  includeIdtOut?: boolean;
+  /** Drop trainees with no eligible session in the section. */
+  hideNoEligible?: boolean;
+}
+
+export interface ReportSection {
+  title: string;
+  subtitle: string;
+  sessions: RegisterSession[];
+  rows: AttendanceRow[];
+}
+
+export interface Report {
+  sections: ReportSection[];
+  /** Headline figures, always across everything selected. */
+  overall: AttendanceRow[];
+  /** Every session in scope, across all selected years. */
+  sessions: RegisterSession[];
+  years: string[];
+}
+
+/**
+ * Build the attendance report.
+ *
+ * Note that `hideNoEligible` is stricter here than the dashboard's "hide
+ * trainees not in programme": a report drops anybody with no eligible session
+ * full stop, including somebody on maternity or OOP leave for the whole period,
+ * where the dashboard keeps them visible. That is deliberate in the original and
+ * kept — a dashboard is a working view where someone on leave should still be
+ * findable, and a report is a statement about attendance, where a row that could
+ * only ever read "—" is noise.
+ */
+export function buildReport(blob: RegisterBlob, options: ReportOptions): Report {
+  const {
+    years, layout = "per",
+    includeCct = true, includeIdtOut = true, hideNoEligible = true,
+  } = options;
+
+  const selected = [...years].sort();
+
+  // Guarded here rather than in the caller. The original relies on its dialog
+  // refusing to submit with nothing ticked; a builder that produces a section
+  // headed "Academic year undefined" when asked for none is a trap for the next
+  // caller, and there will be one — an export, a scheduled email.
+  if (!selected.length) {
+    return { sections: [], overall: [], sessions: [], years: [] };
+  }
+
+  const inScope = sessionsSorted(blob.sessions)
+    .filter((s) => selected.includes(academicYearOf(s.month)));
+
+  let trainees = blob.trainees;
+  if (!includeCct) {
+    trainees = trainees.filter((t) => !hasStatus(blob, t.id, "cct"));
+  }
+  if (!includeIdtOut) {
+    trainees = trainees.filter((t) => !hasStatus(blob, t.id, "idt_out"));
+  }
+
+  const section = (
+    title: string, subtitle: string, sessions: RegisterSession[],
+  ): ReportSection => {
+    let rows = trainees.map((t) => computeRow(blob, t, sessions));
+    if (hideNoEligible) rows = rows.filter((r) => r.eligible > 0);
+    rows.sort((a, b) => a.trainee.name.localeCompare(b.trainee.name));
+    return { title, subtitle, sessions, rows };
+  };
+
+  // One year selected is a single table whatever the layout says.
+  const effective: ReportLayout = selected.length > 1 ? layout : "combined";
+  const sections: ReportSection[] = [];
+
+  if (effective === "combined" || effective === "both") {
+    sections.push(
+      selected.length > 1
+        ? section("All selected years", `Combined · ${selected.join(", ")}`, inScope)
+        : section(`Academic year ${selected[0]}`, academicYearRange(selected[0]), inScope),
+    );
+  }
+
+  if (effective === "per" || effective === "both") {
+    for (const year of selected) {
+      const list = sessionsInYear(blob.sessions, year);
+      if (list.length) {
+        sections.push(section(`Academic year ${year}`, academicYearRange(year), list));
+      }
+    }
+  }
+
+  let overall = trainees.map((t) => computeRow(blob, t, inScope));
+  if (hideNoEligible) overall = overall.filter((r) => r.eligible > 0);
+
+  return { sections, overall, sessions: inScope, years: selected };
+}
+
+function hasStatus(blob: RegisterBlob, traineeId: string, type: string): boolean {
+  return blob.status.some((s) => s.trainee === traineeId && s.type === type);
+}
+
+/** Cohort-level figures for the headline strip. */
+export function reportSummary(rows: AttendanceRow[]) {
+  const attended = rows.reduce((n, r) => n + r.attended, 0);
+  const eligible = rows.reduce((n, r) => n + r.eligible, 0);
+  const excused = rows.reduce((n, r) => n + r.excused, 0);
+  const denominator = eligible - excused;
+
+  const scored = rows.map((r) => r.adjPct).filter((p): p is number => p !== null);
+
+  return {
+    trainees: rows.length,
+    attended,
+    eligible,
+    excused,
+    adjPct: denominator > 0 ? Math.round((attended / denominator) * 100) : null,
+    /** How many are at or above 80%, the band the register treats as good. */
+    atOrAbove80: scored.filter((p) => p >= 80).length,
+    below60: scored.filter((p) => p < 60).length,
+  };
 }

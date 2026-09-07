@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AttendanceGrid } from "@/components/register/AttendanceGrid";
 import { ManagePanel } from "@/components/register/ManagePanel";
+import { ReportPanel } from "@/components/register/ReportPanel";
 import { YearTabs } from "@/components/register/YearTabs";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
 import { useRegisterStore } from "@/hooks/useRegisterStore";
@@ -84,7 +85,7 @@ export default function RegisterDetail() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div className="min-w-0">
           <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
             {entry.specialty_name}
@@ -110,9 +111,10 @@ export default function RegisterDetail() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <Tabs defaultValue="attendance">
-          <TabsList>
+          <TabsList className="print:hidden">
             <TabsTrigger value="attendance" className="text-xs">Attendance</TabsTrigger>
             <TabsTrigger value="manage" className="text-xs">Trainees &amp; teaching days</TabsTrigger>
+            <TabsTrigger value="reports" className="text-xs">Reports</TabsTrigger>
           </TabsList>
 
           <TabsContent value="attendance" className="mt-4 space-y-4">
@@ -122,6 +124,13 @@ export default function RegisterDetail() {
 
           <TabsContent value="manage" className="mt-4">
             <ManagePanel blob={blob} onEdit={edit} canEdit />
+          </TabsContent>
+
+          <TabsContent value="reports" className="mt-4">
+            <ReportPanel
+              blob={blob}
+              registerName={`${entry.deanery_name} · ${entry.specialty_name}`}
+            />
           </TabsContent>
         </Tabs>
       )}

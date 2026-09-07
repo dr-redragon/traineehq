@@ -227,6 +227,9 @@ reading and writing through `save_register()` with the version guard.
    adjusted percentages with the original's 80/60 colour bands.
 2. ✅ Trainees, teaching days and long-term status — `ManagePanel.tsx`, with
    `MonthInput.tsx` carrying `parseMonth`'s forgiving entry across.
+3. ✅ Reports — `ReportPanel.tsx` on `buildReport()`. Year selection, the three
+   layouts, the include-cohort switches, content toggles and summary-only, with
+   the controls and the app chrome removed from the printed page.
 7. ✅ Users & access — Stage 5's UI, not ported.
 
 **The foundation, and the part worth reviewing:**
@@ -238,11 +241,12 @@ reading and writing through `save_register()` with the version guard.
   whatever the other person wrote. Four attempts, then it fails loudly.
 
 **Still to do:**
-3. ⬜ Reports (per-year / combined / both, include-cohort checkboxes). Blob-only,
-   so it needs nothing from Stage 7 — the next piece of this stage.
-4. ⬜ Live session & QR check-in — **needs Stage 7**.
-5. ⬜ Feedback reporting — **needs Stage 7**.
-6. ⬜ Certificates — **needs Stage 7**.
+4. ⬜ Live session & QR check-in — the backend is ready; this is the organiser's
+   publish-and-watch screen against `create-session` / `session-status` /
+   `mark-attended`.
+5. ⬜ Feedback reporting — reads `register_feedback`, which members can already
+   select.
+6. ⬜ Certificates — waits on the certificate half of the edge function.
 
 **Done when.** Every panel works against a seeded register, and two browser tabs
 editing at once produce a clean version-conflict retry rather than silent loss.
