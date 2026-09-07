@@ -11,6 +11,16 @@ this project (`twuvscymudpnokzfsqoy`).
 
 Working branch: `claude/teaching-register-traineehq-abk2cu`
 
+**Applied to `twuvscymudpnokzfsqoy` on 2026-09-07.** Stages 1, 2 and 5's
+migrations are live. The register is `northwest-ent` ("NW · ENT (Otolaryngology –
+Head & Neck Surgery)"), owned by `mabdelaziz@outlook.com`, who is also a
+TraineeHQ `super_admin`. It holds an **anonymised** copy of the live ENT register
+— 52 trainees, 11 teaching days, 273 attendance marks, 84 excusals, 17 status
+rows — imported with `scripts/anonymise-register-import.sql`. Names, email
+addresses and excusal reasons are replaced; attendance, grades and leave windows
+are real. Verified byte-identical to the anonymised source
+(md5 `f833958911b88bbfb9d0e83551b00217`).
+
 ---
 
 ## Why this document exists

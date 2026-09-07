@@ -7,6 +7,9 @@ Standalone tooling, independent of the app — nothing imports any of it.
 - **`migrate-database.mjs`**, **`migrate-storage.mjs`** — move TraineeHQ from one
   Supabase project to another. Node 18+ and `npm install` (they use `pg` and
   `@supabase/supabase-js`).
+- **`anonymise-register-import.sql`** — copy a register out of the standalone ENT
+  project with every name, address and free-text reason replaced. Read-only
+  against the source; returns the blob and a checksum to verify the copy.
 
 ---
 
