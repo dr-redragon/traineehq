@@ -36,8 +36,14 @@ export function AppSidebar() {
   // trainee who organises a teaching day gets this link and an admin who
   // organises none does not. The link is only a shortcut — row-level security,
   // not its visibility, is what decides who can open a register.
-  const { data: myRegisters } = useMyRegisterMemberships();
-  const hasRegisters = (myRegisters?.length ?? 0) > 0;
+  //
+  // It fails *open*: the link is hidden only once the membership query comes
+  // back and positively says there are none. A query that is still loading, or
+  // that failed on a dropped connection or an expired token, leaves the link in
+  // place — losing it would strand a register holder with no way back in, which
+  // is far worse than showing a non-member a directory they may ask access from.
+  const { data: myRegisters, isSuccess: membershipsLoaded } = useMyRegisterMemberships();
+  const hasRegisters = !membershipsLoaded || (myRegisters?.length ?? 0) > 0;
 
   const { data: specialties } = useQuery({
     queryKey: ["sidebar-specialties", activeDeanery?.id],

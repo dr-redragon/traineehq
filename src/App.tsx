@@ -89,11 +89,13 @@ const App = () => (
             <Route path="/registers/feedback" element={<RegisterFeedback />} />
 
             {/*
-              Teaching registers. Reached by direct link — deliberately not in
-              the sidebar, because access is a per-person grant that has nothing
-              to do with a TraineeHQ role: a trainee may hold a register and an
-              admin may hold none. So this is gated on a session only, and
-              membership decides what is inside.
+              Teaching registers. Gated on a session only — membership decides
+              what is inside, because access is a per-person grant that has
+              nothing to do with a TraineeHQ role: a trainee may hold a register
+              and an admin may hold none. The sidebar carries a shortcut for
+              people who hold one (see AppSidebar), but the route stays open to
+              any signed-in user so that the directory — where access is
+              requested — is reachable by someone who holds none yet.
             */}
             <Route
               path="/registers"
