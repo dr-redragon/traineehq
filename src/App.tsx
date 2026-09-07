@@ -15,9 +15,13 @@ import MyProfile from "./pages/MyProfile";
 import CommunityHub from "./pages/CommunityHub";
 import NotFound from "./pages/NotFound";
 import RequestAccess from "./pages/RequestAccess";
+import RegisterDirectory from "./pages/RegisterDirectory";
+import RegisterDetail from "./pages/RegisterDetail";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { DeaneryProvider } from "./contexts/DeaneryContext";
+import { RegisterProvider } from "./contexts/RegisterContext";
+import { RegisterLayout } from "./components/register/RegisterLayout";
 import { RequireAuth } from "./components/RequireAuth";
 
 const queryClient = new QueryClient();
@@ -69,6 +73,27 @@ const App = () => (
             <Route path="/contacts" element={<RequireAuth><KeyContacts /></RequireAuth>} />
             <Route path="/community" element={<RequireAuth><CommunityHub /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><MyProfile /></RequireAuth>} />
+
+            {/*
+              Teaching registers. Reached by direct link — deliberately not in
+              the sidebar, because access is a per-person grant that has nothing
+              to do with a TraineeHQ role: a trainee may hold a register and an
+              admin may hold none. So this is gated on a session only, and
+              membership decides what is inside.
+            */}
+            <Route
+              path="/registers"
+              element={
+                <RequireAuth>
+                  <RegisterProvider>
+                    <RegisterLayout />
+                  </RegisterProvider>
+                </RequireAuth>
+              }
+            >
+              <Route index element={<RegisterDirectory />} />
+              <Route path=":slug" element={<RegisterDetail />} />
+            </Route>
 
             {/* Admins only */}
             <Route

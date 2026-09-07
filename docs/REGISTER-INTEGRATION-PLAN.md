@@ -102,7 +102,8 @@ From `ent-teaching-register/index.html` into `src/lib/register/`:
   window rules (the model comment at `index.html:1024`).
 - `months.ts` — `parseMonth`, month formatting, academic-year (Aug–Jul) bucketing.
 - `report.ts` — per-year and combined attendance tables and percentages.
-- `types.ts` — the `DB` blob shape as TypeScript.
+- ~~`types.ts` — the `DB` blob shape as TypeScript.~~ Landed early, with Stage 4:
+  `src/lib/register/types.ts`. The rules that read it are still to come.
 
 These are pure functions with no DOM, so they lift across nearly unchanged.
 
@@ -113,19 +114,29 @@ These are pure functions with no DOM, so they lift across nearly unchanged.
 
 ---
 
-### [ ] Stage 4 — Register shell, directory and switcher
+### [x] Stage 4 — Register shell, directory and switcher
 **Goal.** The direct link works and shows the right registers to the right people.
 
-- Route `/registers` — sign-in gated only. Lists your registers, plus the
-  directory to browse and request others, plus "create a register".
-- Route `/registers/:slug` — gated on membership via `is_register_member`.
-- `RegisterContext` mirroring `DeaneryContext`, with the active register persisted.
-- Its own shell (not `DashboardLayout`) so it stands alone.
-- **`AppSidebar.tsx` is deliberately not modified** (decision 10).
+- `src/lib/register/types.ts` — the tenancy shapes and the register blob.
+- `src/lib/register/api.ts` — every call into the register tables and RPCs.
+  `src/integrations/supabase/types.ts` is generated and does not know these
+  tables yet, so the casts live here and nowhere else; **regenerate `types.ts`
+  once the migrations are applied and they can be deleted.**
+- `src/lib/register/directory.ts` (+ tests) — splits the directory into yours,
+  awaiting a decision, and askable.
+- `src/hooks/useRegisters.ts`, `src/contexts/RegisterContext.tsx` — the active
+  register, remembered per account rather than per browser.
+- `src/components/register/RegisterLayout.tsx` — its own shell, with the switcher.
+- `src/pages/RegisterDirectory.tsx` — browse, request access, create a register.
+- `src/pages/RegisterDetail.tsx` — membership-gated; shows the stored blob's
+  totals as proof of the path, pending the Stage 6 port.
+- **`AppSidebar.tsx` deliberately untouched** (decision 10).
 
-**Done when.** A trainee-editor signed into TraineeHQ can open `/registers`,
-see only their registers, request access to another, and be refused
-`/registers/:slug` for one they do not belong to.
+**Done when.** ⚠️ Built, typechecked, linted, 9 unit tests green, production
+build clean, and `/registers` verified in Chromium to mount and redirect a
+signed-out visitor to `/login`. **The signed-in paths have not been exercised
+against a live database** — that needs the Stage 1 and 2 migrations applied to
+the Supabase project first.
 
 **Depends on.** Stage 1.
 
