@@ -10,6 +10,8 @@ import { ManagePanel } from "@/components/register/ManagePanel";
 import { ReportPanel } from "@/components/register/ReportPanel";
 import { StatusPanel } from "@/components/register/StatusPanel";
 import { ExcusalsPanel } from "@/components/register/ExcusalsPanel";
+import { LiveSessionPanel } from "@/components/register/LiveSessionPanel";
+import { FeedbackPanel } from "@/components/register/FeedbackPanel";
 import { YearTabs } from "@/components/register/YearTabs";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
 import { useRegisterStore } from "@/hooks/useRegisterStore";
@@ -120,6 +122,8 @@ export default function RegisterDetail() {
             <TabsTrigger value="manage" className="text-xs">Trainees &amp; days</TabsTrigger>
             <TabsTrigger value="status" className="text-xs">Long-term status</TabsTrigger>
             <TabsTrigger value="excused" className="text-xs">Excused absences</TabsTrigger>
+            <TabsTrigger value="live" className="text-xs">Live day</TabsTrigger>
+            <TabsTrigger value="feedback" className="text-xs">Feedback</TabsTrigger>
             <TabsTrigger value="reports" className="text-xs">Reports</TabsTrigger>
           </TabsList>
 
@@ -138,6 +142,14 @@ export default function RegisterDetail() {
 
           <TabsContent value="excused" className="mt-4">
             <ExcusalsPanel blob={blob} onEdit={edit} canEdit />
+          </TabsContent>
+
+          <TabsContent value="live" className="mt-4">
+            <LiveSessionPanel blob={blob} registerId={entry.id} />
+          </TabsContent>
+
+          <TabsContent value="feedback" className="mt-4">
+            <FeedbackPanel registerId={entry.id} />
           </TabsContent>
 
           <TabsContent value="reports" className="mt-4">

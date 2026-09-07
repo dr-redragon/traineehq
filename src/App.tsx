@@ -18,6 +18,8 @@ import RequestAccess from "./pages/RequestAccess";
 import RegisterDirectory from "./pages/RegisterDirectory";
 import RegisterDetail from "./pages/RegisterDetail";
 import RegisterAccess from "./pages/RegisterAccess";
+import RegisterCheckIn from "./pages/register/CheckIn";
+import RegisterFeedback from "./pages/register/Feedback";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { DeaneryProvider } from "./contexts/DeaneryContext";
@@ -74,6 +76,17 @@ const App = () => (
             <Route path="/contacts" element={<RequireAuth><KeyContacts /></RequireAuth>} />
             <Route path="/community" element={<RequireAuth><CommunityHub /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><MyProfile /></RequireAuth>} />
+
+            {/*
+              The two pages a trainee touches. Outside RequireAuth on purpose:
+              somebody scanning a QR code at a teaching day has no account, and
+              the session id in the link is the whole of their authority. Both
+              read through security-definer functions that derive the register
+              from that session, so a link opens one teaching day and nothing
+              else.
+            */}
+            <Route path="/registers/checkin" element={<RegisterCheckIn />} />
+            <Route path="/registers/feedback" element={<RegisterFeedback />} />
 
             {/*
               Teaching registers. Reached by direct link — deliberately not in

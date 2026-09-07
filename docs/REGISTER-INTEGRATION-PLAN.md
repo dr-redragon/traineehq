@@ -250,12 +250,15 @@ reading and writing through `save_register()` with the version guard.
   finished blobs, precisely so a rejected save can be replayed on top of
   whatever the other person wrote. Four attempts, then it fails loudly.
 
+4. ✅ Live session & QR check-in — `LiveSessionPanel.tsx`. Publish a teaching
+   day, show its QR and link, watch people arrive on a 30-second poll, and mark
+   anyone who cannot scan. The QR points at this app's own origin: a code on a
+   screen is scanned by people who will not check the host.
+5. ✅ Feedback reporting — `FeedbackPanel.tsx`. Per-question averages and the
+   comments, read off the session's *own* stored form so rewording a question
+   later cannot relabel answers given to the old one.
+
 **Still to do:**
-4. ⬜ Live session & QR check-in — the backend is ready; this is the organiser's
-   publish-and-watch screen against `create-session` / `session-status` /
-   `mark-attended`.
-5. ⬜ Feedback reporting — reads `register_feedback`, which members can already
-   select.
 6. ⬜ Certificates — waits on the certificate half of the edge function.
 
 **Done when.** Every panel works against a seeded register, and two browser tabs
@@ -323,37 +326,50 @@ other register.
 
 ---
 
-### [ ] Stage 8 — Public trainee pages
-**Goal.** Check-in, feedback and session pages, register-aware.
+### [x] Stage 8 — Public trainee pages
+**Goal.** Check-in and feedback, register-aware.
 
-Port `checkin.html`, `feedback.html`, `session.html`, `form-editor.html`. These
-stay anonymous — a trainee's access is the session link, not an account
-(decision 5). Their register is derived from the session, never from a URL
-parameter the visitor controls.
+- `src/pages/register/CheckIn.tsx` at `/registers/checkin?s=…`
+- `src/pages/register/Feedback.tsx` at `/registers/feedback?s=…`
 
-**Done when.** A QR scan → check-in → feedback → certificate round trip
-completes on a seeded register.
+Both sit **outside `RequireAuth`**: somebody scanning a QR code has no account,
+and the session id in the link is the whole of their authority. Both read through
+the security-definer functions that derive the register from that session, so a
+link opens one teaching day and nothing else. Verified in Chromium that the two
+static paths win over `/registers/:slug` and render without a session.
+
+**One departure from the original.** It let anybody holding a feedback link read
+the list of who had attended, to populate a name dropdown. That is a disclosure
+the link should not carry — attendance at a teaching day is not something a stray
+link ought to reveal. Instead the check-in page remembers the attendee id it was
+given, on that device (`checkInMemory.ts`), and the feedback page reads it back;
+anybody who has cleared their data or changed device types the address they
+signed in with. A convenience, never the only way through.
+
+**Done when.** ✅ A QR scan → check-in → feedback round trip is reachable without
+an account. ⚠️ Not yet driven against a live register — the container's browser
+cannot reach Supabase.
 
 **Depends on.** Stage 7.
 
----
-
-### [ ] Stage 9 — Standalone door and admin-panel link
+### [~] Stage 9 — Standalone door and admin-panel link
 **Goal.** Both entrances, and retire the iframe.
 
-- `/registers` renders its own login when signed out, offering both doors:
-  "Sign in with TraineeHQ" and a plain email/password form. Same Supabase Auth
-  behind both (decision 2).
-- Replace the iframe in `src/components/admin/AdminAttendance.tsx` with a link to
-  `/registers`. **Its current comment argues against copying the register in** —
-  rewrite it, or the next reader will undo this work.
-
-**Done when.** Signed into TraineeHQ, `/registers` needs no second sign-in; in a
-clean browser it presents its own login.
+- ✅ **The iframe is gone.** `AdminAttendance.tsx` was an iframe of
+  register.traineehq.com carrying a comment that copying the register in "would
+  be a fork that silently drifts from the version trainees actually check in
+  against". Right about the ENT register, wrong about this one: the registers now
+  live in this application against this database, so there is nothing to drift
+  from. It is a link rather than the register inline, because an admin with no
+  membership would otherwise get an empty screen — the directory is the right
+  place to send them.
+- ⬜ **The standalone door.** `/registers` already renders its own shell and
+  needs no TraineeHQ chrome, so what is left is the sign-in page offering both
+  routes in: "Sign in with TraineeHQ" and a plain email/password form against the
+  same Supabase Auth (decision 2). Signed-out visitors are currently sent to
+  TraineeHQ's own `/login`.
 
 **Depends on.** Stages 4, 6.
-
----
 
 ### [ ] Stage 10 — Cutover
 **Goal.** One live register system, not two.

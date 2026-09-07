@@ -156,3 +156,78 @@ export interface RegisterStore {
   updated_at: string;
   updated_by: string | null;
 }
+
+// ---------------------------------------------------------------------------
+// The live teaching day
+// ---------------------------------------------------------------------------
+
+/** What an anonymous visitor holding a check-in link is allowed to know. */
+export interface PublicSession {
+  id: string;
+  title: string;
+  session_date: string;
+  location: string | null;
+  local_id: string | null;
+  form: FeedbackForm | null;
+}
+
+/** A name for the sign-in dropdown. Never an address — only whether we hold one. */
+export interface RosterEntry {
+  id: string;
+  name: string;
+  has_email: boolean;
+}
+
+export interface PublicRoster {
+  trainees: RosterEntry[];
+  sessions: { id: string; month: string; title: string }[];
+}
+
+export interface RegisterAttendee {
+  id: string;
+  name: string;
+  email: string;
+  grade: string | null;
+  checked_in_at: string | null;
+  feedback_completed: boolean;
+  certificate_sent_at: string | null;
+}
+
+export interface LiveSession {
+  id: string;
+  register_id: string;
+  title: string;
+  session_date: string;
+  location: string | null;
+  local_id: string | null;
+  form: FeedbackForm | null;
+}
+
+export type QuestionType = "scale" | "short" | "long" | "choice" | "checkbox";
+
+export interface FeedbackQuestion {
+  id: string;
+  type: QuestionType;
+  text: string;
+  required: boolean;
+  options?: string[];
+  lowLabel?: string;
+  highLabel?: string;
+  placeholder?: string;
+  /** The overall rating cannot be removed — the report is built on it. */
+  locked?: boolean;
+}
+
+export interface FeedbackForm {
+  title: string;
+  questions: FeedbackQuestion[];
+}
+
+export interface FeedbackResponse {
+  id: string;
+  session_id: string;
+  overall_rating: number | null;
+  answers: Record<string, unknown>;
+  comments: string | null;
+  submitted_at: string;
+}
