@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createRegister,
   fetchCreatableSpecialties,
+  fetchMyRegisterMemberships,
   fetchRegisterDirectory,
   requestRegisterAccess,
 } from "@/lib/register/api";
@@ -68,5 +69,26 @@ export function useRequestRegisterAccess() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["register-directory"] });
     },
+  });
+}
+
+/**
+ * Whether this user holds any register at all.
+ *
+ * Deliberately narrow — it reads only the caller's own `register_members` rows,
+ * which RLS allows, rather than pulling the whole directory. The sidebar asks
+ * this on every page, so it should be the cheapest question that answers
+ * "is there anything here for me".
+ *
+ * Membership-derived, not role-derived: the link appears because you hold a
+ * register, never because of what you are in TraineeHQ.
+ */
+export function useMyRegisterMemberships() {
+  const { data: user } = useCurrentUser();
+
+  return useQuery({
+    queryKey: ["my-register-memberships", user?.id],
+    queryFn: fetchMyRegisterMemberships,
+    enabled: !!user,
   });
 }

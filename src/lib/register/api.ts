@@ -84,6 +84,24 @@ export async function fetchRegisterStore(registerId: string): Promise<RegisterSt
   return (data as RegisterStore) ?? null;
 }
 
+/**
+ * The caller's own memberships, across every register.
+ *
+ * `register_members` lets anyone read their own rows, so this needs no RPC and
+ * no directory read — it is the cheapest way to ask "do I hold a register".
+ */
+export async function fetchMyRegisterMemberships(): Promise<RegisterMember[]> {
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return [];
+
+  const { data, error } = await untyped
+    .from("register_members")
+    .select("register_id, user_id, role, granted_by, granted_at")
+    .eq("user_id", auth.user.id);
+  raise(error);
+  return (data ?? []) as RegisterMember[];
+}
+
 export async function fetchRegisterMembers(registerId: string): Promise<RegisterMember[]> {
   const { data, error } = await untyped
     .from("register_members")

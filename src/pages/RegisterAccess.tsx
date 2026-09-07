@@ -102,7 +102,7 @@ export default function RegisterAccess() {
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> {entry.specialty_name}
           </Link>
         </Button>
-        <h1 className="font-display text-2xl font-semibold tracking-tight">Who can use this register</h1>
+        <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Who can use this register</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Access is granted per person and has nothing to do with anyone's TraineeHQ role.
           Any member can admit someone; only an owner can change roles or remove people.
@@ -147,7 +147,7 @@ export default function RegisterAccess() {
                           value={notes[r.id] ?? ""}
                           onChange={(e) => setNotes({ ...notes, [r.id]: e.target.value })}
                         />
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Button size="sm" onClick={() => onDecide(r.id, true)} disabled={decide.isPending}>
                             <Check className="mr-1.5 h-3.5 w-3.5" /> Grant access
                           </Button>
@@ -176,8 +176,8 @@ export default function RegisterAccess() {
 
             return (
               <Card key={m.user_id}>
-                <CardContent className="flex flex-wrap items-center gap-3 p-4">
-                  <div className="min-w-0">
+                <CardContent className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4">
+                  <div className="min-w-0 basis-full sm:basis-auto">
                     <p className="truncate font-medium">
                       {nameOf(person, "Unknown")}
                       {isMe && <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>}
@@ -187,7 +187,7 @@ export default function RegisterAccess() {
                     )}
                   </div>
 
-                  <div className="flex-1" />
+                  <div className="hidden flex-1 sm:block" />
 
                   {m.role === "owner" ? (
                     <Badge className="gap-1"><Crown className="h-3 w-3" /> Owner</Badge>
@@ -284,7 +284,7 @@ export default function RegisterAccess() {
                 </Select>
               </div>
 
-              <Button onClick={onInvite} disabled={!inviteEmail.trim() || invite.isPending}>
+              <Button className="w-full sm:w-auto" onClick={onInvite} disabled={!inviteEmail.trim() || invite.isPending}>
                 {invite.isPending ? (
                   <><Mail className="mr-1.5 h-4 w-4" /> Adding…</>
                 ) : (

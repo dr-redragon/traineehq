@@ -94,7 +94,7 @@ export default function RegisterDetail() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">
+          <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
             {entry.specialty_name}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -102,7 +102,7 @@ export default function RegisterDetail() {
             {entry.member_count === 1 ? "member" : "members"}
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
           <Link to={`/registers/${entry.slug}/access`}>
             <Users className="mr-1.5 h-3.5 w-3.5" /> Access
           </Link>
@@ -110,12 +110,12 @@ export default function RegisterDetail() {
       </div>
 
       <Card>
-        <CardContent className="p-6">
+        <CardContent className="p-4 sm:p-6">
           {storeLoading ? (
             <Skeleton className="h-16 w-full" />
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-6 sm:grid-cols-3">
+              <div className="grid grid-cols-3 gap-4 sm:gap-6">
                 <div>
                   <p className="text-2xl font-semibold">{blob.trainees?.length ?? 0}</p>
                   <p className="text-xs text-muted-foreground">Trainees</p>

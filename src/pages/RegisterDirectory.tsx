@@ -101,14 +101,14 @@ export default function RegisterDirectory() {
     <div className="space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">Teaching registers</h1>
+          <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Teaching registers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Each specialty in each deanery keeps its own register. You see the ones you
             have been given access to.
           </p>
         </div>
         {canCreate && (
-          <Button size="sm" onClick={() => setCreating(true)}>
+          <Button size="sm" className="w-full sm:w-auto" onClick={() => setCreating(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
             New register
           </Button>
@@ -130,11 +130,11 @@ export default function RegisterDirectory() {
           <div className="grid gap-3 sm:grid-cols-2">
             {grouped.mine.map((entry) => (
               <Card key={entry.id} className="transition-colors hover:border-primary/40">
-                <CardContent className="flex items-center gap-3 p-4">
+                <CardContent className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4">
                   <RegisterName entry={entry} />
                   <div className="flex-1" />
                   <MemberCount n={entry.member_count} />
-                  <Button asChild size="sm" variant="outline">
+                  <Button asChild size="sm" variant="outline" className="w-full sm:w-auto">
                     <Link
                       to={`/registers/${entry.slug}`}
                       onClick={() => setActiveRegisterSlug(entry.slug)}
@@ -156,7 +156,7 @@ export default function RegisterDirectory() {
           <div className="grid gap-3 sm:grid-cols-2">
             {grouped.awaiting.map((entry) => (
               <Card key={entry.id}>
-                <CardContent className="flex items-center gap-3 p-4">
+                <CardContent className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4">
                   <RegisterName entry={entry} />
                   <div className="flex-1" />
                   <Badge variant="secondary" className="gap-1 text-xs">
@@ -184,11 +184,16 @@ export default function RegisterDirectory() {
           <div className="grid gap-3 sm:grid-cols-2">
             {grouped.available.map((entry) => (
               <Card key={entry.id}>
-                <CardContent className="flex items-center gap-3 p-4">
+                <CardContent className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4">
                   <RegisterName entry={entry} />
                   <div className="flex-1" />
                   <MemberCount n={entry.member_count} />
-                  <Button size="sm" variant="outline" onClick={() => setRequesting(entry)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => setRequesting(entry)}
+                  >
                     Request access
                   </Button>
                 </CardContent>
@@ -224,7 +229,7 @@ export default function RegisterDirectory() {
             />
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setRequesting(null)}>
               Cancel
             </Button>
@@ -267,7 +272,7 @@ export default function RegisterDirectory() {
             </div>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setCreating(false)}>
               Cancel
             </Button>

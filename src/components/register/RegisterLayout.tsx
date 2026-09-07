@@ -20,55 +20,85 @@ export function RegisterLayout() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      {/*
+        Two rows on a phone, one on a laptop. The register switcher is the
+        widest thing here and the least willing to shrink — a 240px select next
+        to a logo and two buttons does not fit 375px — so on small screens it
+        drops to its own full-width row instead of being squeezed.
+      */}
       <header className="border-b bg-card">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-3 px-4">
-          <Link to="/registers" className="flex items-center gap-2 shrink-0">
-            <img src={logoDark} alt="" className="h-7 w-auto" />
-            <span className="font-display text-sm font-semibold tracking-tight">
-              Teaching registers
-            </span>
-          </Link>
-
-          {/* The switcher only earns its place once there is a choice to make. */}
-          {myRegisters.length > 1 && (
-            <Select
-              value={activeRegister?.slug ?? undefined}
-              onValueChange={setActiveRegisterSlug}
-            >
-              <SelectTrigger className="ml-2 h-8 w-[240px] text-xs">
-                <SelectValue placeholder="Choose a register" />
-              </SelectTrigger>
-              <SelectContent>
-                {myRegisters.map((r) => (
-                  <SelectItem key={r.slug} value={r.slug} className="text-xs">
-                    {r.deanery_name} · {r.specialty_name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-
-          <div className="flex-1" />
-
-          <Button asChild variant="ghost" size="sm" className="text-xs">
-            <Link to="/dashboard">
-              <ArrowLeft className="mr-1.5 h-3.5 w-3.5" />
-              TraineeHQ
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex h-14 items-center gap-2">
+            <Link to="/registers" className="flex min-w-0 items-center gap-2">
+              <img src={logoDark} alt="" className="h-7 w-auto shrink-0" />
+              <span className="hidden truncate font-display text-sm font-semibold tracking-tight sm:inline">
+                Teaching registers
+              </span>
             </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-xs"
-            onClick={() => supabase.auth.signOut()}
-          >
-            <LogOut className="mr-1.5 h-3.5 w-3.5" />
-            Sign out
-          </Button>
+
+            {myRegisters.length > 1 && (
+              <Select
+                value={activeRegister?.slug ?? undefined}
+                onValueChange={setActiveRegisterSlug}
+              >
+                <SelectTrigger className="ml-2 hidden h-8 w-[240px] text-xs sm:flex">
+                  <SelectValue placeholder="Choose a register" />
+                </SelectTrigger>
+                <SelectContent>
+                  {myRegisters.map((r) => (
+                    <SelectItem key={r.slug} value={r.slug} className="text-xs">
+                      {r.deanery_name} · {r.specialty_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            <div className="flex-1" />
+
+            {/* Labels collapse to icons on a phone; the icons carry the meaning,
+                so each keeps an accessible name. */}
+            <Button asChild variant="ghost" size="sm" className="text-xs">
+              <Link to="/dashboard" aria-label="Back to TraineeHQ">
+                <ArrowLeft className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">TraineeHQ</span>
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              aria-label="Sign out"
+              onClick={() => supabase.auth.signOut()}
+            >
+              <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Sign out</span>
+            </Button>
+          </div>
+
+          {myRegisters.length > 1 && (
+            <div className="pb-3 sm:hidden">
+              <Select
+                value={activeRegister?.slug ?? undefined}
+                onValueChange={setActiveRegisterSlug}
+              >
+                <SelectTrigger className="h-9 w-full text-xs">
+                  <SelectValue placeholder="Choose a register" />
+                </SelectTrigger>
+                <SelectContent>
+                  {myRegisters.map((r) => (
+                    <SelectItem key={r.slug} value={r.slug} className="text-xs">
+                      {r.deanery_name} · {r.specialty_name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">
         <Outlet />
       </main>
 
