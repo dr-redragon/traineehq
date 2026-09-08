@@ -170,6 +170,24 @@ const SpecialtyDetail = () => {
     enabled: subsectionIds.length > 0,
   });
 
+  // The list of subheadings a subsection has. Distinct from the `subheading`
+  // string on each resource, which stays the thing that assigns one.
+  const { data: resourceSubheadings } = useQuery({
+    queryKey: ["resource-subheadings", id, subsectionIds],
+    queryFn: async () => {
+      if (!subsectionIds.length) return [];
+      const { data, error } = await supabase
+        .from("resource_subheadings")
+        .select("*")
+        .in("subsection_id", subsectionIds)
+        .order("sort_order")
+        .returns<{ id: string; subsection_id: string; name: string; sort_order: number }[]>();
+      if (error) throw error;
+      return data;
+    },
+    enabled: subsectionIds.length > 0,
+  });
+
   const { data: contacts } = useQuery({
     queryKey: ["contacts", id],
     queryFn: async () => {
@@ -426,6 +444,7 @@ const SpecialtyDetail = () => {
               .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
             const subFolders = (resourceFolders ?? []).filter((f) => f.subsection_id === sub.id);
+            const subSubheadings = (resourceSubheadings ?? []).filter((h) => h.subsection_id === sub.id);
 
             return (
               <TabsContent key={sub.id} value={sub.name} className="mt-4 space-y-3">
@@ -466,6 +485,7 @@ const SpecialtyDetail = () => {
                   specialtyId={specialty.id}
                   resources={subResources}
                   folders={subFolders}
+                  subheadings={subSubheadings}
                   canManage={!!canManage}
                 />
               </TabsContent>
