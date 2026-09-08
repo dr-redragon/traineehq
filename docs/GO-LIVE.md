@@ -362,14 +362,16 @@ None of these stop a launch. All of them will be noticed.
 
 **Register, not yet built**
 
-- **Certificates.** Deliberately not ported: they need pdf-lib and a Resend
-  sender, and the original template hardcodes "ENT Teaching Register" in its
-  footer, which is wrong for every other register. Same for
-  `email-feedback-link` and `chase-absences`.
-- **The standalone door.** `/registers` renders its own shell, but a signed-out
-  visitor is still sent to TraineeHQ's `/login`. The sign-in page offering both
-  routes in — "Sign in with TraineeHQ" and a plain email/password form — is the
-  remaining piece of Stage 9.
+- ~~**Certificates.**~~ **Built 2026-09-08.** The certificate takes its identity
+  from the register rather than hardcoding "ENT Teaching Register", and a test
+  fails if anybody puts a fixed specialty back in. Downloading works today;
+  emailing goes through `register-certificate` (deployed) and needs
+  `RESEND_API_KEY`, which it says in those words rather than failing opaquely.
+  `email-feedback-link` and `chase-absences` are still not ported.
+- ~~**The standalone door.**~~ **Built 2026-09-08** at `/registers/sign-in`,
+  offering both routes in against the same Supabase Auth. Verified in a browser:
+  `/registers` and `/registers/:slug` land there, `/dashboard` still goes to
+  TraineeHQ's login. Deep links now survive the round trip, which they never did.
 
 **Main app** (from `docs/OUTSTANDING.md` §3–4)
 
@@ -408,12 +410,18 @@ None of these stop a launch. All of them will be noticed.
   whether or not the client cooperates; clients can only read. Verified as the
   `authenticated` role: INSERT, UPDATE, DELETE and TRUNCATE all refused with
   42501, SELECT still allowed. Admins read it under **Admin → Audit Log**.
-- Still promised and not built: GDPR consent banner, in-platform notifications.
-- Privacy, terms and cookie links are all `href="#"`. **Deliberately not fixed
-  in code:** the missing part is the policies themselves, and a plausible-looking
-  privacy policy nobody has approved is worse than a dead link — it tells people
-  their data is handled in ways nobody has actually committed to. Publish real
-  ones, then the links are a five-minute change. Ties to 6.4.
+- ~~GDPR consent banner.~~ **Built 2026-09-08**, and it says "I understand"
+  rather than "I consent" on purpose — consent is the wrong lawful basis for a
+  tool people have to use, so it records that somebody was told rather than
+  pretending to a permission that was never optional. **Which basis actually
+  applies is still yours to determine, with the DPIA (6.4).**
+- Still promised and not built: in-platform notifications.
+- Privacy, terms and cookie links are **still not live**, and the reason is
+  unchanged: the missing part is the policies, not the markup. They now route
+  through one `PolicyLink` component reading three constants in `src/lib/legal.ts`
+  and render as plain text until a URL is set — a dead link that looks live tells
+  the reader a document exists. **Publish the policies, set the three constants,
+  and every link in the application lights up at once.** Ties to 6.4.
 
 ---
 

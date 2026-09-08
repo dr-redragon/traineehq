@@ -259,7 +259,7 @@ reading and writing through `save_register()` with the version guard.
    later cannot relabel answers given to the old one.
 
 **Still to do:**
-6. ⬜ Certificates — waits on the certificate half of the edge function.
+6. ✅ Certificates — download works now; emailing waits on RESEND_API_KEY.
 
 **Done when.** Every panel works against a seeded register, and two browser tabs
 editing at once produce a clean version-conflict retry rather than silent loss.
@@ -315,12 +315,15 @@ Where a call names both a session and a register, **the session decides** — so
 caller cannot pair a session in register A with a register id in register B and
 have the looser of the two checked.
 
-**Not ported, deliberately whole rather than half:** `send-certificate`,
-`certificate-preview`, `email-feedback-link`, `chase-absences`. All four need
-pdf-lib and a Resend sender, all four mail real trainees, and the certificate
-template needs somewhere to take a register's name from — a single-tenant
-certificate says "ENT Teaching Register" in its footer, which is wrong for every
-other register.
+**Certificates: ported 2026-09-08.** The template takes the register's name and
+deanery from data, with a test that fails if a fixed specialty is put back into
+the footer. Rendered in the browser (a dynamic pdf-lib import, so the megabyte
+lands in its own chunk) and posted already drawn to `register-certificate`,
+which emails it — taking the address from the database rather than the request,
+so it cannot be used as an authenticated open relay.
+
+**Still not ported:** `email-feedback-link` and `chase-absences`. Both mail real
+trainees and both wait on `RESEND_API_KEY`.
 
 **Depends on.** Stage 1.
 
@@ -352,7 +355,7 @@ cannot reach Supabase.
 
 **Depends on.** Stage 7.
 
-### [~] Stage 9 — Standalone door and admin-panel link
+### [x] Stage 9 — Standalone door and admin-panel link
 **Goal.** Both entrances, and retire the iframe.
 
 - ✅ **The iframe is gone.** `AdminAttendance.tsx` was an iframe of
@@ -363,11 +366,17 @@ cannot reach Supabase.
   from. It is a link rather than the register inline, because an admin with no
   membership would otherwise get an empty screen — the directory is the right
   place to send them.
-- ⬜ **The standalone door.** `/registers` already renders its own shell and
-  needs no TraineeHQ chrome, so what is left is the sign-in page offering both
-  routes in: "Sign in with TraineeHQ" and a plain email/password form against the
-  same Supabase Auth (decision 2). Signed-out visitors are currently sent to
-  TraineeHQ's own `/login`.
+- ✅ **The standalone door.** Built at `/registers/sign-in`, offering both routes
+  in against the same Supabase Auth (decision 2). `RequireAuth` gained a
+  `signInPath` so a route tree can name its own door; everything outside the
+  registers still goes to `/login`. Verified in a browser.
+
+  Two things fell out of it. `Login` had always been handed the page the guard
+  turned somebody away from and had always ignored it, so a deep link followed
+  while signed out landed on the dashboard with the click forgotten — both pages
+  now honour it. And the honouring goes through `safeDestination()`, which is
+  where the open-redirect protection lives and is tested: the protocol-relative
+  case (`//elsewhere`) is the one a bare `startsWith("/")` check waves through.
 
 **Depends on.** Stages 4, 6.
 
