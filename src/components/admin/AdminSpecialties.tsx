@@ -15,7 +15,7 @@ import { getIcon } from "@/lib/iconMap";
 import { IconColorPicker } from "@/components/IconColorPicker";
 import { toast } from "sonner";
 import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
-import { extractStoragePath } from "@/lib/storageUtils";
+import { removeStoredFiles } from "@/lib/storageUtils";
 
 import type { TablesUpdate } from "@/integrations/supabase/types";
 
@@ -334,18 +334,7 @@ export function AdminSpecialties() {
       const ids = collectSpecialtyIds(spec.id);
 
       const { resources } = await fetchSpecialtyResources(spec.id);
-      const storagePaths = resources
-        .map((r: any) => (r.file_url ? extractStoragePath(r.file_url) : null))
-        .filter((p: string | null): p is string => !!p);
-
-      if (storagePaths.length > 0) {
-        const chunkSize = 100;
-        for (let i = 0; i < storagePaths.length; i += chunkSize) {
-          const chunk = storagePaths.slice(i, i + chunkSize);
-          const { error } = await supabase.storage.from("resources").remove(chunk);
-          if (error) console.warn("Storage cleanup error:", error.message);
-        }
-      }
+      await removeStoredFiles(resources.map((r: any) => r.file_url));
 
       const childIds = ids.filter((id) => id !== spec.id);
       if (childIds.length > 0) {

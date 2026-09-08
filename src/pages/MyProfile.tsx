@@ -161,7 +161,23 @@ const MyProfile = () => {
   const deleteAccount = useMutation({
     mutationFn: async () => {
       if (!user) throw new Error("Not logged in");
-      await supabase.from("profiles").delete().eq("user_id", user.id);
+      // Deleting the profile row from here left the auth user behind, so the
+      // account still existed and could still sign in. The function removes the
+      // auth user; everything personal cascades from it.
+      const { data, error } = await supabase.functions.invoke("delete-account", {
+        method: "POST",
+      });
+      // A refusal — the last-super-admin guard, say — comes back as a non-2xx,
+      // which arrives here as an error whose body is on the Response it carries.
+      // Without reading it the user gets "Edge Function returned a non-2xx
+      // status code" instead of the sentence explaining what to do.
+      if (error) {
+        const carried = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
+        const detail = await carried?.json?.().catch(() => null);
+        throw new Error(detail?.error ?? "Could not delete your account. Please try again.");
+      }
+      const refusal = data as { error?: string } | null;
+      if (refusal?.error) throw new Error(refusal.error);
       await supabase.auth.signOut();
     },
     onSuccess: () => {
@@ -348,7 +364,10 @@ const MyProfile = () => {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Delete your account?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will permanently remove your profile and all associated data. This action cannot be undone.
+                    This permanently removes your login and everything personal to you:
+                    your profile, roles, bookmarks, discussion posts and comments, and any
+                    teaching register access. Files and announcements you added to the
+                    library stay, but stop being attributed to you. This cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

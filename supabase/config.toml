@@ -29,6 +29,11 @@ verify_jwt = false
 [functions.zip-resources]
 verify_jwt = true
 
+# Deletes the caller's own account. Signed-in callers only, and the account it
+# removes is always the one in the JWT — it takes no user id from the request.
+[functions.delete-account]
+verify_jwt = true
+
 [functions.access-request-email]
 verify_jwt = false
 

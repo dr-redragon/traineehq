@@ -28,7 +28,8 @@ import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
 import { AddResourceDialog } from "@/components/AddResourceDialog";
 import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
-import { uploadErrorMessage } from "@/lib/storageUtils";
+import { planReorder } from "@/lib/resourceOrdering";
+import { uploadErrorMessage, removeStoredFiles } from "@/lib/storageUtils";
 import type { Tables } from "@/integrations/supabase/types";
 
 const UNGROUPED = "__ungrouped__";
@@ -225,17 +226,27 @@ export function DriveBrowser({
 
   const deleteResource = useMutation({
     mutationFn: async (id: string) => {
+      // Read the path before the row goes: afterwards there is nothing left to
+      // say which object belonged to it.
+      const doomed = resources.find((r) => r.id === id);
       const { error } = await supabase.from("resources").delete().eq("id", id);
       if (error) throw error;
+      await removeStoredFiles([doomed?.file_url]);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["resources"] }),
   });
 
   const deleteFolder = useMutation({
     mutationFn: async (id: string) => {
+      // Ask the database rather than the cached props: a file added by somebody
+      // else since this page loaded is still the folder's to clean up.
+      const { data: contents } = await supabase
+        .from("resources").select("file_url").eq("folder_id", id)
+        .returns<{ file_url: string | null }[]>();
       await supabase.from("resources").delete().eq("folder_id", id);
       const { error } = await supabase.from("resource_folders").delete().eq("id", id);
       if (error) throw error;
+      await removeStoredFiles((contents ?? []).map((r) => r.file_url));
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["resources"] });
@@ -321,6 +332,30 @@ export function DriveBrowser({
     setActiveDropId(event.over ? String(event.over.id) : null);
   };
 
+  /**
+   * A file dropped onto another file row reorders rather than moves.
+   *
+   * The ordering itself is worked out by planReorder, which is tested; this
+   * only decides what is being dragged and applies the writes it returns.
+   * Returns false when there was nothing to do, so the caller can stay quiet
+   * rather than report a move that did not happen.
+   */
+  const reorderOntoRow = async (overResourceId: string, activeId: string) => {
+    // Drag the whole selection when the dragged row is part of it, matching how
+    // a drop onto a group behaves; otherwise just the row under the cursor.
+    const draggingIds = selection.has(activeId)
+      ? [...selection].filter((id) => !id.startsWith("folder-row:"))
+      : [activeId];
+
+    const writes = planReorder(resources, draggingIds, overResourceId);
+    if (!writes.length) return false;
+
+    for (const w of writes) {
+      await updateResourcePlacement.mutateAsync(w);
+    }
+    return true;
+  };
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const overId = event.over ? String(event.over.id) : null;
     setActiveDrag(null);
@@ -340,6 +375,18 @@ export function DriveBrowser({
     } else if (overId === "breadcrumb-root") {
       // dropping back to section root from inside a folder -> remove folder_id
       target = { folderId: null, subheading: currentFolder ? (currentFolder as any).subheading ?? null : null };
+    } else if (resources.some((r) => r.id === overId)) {
+      // Dropped on a file row: reorder within that row's list.
+      const activeId = String(event.active.id);
+      if (activeId === overId) return;
+      try {
+        if (await reorderOntoRow(overId, activeId)) {
+          clearSelection();
+        }
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Reorder failed");
+      }
+      return;
     } else {
       return;
     }

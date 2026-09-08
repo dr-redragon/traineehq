@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { Constants } from "@/integrations/supabase/types";
 import type { Tables } from "@/integrations/supabase/types";
-import { uploadErrorMessage } from "@/lib/storageUtils";
+import { uploadErrorMessage, removeStoredFiles } from "@/lib/storageUtils";
 
 interface EditResourceDialogProps {
   resource: Tables<"resources">;
@@ -98,6 +98,7 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
   const updateResource = useMutation({
     mutationFn: async () => {
       setSaving(true);
+      const previousUrl = resource.file_url;
       let fileUrl = resource.file_url;
 
       if (file) {
@@ -128,6 +129,13 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
         file_size: file ? file.size : (removeFile ? null : (resource as any).file_size),
       } as any).eq("id", resource.id);
       if (error) throw error;
+
+      // Replacing or clearing a file used to leave the old object in the bucket
+      // with nothing pointing at it. Only once the row is safely updated, so a
+      // failed save never destroys the file it still refers to.
+      if (previousUrl && previousUrl !== fileUrl) {
+        await removeStoredFiles([previousUrl]);
+      }
     },
     onSuccess: () => {
       toast.success("Resource updated");
