@@ -29,6 +29,12 @@ verify_jwt = false
 [functions.zip-resources]
 verify_jwt = true
 
+# Emails an attendance certificate. The PDF is rendered in the browser and
+# posted here; the recipient's address is read from the database rather than
+# taken from the request, so this cannot be used as an open relay.
+[functions.register-certificate]
+verify_jwt = true
+
 # Deletes the caller's own account. Signed-in callers only, and the account it
 # removes is always the one in the JWT — it takes no user id from the request.
 [functions.delete-account]
