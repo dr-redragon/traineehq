@@ -1,4 +1,4 @@
-project_id = "dvrzoglirpnoafjrobhn"
+project_id = "twuvscymudpnokzfsqoy"
 
 # JWT verification per function, kept here so the setting is reviewable in the repo
 # rather than only in the dashboard.
@@ -11,6 +11,20 @@ project_id = "dvrzoglirpnoafjrobhn"
 
 [functions.invite-user]
 verify_jwt = true
+
+# Adds somebody to a teaching register, creating their account if they have none.
+# Requires a signed-in caller, and checks in code that they are a member of the
+# register in question — the service role bypasses RLS, so that check has to be
+# made rather than inherited.
+[functions.register-invite]
+verify_jwt = true
+
+# The teaching register's API. verify_jwt is off because two of its actions are
+# anonymous by design — a trainee scanning a QR code has no account — and the
+# function checks each caller itself: the session link for those two, and
+# register membership for every organiser action.
+[functions.register-api]
+verify_jwt = false
 
 [functions.zip-resources]
 verify_jwt = true

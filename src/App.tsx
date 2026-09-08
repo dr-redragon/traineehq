@@ -15,9 +15,16 @@ import MyProfile from "./pages/MyProfile";
 import CommunityHub from "./pages/CommunityHub";
 import NotFound from "./pages/NotFound";
 import RequestAccess from "./pages/RequestAccess";
+import RegisterDirectory from "./pages/RegisterDirectory";
+import RegisterDetail from "./pages/RegisterDetail";
+import RegisterAccess from "./pages/RegisterAccess";
+import RegisterCheckIn from "./pages/register/CheckIn";
+import RegisterFeedback from "./pages/register/Feedback";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { DeaneryProvider } from "./contexts/DeaneryContext";
+import { RegisterProvider } from "./contexts/RegisterContext";
+import { RegisterLayout } from "./components/register/RegisterLayout";
 import { RequireAuth } from "./components/RequireAuth";
 
 const queryClient = new QueryClient();
@@ -69,6 +76,41 @@ const App = () => (
             <Route path="/contacts" element={<RequireAuth><KeyContacts /></RequireAuth>} />
             <Route path="/community" element={<RequireAuth><CommunityHub /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><MyProfile /></RequireAuth>} />
+
+            {/*
+              The two pages a trainee touches. Outside RequireAuth on purpose:
+              somebody scanning a QR code at a teaching day has no account, and
+              the session id in the link is the whole of their authority. Both
+              read through security-definer functions that derive the register
+              from that session, so a link opens one teaching day and nothing
+              else.
+            */}
+            <Route path="/registers/checkin" element={<RegisterCheckIn />} />
+            <Route path="/registers/feedback" element={<RegisterFeedback />} />
+
+            {/*
+              Teaching registers. Gated on a session only — membership decides
+              what is inside, because access is a per-person grant that has
+              nothing to do with a TraineeHQ role: a trainee may hold a register
+              and an admin may hold none. The sidebar carries a shortcut for
+              people who hold one (see AppSidebar), but the route stays open to
+              any signed-in user so that the directory — where access is
+              requested — is reachable by someone who holds none yet.
+            */}
+            <Route
+              path="/registers"
+              element={
+                <RequireAuth>
+                  <RegisterProvider>
+                    <RegisterLayout />
+                  </RegisterProvider>
+                </RequireAuth>
+              }
+            >
+              <Route index element={<RegisterDirectory />} />
+              <Route path=":slug" element={<RegisterDetail />} />
+              <Route path=":slug/access" element={<RegisterAccess />} />
+            </Route>
 
             {/* Admins only */}
             <Route

@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { Constants } from "@/integrations/supabase/types";
 import type { Tables } from "@/integrations/supabase/types";
+import { uploadErrorMessage } from "@/lib/storageUtils";
 
 interface EditResourceDialogProps {
   resource: Tables<"resources">;
@@ -107,7 +108,7 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
           .from("subsections").select("specialty_id").eq("id", subsectionId).single();
         const path = `${sub?.specialty_id ?? "unknown"}/${subsectionId}/${crypto.randomUUID()}.${ext}`;
         const { error: uploadErr } = await supabase.storage.from("resources").upload(path, file);
-        if (uploadErr) throw uploadErr;
+        if (uploadErr) throw new Error(uploadErrorMessage(uploadErr, file));
         fileUrl = path;
       } else if (removeFile) {
         fileUrl = null;

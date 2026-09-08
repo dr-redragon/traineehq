@@ -978,8 +978,11 @@ create policy "users read own audit entries"
 -- so the second path segment identifies the subsection whose permissions apply.
 -- The app reads files through short-lived signed URLs, never public links.
 -- ============================================================================
+-- No bucket-level size cap: uploads are bounded only by the project's global
+-- storage file-size limit (Storage Settings), so raising that plan limit is all
+-- it takes to accept bigger resources. See 20260907160000.
 insert into storage.buckets (id, name, public, file_size_limit)
-values ('resources', 'resources', false, 524288000)  -- 500 MB
+values ('resources', 'resources', false, null)
 on conflict (id) do update
   set public = excluded.public,
       file_size_limit = excluded.file_size_limit;

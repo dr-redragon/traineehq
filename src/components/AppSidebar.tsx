@@ -4,11 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, Search, ChevronDown, ChevronRight,
-  LogOut, User, Shield, MessageSquare
+  LogOut, User, Shield, MessageSquare, ClipboardCheck
 } from "lucide-react";
 import logoDark from "@/assets/logo-dark.png";
 import { getIcon } from "@/lib/iconMap";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useMyRegisterMemberships } from "@/hooks/useRegisters";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -30,6 +31,19 @@ export function AppSidebar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const { data: role } = useUserRole();
   const { activeDeanery, allDeaneries, setActiveDeaneryId } = useDeanery();
+
+  // Shown because you hold a register, never because of your TraineeHQ role: a
+  // trainee who organises a teaching day gets this link and an admin who
+  // organises none does not. The link is only a shortcut — row-level security,
+  // not its visibility, is what decides who can open a register.
+  //
+  // It fails *open*: the link is hidden only once the membership query comes
+  // back and positively says there are none. A query that is still loading, or
+  // that failed on a dropped connection or an expired token, leaves the link in
+  // place — losing it would strand a register holder with no way back in, which
+  // is far worse than showing a non-member a directory they may ask access from.
+  const { data: myRegisters, isSuccess: membershipsLoaded } = useMyRegisterMemberships();
+  const hasRegisters = !membershipsLoaded || (myRegisters?.length ?? 0) > 0;
 
   const { data: specialties } = useQuery({
     queryKey: ["sidebar-specialties", activeDeanery?.id],
@@ -239,6 +253,16 @@ export function AppSidebar() {
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {hasRegisters && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/registers" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <ClipboardCheck className="h-4 w-4" />
+                      {!collapsed && <span>Teaching Registers</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {(role === "admin" || role === "super_admin") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>

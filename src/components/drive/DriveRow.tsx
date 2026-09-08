@@ -42,6 +42,8 @@ interface BaseRowProps {
   selected: boolean;
   onClick: (e: React.MouseEvent) => void;
   canManage: boolean;
+  /** Selection mode: checkboxes stay visible and a tap never opens the item. */
+  selectMode?: boolean;
   isDropTarget?: boolean;
 }
 
@@ -56,7 +58,7 @@ interface FileRowProps extends BaseRowProps {
 }
 
 export function FileRow({
-  resource, selected, onClick, canManage, existingSubheadings,
+  resource, selected, onClick, canManage, selectMode, existingSubheadings,
   onDelete, onMove, onDownload,
 }: FileRowProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -118,17 +120,19 @@ export function FileRow({
             {...attributes}
             {...listeners}
             onClick={onClick}
-            onDoubleClick={(e) => { e.stopPropagation(); setViewerOpen(true); }}
+            onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) setViewerOpen(true); }}
             className={`group flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer select-none transition-colors
               ${selected ? "bg-accent/10 border-accent/40" : "border-transparent hover:bg-secondary/60 hover:border-border"}
             `}
           >
-            {canManage && (
+            {(canManage || selectMode) && (
               <Checkbox
                 checked={selected}
                 onClick={(e) => e.stopPropagation()}
                 onCheckedChange={() => onClick({ shiftKey: false, metaKey: true, ctrlKey: false, stopPropagation() {}, preventDefault() {} } as any)}
-                className="opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"
+                className={selectMode
+                  ? "shrink-0"
+                  : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
               />
             )}
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
@@ -231,7 +235,7 @@ interface FolderRowProps extends BaseRowProps {
 }
 
 export function FolderRow({
-  folder, selected, onClick, canManage, count, onOpen, onRename, onDelete, onDownload,
+  folder, selected, onClick, canManage, selectMode, count, onOpen, onRename, onDelete, onDownload,
   downloading, isDropTarget,
 }: FolderRowProps) {
   const { attributes, listeners, setNodeRef: setSortRef, transform, transition, isDragging } =
@@ -267,17 +271,19 @@ export function FolderRow({
           {...attributes}
           {...listeners}
           onClick={onClick}
-          onDoubleClick={(e) => { e.stopPropagation(); onOpen(); }}
+          onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) onOpen(); }}
           className={`group flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer select-none transition-colors
             ${active ? "ring-2 ring-accent bg-accent/10 border-accent" : selected ? "bg-accent/10 border-accent/40" : "border-transparent hover:bg-secondary/60 hover:border-border"}
           `}
         >
-          {canManage && (
+          {(canManage || selectMode) && (
             <Checkbox
               checked={selected}
               onClick={(e) => e.stopPropagation()}
               onCheckedChange={() => onClick({ shiftKey: false, metaKey: true, ctrlKey: false, stopPropagation() {}, preventDefault() {} } as any)}
-              className="opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"
+              className={selectMode
+                ? "shrink-0"
+                : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
             />
           )}
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">

@@ -71,3 +71,32 @@ export function isStorageUrl(fileUrl: string | null): boolean {
   if (!fileUrl) return false;
   return extractStoragePath(fileUrl) !== fileUrl || !fileUrl.startsWith("http");
 }
+
+/** Human-readable byte size, e.g. "1.4 GB". */
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+}
+
+/**
+ * Turns a storage upload error into something a user can act on.
+ *
+ * The resources bucket sets no size limit of its own, so the only remaining
+ * ceiling is the project's global storage limit — a 413 from the API means the
+ * file is over that, which is fixed by raising the plan limit, not by retrying.
+ */
+export function uploadErrorMessage(error: unknown, file: { name: string; size: number }): string {
+  const err = error as { message?: string; statusCode?: string | number } | null;
+  const message = err?.message ?? "Upload failed";
+  const status = String(err?.statusCode ?? "");
+  const tooLarge =
+    status === "413" ||
+    /exceeded the maximum allowed size|payload too large|entity too large/i.test(message);
+
+  if (tooLarge) {
+    return `${file.name} (${formatBytes(file.size)}) is larger than this project's storage upload limit.`;
+  }
+  return `${file.name}: ${message}`;
+}

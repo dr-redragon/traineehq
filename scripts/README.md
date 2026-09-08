@@ -1,12 +1,66 @@
-# Migration scripts
+# Scripts
 
-Two standalone scripts for moving TraineeHQ from one Supabase project to another.
-They are independent of the app — nothing imports them, and they can be run
-against any pair of projects that share the schema in `supabase/schema/`.
+Standalone tooling, independent of the app — nothing imports any of it.
 
-Node 18+ and `npm install` (they use `pg` and `@supabase/supabase-js`).
+- **`verify-register-schema.sh`** — checks the register tenancy migration against
+  a throwaway database. No credentials, nothing to point at.
+- **`migrate-database.mjs`**, **`migrate-storage.mjs`** — move TraineeHQ from one
+  Supabase project to another. Node 18+ and `npm install` (they use `pg` and
+  `@supabase/supabase-js`).
+- **`anonymise-register-import.sql`** — copy a register out of the standalone ENT
+  project with every name, address and free-text reason replaced. Read-only
+  against the source; returns the blob and a checksum to verify the copy.
 
-## Order
+---
+
+## verify-register-schema.sh
+
+```sh
+./scripts/verify-register-schema.sh
+```
+
+Builds a scratch PostgreSQL 16 cluster in a temp directory, runs two independent
+scenarios in two databases, and deletes the cluster afterwards. It never touches
+a real project, so it is safe to run anywhere and needs no secrets. Every
+migration is applied twice to prove it is idempotent.
+
+**A — tenancy.** Stubs, the baseline, then
+`20260907090000_register_multi_tenancy.sql`, then
+`supabase/schema/test/register-assertions.sql`. Asserts the access rules the
+multi-register design depends on, connecting as the same `anon` and
+`authenticated` roles PostgREST uses:
+
+- membership is an explicit grant — enrolment on a specialty confers nothing, and
+  a `super_admin` reads no register data until granted;
+- the directory is browsable by someone with no access at all (which is why it is
+  a security-definer function and not a view);
+- nobody approves their own request for access, at either layer;
+- the last owner of a register cannot be removed;
+- the blob can only be written through `save_register()`, and a write built on a
+  stale read is refused rather than silently winning.
+
+It ends by applying the seed migration to a project whose operator account does
+not exist, which must apply cleanly and change nothing.
+
+**B — seed.** The same, plus `supabase/schema/test/seed-fixture.sql`, which
+recreates the legacy `public.register_store` table a live project still carries.
+Then `20260907100000_seed_first_register.sql` and its assertions: the operator
+becomes a `super_admin` and the sole owner of one register on the ENT specialty,
+the legacy blob arrives intact, and a re-run neither duplicates anything nor
+overwrites a register that has since been used.
+
+Requires the PostgreSQL 16 server binaries (`initdb`, `pg_ctl`) — on
+Debian/Ubuntu, `apt-get install postgresql-16`. Set `PGBIN` if they live
+somewhere other than `/usr/lib/postgresql/16/bin`.
+
+---
+
+## Migrating between projects
+
+Two scripts for moving TraineeHQ from one Supabase project to another. They can
+be run against any pair of projects that share the schema in `supabase/schema/`.
+
+### Order
 
 1. Run `supabase/schema/0001_traineehq_baseline.sql` against the empty target.
 2. `migrate-database.mjs` — rows, including auth users.
@@ -14,7 +68,7 @@ Node 18+ and `npm install` (they use `pg` and `@supabase/supabase-js`).
 
 Both are safe to re-run and both take `--dry-run`.
 
-## migrate-database.mjs
+### migrate-database.mjs
 
 ```sh
 SOURCE_DATABASE_URL='postgres://...' \
@@ -45,7 +99,7 @@ Two details that will bite anyone writing this by hand: `auth.users.confirmed_at
 and `auth.identities.email` are **generated columns** and reject explicit values,
 so the script builds its column list from `information_schema` and skips them.
 
-## migrate-storage.mjs
+### migrate-storage.mjs
 
 ```sh
 SOURCE_SUPABASE_URL='https://<ref>.supabase.co' SOURCE_SERVICE_ROLE_KEY='...' \
