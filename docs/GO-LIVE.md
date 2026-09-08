@@ -375,8 +375,11 @@ None of these stop a launch. All of them will be noticed.
 
 - ~~Drag-to-reorder resources is broken.~~ **Fixed 2026-09-08.** The ordering
   is now `planReorder()` in `src/lib/resourceOrdering.ts`, with 11 tests.
-- Subheadings are local state and vanish on refresh until a file is assigned.
-  **Still open** — needs a real table and a migration.
+- ~~Subheadings are local state and vanish on refresh.~~ **Fixed 2026-09-08** —
+  `resource_subheadings` is now the list, with access mirroring
+  `resource_folders`, a backfill of everything already named, and a way to
+  remove an empty one (persistence without removal would only trade one
+  annoyance for another).
 - ~~Storage objects are never deleted when a resource is deleted or replaced.~~
   **Fixed 2026-09-08** — `removeStoredFiles()` covers all four paths that lose
   a file. Note this stops *new* orphans; it does not sweep up existing ones.
@@ -384,12 +387,23 @@ None of these stop a launch. All of them will be noticed.
   2026-09-08** — the `delete-account` edge function removes the auth user under
   the service role, taking the account from the verified JWT and never from the
   request body. It refuses to delete the last `super_admin`.
-- "Watch discussion" has a dashboard widget but no way to watch anything.
-- Password change has no re-authentication.
+- ~~"Watch discussion" has a dashboard widget but no way to watch anything.~~
+  **Fixed 2026-09-08** — an eye toggle on each thread. The table and its unique
+  constraint were already there; only the control was missing.
+- ~~Password change has no re-authentication.~~ **Fixed 2026-09-08** — the form
+  asks for the current password and re-authenticates first, against the *auth*
+  email rather than the profile one, since those can diverge. Without it,
+  anyone finding an unlocked screen could take the account permanently.
+- **Still open:** editing your profile email diverges from the auth email you
+  sign in with. Related to the above and deliberately left: reconciling them
+  means an email-change confirmation flow, not a patch.
 - Promised in the README, never built: dark-mode toggle, GDPR consent banner,
   audit log (the table exists, nothing writes to it), in-platform notifications.
-  Privacy, terms and cookie links are all `href="#"` — for an NHS tool handling
-  personal data, publish real ones before launch.
+- Privacy, terms and cookie links are all `href="#"`. **Deliberately not fixed
+  in code:** the missing part is the policies themselves, and a plausible-looking
+  privacy policy nobody has approved is worse than a dead link — it tells people
+  their data is handled in ways nobody has actually committed to. Publish real
+  ones, then the links are a five-minute change. Ties to 6.4.
 
 ---
 
