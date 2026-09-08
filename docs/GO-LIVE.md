@@ -362,11 +362,13 @@ None of these stop a launch. All of them will be noticed.
 
 **Register, not yet built**
 
-- ~~**Certificates.**~~ **Built 2026-09-08.** The certificate takes its identity
-  from the register rather than hardcoding "ENT Teaching Register", and a test
-  fails if anybody puts a fixed specialty back in. Downloading works today;
-  emailing goes through `register-certificate` (deployed) and needs
-  `RESEND_API_KEY`, which it says in those words rather than failing opaquely.
+- ~~**Certificates.**~~ **Built 2026-09-08, design ported 2026-09-09.** The
+  layout is the standalone register's — paper, moss and gold border, the gold
+  rule, the reference line — with the eyebrow and footer built from the register
+  instead of naming ENT. Each register uploads its own badge (owners only, from
+  the access page), or goes without, in which case the composition re-centres
+  rather than leaving the badge's space empty. Downloading works today; emailing
+  goes through `register-certificate` (deployed) and needs `RESEND_API_KEY`.
   `email-feedback-link` and `chase-absences` are still not ported.
 - ~~**The standalone door.**~~ **Built 2026-09-08** at `/registers/sign-in`,
   offering both routes in against the same Supabase Auth. Verified in a browser:
