@@ -397,11 +397,30 @@ None of these stop a launch. All of them will be noticed.
 
 - [ ] **Backups.** Confirm the plan's backup schedule and take a manual
       `pg_dump` before cutover. Free tier backups are limited.
-- [ ] **Run both advisors** (`security`, `performance`) once more after Phase 3
-      and read the performance one — it catches missing indexes that only bite
-      under real load.
+- [x] **Run both advisors.** Both were run on 2026-09-08. The performance one
+      had never been read, and it was right to: **22 foreign keys had no
+      covering index**, all now added by migration `20260908162406`
+      (0 unindexed remaining, verified). Three findings were deliberately *not*
+      acted on:
+      - *13 "unused index"* — every index here is unused, because the app has no
+        users yet. Dropping them would read "nobody has run the app" as "nobody
+        needs this". Re-read after a term of real traffic.
+      - *16 "multiple permissive policies"* — merging permissive policies changes
+        what the authorisation boundary permits, and RLS is the only one this
+        app has. Not worth it to save an evaluation on tables of tens of rows.
+      - *57 "auth RLS init plan"* — real, and the one worth doing later: policies
+        call `auth.uid()` per row instead of once. The fix is mechanical
+        (`auth.uid()` → `(select auth.uid())`) but it rewrites every policy in
+        the app, so it wants `scripts/verify-register-schema.sh` run over it
+        rather than a quick pass. Harmless at today's data sizes.
+- [ ] **Re-run both advisors after Phase 3**, once there is real data and
+      traffic — the "unused index" list only means something then.
 - [ ] **Watch the logs** for the first week: Supabase → Logs (API, Auth, Edge
-      Functions). Edge-function failures are silent from the user's side.
+      Functions). Edge-function failures are silent from the user's side. Checked
+      on 2026-09-08 and the function log is empty — nothing has invoked them yet,
+      which is expected and is also why this check cannot be done early. Three
+      functions went live for the first time that day, so the first week of real
+      traffic is the one that matters.
 - [ ] **Information governance.** This holds NHS trainees' names, email
       addresses and health-related absence records (maternity, sickness). A DPIA
       and a named data controller are not optional, and the privacy policy has to
@@ -414,6 +433,14 @@ None of these stop a launch. All of them will be noticed.
       CREATEs `register_store` with `GRANT ... TO anon` and three `USING (true)`
       policies, so a `db push` would have added a world-readable, world-writable
       table to a project whose publishable key ships in every client bundle.
+      **One wrinkle remains, and it is safe:** the eight register migrations in
+      the repo carry timestamps that do not match the versions actually recorded
+      in the database (repo `20260907090000` vs applied `20260907055054`, and so
+      on), so `db push` would try to re-apply them. They are written to be
+      idempotent and `scripts/verify-register-schema.sh` applies each twice to
+      prove it — including the seed, which explicitly refuses to overwrite a
+      register that already holds data. Only `20260908162406` matches on both
+      sides. Worth reconciling one day; not worth a rewrite now.
 
 ---
 
