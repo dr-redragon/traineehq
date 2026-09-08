@@ -34,11 +34,19 @@ import type { Tables } from "@/integrations/supabase/types";
 
 const UNGROUPED = "__ungrouped__";
 
+export interface Subheading {
+  id: string;
+  subsection_id: string;
+  name: string;
+  sort_order: number;
+}
+
 interface DriveBrowserProps {
   subsection: Tables<"subsections">;
   specialtyId: string;
   resources: Tables<"resources">[];
   folders: Tables<"resource_folders">[];
+  subheadings: Subheading[];
   canManage: boolean;
 }
 
@@ -79,13 +87,12 @@ function DropZone({
 }
 
 export function DriveBrowser({
-  subsection, specialtyId, resources, folders, canManage,
+  subsection, specialtyId, resources, folders, subheadings, canManage,
 }: DriveBrowserProps) {
   const queryClient = useQueryClient();
 
   /* ---------- Local state ---------- */
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
-  const [manualSubheadings, setManualSubheadings] = useState<string[]>([]);
   const [selection, setSelection] = useState<Set<string>>(new Set()); // ids of selected items (files or `folder-row:id`)
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false); // "Select" pressed: tapping a row ticks it
@@ -133,9 +140,12 @@ export function DriveBrowser({
     return [...s];
   }, [resources, folders]);
 
+  // The table is the list; the strings found on resources are unioned in so a
+  // subheading assigned before this table existed — or by someone else since
+  // this page loaded — still shows rather than silently swallowing its files.
   const allSubheadings = useMemo(
-    () => [...new Set([...detectedSubheadings, ...manualSubheadings])],
-    [detectedSubheadings, manualSubheadings]
+    () => [...new Set([...subheadings.map((h) => h.name), ...detectedSubheadings])],
+    [subheadings, detectedSubheadings]
   );
 
   /* ---------- Selection helpers ---------- */
@@ -274,6 +284,60 @@ export function DriveBrowser({
       toast.success(`Folder "${name}" created`);
       queryClient.invalidateQueries({ queryKey: ["resource-folders"] });
       setAddFolderOpen(false); setNewFolderName("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const createSubheading = useMutation({
+    mutationFn: async (name: string) => {
+      const { error } = await supabase.from("resource_subheadings").insert({
+        subsection_id: subsection.id,
+        name,
+        sort_order: subheadings.length,
+      });
+      // The unique constraint is the check: two subheadings of one name in one
+      // subsection would be two headings the app could never tell apart.
+      if (error) {
+        throw new Error(
+          error.code === "23505" ? `"${name}" already exists here` : error.message
+        );
+      }
+    },
+    onSuccess: (_d, name) => {
+      toast.success(`Subheading "${name}" added`);
+      queryClient.invalidateQueries({ queryKey: ["resource-subheadings"] });
+      setAddSubheadingOpen(false);
+      setNewSubheading("");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  /**
+   * Remove a subheading from the list.
+   *
+   * Only ever an empty one. Deleting a subheading that still holds files would
+   * either delete them or silently strand them, and neither is what somebody
+   * tidying up their headings is asking for.
+   */
+  const deleteSubheading = useMutation({
+    mutationFn: async (name: string) => {
+      const holding = resources.filter((r) => (r.subheading ?? null) === name).length
+        + folders.filter((f) => (f.subheading ?? null) === name).length;
+      if (holding > 0) {
+        throw new Error(
+          `"${name}" still holds ${holding} item${holding === 1 ? "" : "s"}. Move them out first.`
+        );
+      }
+      const { error } = await supabase
+        .from("resource_subheadings")
+        .delete()
+        .eq("subsection_id", subsection.id)
+        .eq("name", name);
+      if (error) throw error;
+    },
+    onSuccess: (_d, name) => {
+      toast.success(`Subheading "${name}" removed`);
+      queryClient.invalidateQueries({ queryKey: ["resource-subheadings"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -620,6 +684,20 @@ export function DriveBrowser({
                 <Badge variant="secondary" className="text-[10px]">
                   {g.folders.length + g.files.length}
                 </Badge>
+                {canManage && g.folders.length + g.files.length === 0 && (
+                  // Offered only while it is empty. A subheading now persists,
+                  // so without this an empty one made by mistake would be
+                  // permanent — the old bug was also the old way out of it.
+                  <Button
+                    variant="ghost" size="icon"
+                    className="h-5 w-5 text-muted-foreground hover:text-destructive"
+                    title={`Remove the "${g.name}" subheading`}
+                    aria-label={`Remove the "${g.name}" subheading`}
+                    onClick={() => deleteSubheading.mutate(g.name)}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
             </DropZone>
             <Section
@@ -955,12 +1033,11 @@ export function DriveBrowser({
               <Input value={newSubheading} onChange={(e) => setNewSubheading(e.target.value)}
                 autoFocus placeholder="e.g. Core Curriculum" />
             </div>
-            <Button className="w-full" disabled={!newSubheading.trim()}
-              onClick={() => {
-                setManualSubheadings((prev) => [...prev, newSubheading.trim()]);
-                toast.success("Subheading added");
-                setAddSubheadingOpen(false); setNewSubheading("");
-              }}>Add subheading</Button>
+            <Button className="w-full"
+              disabled={!newSubheading.trim() || createSubheading.isPending}
+              onClick={() => createSubheading.mutate(newSubheading.trim())}>
+              {createSubheading.isPending ? "Adding…" : "Add subheading"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
