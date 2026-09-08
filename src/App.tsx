@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -54,8 +55,13 @@ function AuthCacheSync() {
 }
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+  // `attribute="class"` is what Tailwind's darkMode: ["class"] reads, and the
+  // .dark palette in index.css has been sitting complete and unreachable since
+  // the beginning. Defaulting to "system" means nobody has to find the toggle
+  // to get the theme their device already asked for.
+  <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
       <DeaneryProvider>
         <AuthCacheSync />
         <Toaster />
@@ -126,8 +132,9 @@ const App = () => (
           </Routes>
         </BrowserRouter>
       </DeaneryProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  </ThemeProvider>
 );
 
 export default App;

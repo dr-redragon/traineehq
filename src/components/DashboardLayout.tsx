@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <header className="h-14 flex items-center gap-4 border-b px-4 bg-card shrink-0">
             <SidebarTrigger />
             <div className="flex-1" />
+            <ThemeToggle />
           </header>
           <main className="flex-1 overflow-auto p-6">
             {children}
