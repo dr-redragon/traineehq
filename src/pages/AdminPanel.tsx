@@ -8,7 +8,8 @@ import { AdminAccessRequests } from "@/components/admin/AdminAccessRequests";
 import { AdminDeaneries } from "@/components/admin/AdminDeaneries";
 import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
 import { AdminAttendance } from "@/components/admin/AdminAttendance";
-import { Shield, Users, BookOpen, Phone, Megaphone, UserPlus, Building2, Stethoscope, ClipboardCheck } from "lucide-react";
+import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
+import { Shield, Users, BookOpen, Phone, Megaphone, UserPlus, Building2, Stethoscope, ClipboardCheck, ScrollText } from "lucide-react";
 
 const AdminPanel = () => {
   return (
@@ -50,6 +51,9 @@ const AdminPanel = () => {
             <TabsTrigger value="deaneries" className="gap-1.5 text-xs">
               <Building2 className="h-3.5 w-3.5" /> Deaneries
             </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-1.5 text-xs">
+              <ScrollText className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Audit</span> Log
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="users" className="mt-4"><AdminUsers /></TabsContent>
@@ -60,6 +64,7 @@ const AdminPanel = () => {
           <TabsContent value="attendance" className="mt-4"><AdminAttendance /></TabsContent>
           <TabsContent value="specialties" className="mt-4"><AdminSpecialties /></TabsContent>
           <TabsContent value="deaneries" className="mt-4"><AdminDeaneries /></TabsContent>
+          <TabsContent value="audit" className="mt-4"><AdminAuditLog /></TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>

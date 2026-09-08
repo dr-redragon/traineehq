@@ -397,8 +397,18 @@ None of these stop a launch. All of them will be noticed.
 - **Still open:** editing your profile email diverges from the auth email you
   sign in with. Related to the above and deliberately left: reconciling them
   means an email-change confirmation flow, not a patch.
-- Promised in the README, never built: dark-mode toggle, GDPR consent banner,
-  audit log (the table exists, nothing writes to it), in-platform notifications.
+- ~~Dark-mode toggle.~~ **Built 2026-09-08.** Everything was already present and
+  unreachable — next-themes, `darkMode: ["class"]`, a complete `.dark` palette —
+  bar a provider and a control. Verified in a real browser in both themes.
+- ~~Audit log (the table exists, nothing writes to it).~~ **Built 2026-09-08**,
+  and it turned up a hole: `anon` and `authenticated` both held **TRUNCATE** on
+  `audit_log`, and TRUNCATE is not filtered by row-level security, so any
+  signed-in caller could have emptied the trail no matter what the policies
+  said. Writes now happen in `SECURITY DEFINER` triggers, so entries are made
+  whether or not the client cooperates; clients can only read. Verified as the
+  `authenticated` role: INSERT, UPDATE, DELETE and TRUNCATE all refused with
+  42501, SELECT still allowed. Admins read it under **Admin → Audit Log**.
+- Still promised and not built: GDPR consent banner, in-platform notifications.
 - Privacy, terms and cookie links are all `href="#"`. **Deliberately not fixed
   in code:** the missing part is the policies themselves, and a plausible-looking
   privacy policy nobody has approved is worse than a dead link — it tells people
