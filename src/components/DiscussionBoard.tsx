@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Pin, Trash2, Clock, User, Send, ChevronDown, ChevronUp
+  Plus, MessageSquare, ArrowBigUp, ArrowBigDown, Pin, Trash2, Clock, User, Send, ChevronDown, ChevronUp, Eye
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
@@ -124,6 +124,53 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
     );
     return vote?.vote_type ?? 0;
   };
+
+  // Which of these threads the viewer already watches. The dashboard widget has
+  // always been able to list watched threads; until now nothing could create a
+  // row for it to find.
+  const { data: watchedIds } = useQuery({
+    queryKey: ["watched-discussions", specialtyId, currentUser?.id],
+    queryFn: async () => {
+      if (!currentUser) return [] as string[];
+      const { data, error } = await supabase
+        .from("watched_discussions")
+        .select("discussion_id")
+        .eq("user_id", currentUser.id);
+      if (error) throw error;
+      return (data ?? []).map((w) => w.discussion_id);
+    },
+    enabled: !!currentUser,
+  });
+
+  const watched = useMemo(() => new Set(watchedIds ?? []), [watchedIds]);
+
+  const toggleWatch = useMutation({
+    mutationFn: async ({ id, watching }: { id: string; watching: boolean }) => {
+      if (!currentUser) throw new Error("Not signed in");
+      if (watching) {
+        const { error } = await supabase
+          .from("watched_discussions")
+          .delete()
+          .eq("user_id", currentUser.id)
+          .eq("discussion_id", id);
+        if (error) throw error;
+        return false;
+      }
+      const { error } = await supabase
+        .from("watched_discussions")
+        .insert({ user_id: currentUser.id, discussion_id: id });
+      // Watching something already watched is not a failure worth showing:
+      // the unique constraint means the wanted state is the state it is in.
+      if (error && error.code !== "23505") throw error;
+      return true;
+    },
+    onSuccess: (nowWatching) => {
+      toast.success(nowWatching ? "Watching this discussion" : "Stopped watching");
+      queryClient.invalidateQueries({ queryKey: ["watched-discussions"] });
+      queryClient.invalidateQueries({ queryKey: ["my-watched-discussions"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const createPost = useMutation({
     mutationFn: async () => {
@@ -378,6 +425,20 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                           <p className={`text-sm text-muted-foreground ${isExpanded ? "" : "line-clamp-2"}`}>{post.content}</p>
                         </div>
                         <div className="flex items-center gap-1 shrink-0">
+                          {currentUser && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="shrink-0"
+                              disabled={toggleWatch.isPending}
+                              title={watched.has(post.id) ? "Stop watching" : "Watch this discussion"}
+                              aria-label={watched.has(post.id) ? "Stop watching" : "Watch this discussion"}
+                              aria-pressed={watched.has(post.id)}
+                              onClick={() => toggleWatch.mutate({ id: post.id, watching: watched.has(post.id) })}
+                            >
+                              <Eye className={`h-3.5 w-3.5 ${watched.has(post.id) ? "text-accent" : "text-muted-foreground"}`} />
+                            </Button>
+                          )}
                           {canPin && (
                             <Button
                               variant="ghost"

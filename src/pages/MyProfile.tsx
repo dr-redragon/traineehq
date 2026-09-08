@@ -295,6 +295,21 @@ const MyProfile = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-1.5">
+              <Label htmlFor="currentPassword">Current password</Label>
+              <Input
+                id="currentPassword"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Asked for so that an unattended signed-in screen cannot be used to take
+                the account over.
+              </p>
+            </div>
+            <div className="space-y-1.5">
               <Label htmlFor="newPassword">New password</Label>
               <Input
                 id="newPassword"
@@ -321,13 +336,38 @@ const MyProfile = () => {
               <p className="text-xs text-destructive">Password must be at least 6 characters</p>
             )}
             <Button
-              disabled={!newPassword || newPassword.length < 6 || newPassword !== confirmNewPassword}
+              disabled={
+                !currentPassword || !newPassword ||
+                newPassword.length < 6 || newPassword !== confirmNewPassword
+              }
               onClick={async () => {
+                // Re-authenticate first. Supabase lets a signed-in session change
+                // its own password with no further proof, so without this anybody
+                // who finds an unlocked screen can set a password of their own and
+                // lock the real owner out permanently.
+                //
+                // Checked against the AUTH email, deliberately: the email on the
+                // profile is editable and can diverge from the one you sign in with.
+                const authEmail = user?.email;
+                if (!authEmail) {
+                  toast.error("Could not confirm who you are. Sign in again and retry.");
+                  return;
+                }
+                const { error: reauthError } = await supabase.auth.signInWithPassword({
+                  email: authEmail,
+                  password: currentPassword,
+                });
+                if (reauthError) {
+                  toast.error("That current password is not right.");
+                  return;
+                }
+
                 const { error } = await supabase.auth.updateUser({ password: newPassword });
                 if (error) {
                   toast.error(error.message);
                 } else {
                   toast.success("Password updated successfully");
+                  setCurrentPassword("");
                   setNewPassword("");
                   setConfirmNewPassword("");
                 }
