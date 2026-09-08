@@ -52,6 +52,14 @@ interface RequireAuthProps {
   children: ReactNode;
   /** When set, the signed-in user must hold one of these roles. */
   roles?: AppRole[];
+  /**
+   * Where to send a signed-out visitor. The registers have their own front
+   * door: bouncing an organiser who has only ever used the teaching register
+   * to TraineeHQ's login shows them a page about curricula and exam
+   * preparation, then lands them on a dashboard rather than the register they
+   * were opening.
+   */
+  signInPath?: string;
 }
 
 /**
@@ -62,7 +70,7 @@ interface RequireAuthProps {
  * stop signed-out visitors landing on an empty dashboard, and to stop trainees
  * opening an admin screen whose every query would fail.
  */
-export function RequireAuth({ children, roles }: RequireAuthProps) {
+export function RequireAuth({ children, roles, signInPath = "/login" }: RequireAuthProps) {
   const session = useSession();
   const location = useLocation();
   const { data: role, isLoading: roleLoading } = useUserRole();
@@ -72,7 +80,7 @@ export function RequireAuth({ children, roles }: RequireAuthProps) {
   }
 
   if (session === null) {
-    return <Navigate to="/login" replace state={{ from: location.pathname + location.search }} />;
+    return <Navigate to={signInPath} replace state={{ from: location.pathname + location.search }} />;
   }
 
   if (roles) {

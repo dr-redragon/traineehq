@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { PolicyLink } from "@/components/PolicyLink";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -148,9 +149,9 @@ const Landing = () => {
 
                   <p className="text-center text-[10px] text-muted-foreground mt-6">
                     By signing in you agree to our{" "}
-                    <a href="#" className="text-primary underline underline-offset-4">Privacy Policy</a>
+                    <PolicyLink kind="privacy" className="text-primary underline underline-offset-4" />
                     {" "}and{" "}
-                    <a href="#" className="text-primary underline underline-offset-4">Terms of Use</a>.
+                    <PolicyLink kind="terms" className="text-primary underline underline-offset-4" />.
                     <br />Essential cookies only — no tracking.
                   </p>
                 </CardContent>
@@ -197,9 +198,9 @@ const Landing = () => {
             <span className="text-sm text-muted-foreground">© 2026 HST Training Hub</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
-            <a href="#" className="underline underline-offset-4 hover:text-primary transition-colors">Privacy Policy</a>
-            <a href="#" className="underline underline-offset-4 hover:text-primary transition-colors">Terms of Use</a>
-            <a href="#" className="underline underline-offset-4 hover:text-primary transition-colors">Cookie Policy</a>
+            <PolicyLink kind="privacy" className="underline underline-offset-4 hover:text-primary transition-colors" />
+            <PolicyLink kind="terms" className="underline underline-offset-4 hover:text-primary transition-colors" />
+            <PolicyLink kind="cookies" className="underline underline-offset-4 hover:text-primary transition-colors" />
           </div>
         </div>
       </footer>
