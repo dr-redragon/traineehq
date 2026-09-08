@@ -21,6 +21,7 @@ import {
   bytesToBase64, certificateFilename, renderCertificatePdf,
 } from "@/lib/register/certificate";
 import { supabase } from "@/integrations/supabase/client";
+import { registerLogoUrl } from "@/lib/register/logo";
 import type { RegisterAttendee, RegisterBlob } from "@/lib/register/types";
 
 /** The first of the month, as a sensible default for a day in that month. */
@@ -143,6 +144,7 @@ export function LiveSessionPanel({
     sessionTitle: selected?.title ?? "Teaching session",
     sessionDate: selected?.session_date ?? "",
     location: selected?.location ?? null,
+    logoUrl: registerLogoUrl(activeRegister?.certificate_logo_path),
   });
 
   const downloadCertificate = async (attendee: RegisterAttendee) => {
