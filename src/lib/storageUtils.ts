@@ -72,6 +72,38 @@ export function isStorageUrl(fileUrl: string | null): boolean {
   return extractStoragePath(fileUrl) !== fileUrl || !fileUrl.startsWith("http");
 }
 
+/**
+ * Delete the stored objects behind a set of resources.
+ *
+ * Deleting a resource row has never removed its file, which is how the old
+ * bucket reached 212 orphans against 11 live resources — 167 MB of files no
+ * row pointed at any more, invisible in the app and impossible to attribute.
+ * Every path that drops or replaces a resource should call this.
+ *
+ * Deliberately does not throw. The row is the record; a file left behind is
+ * untidy, but failing somebody's delete because the tidy-up failed is worse.
+ * External links and rows with no file are skipped.
+ */
+export async function removeStoredFiles(fileUrls: (string | null | undefined)[]): Promise<number> {
+  const paths = [...new Set(
+    fileUrls
+      .map((url) => (url ? extractStoragePath(url) : null))
+      .filter((p): p is string => !!p)
+  )];
+  if (!paths.length) return 0;
+
+  let removed = 0;
+  // The storage API caps how many keys one call may name.
+  const chunkSize = 100;
+  for (let i = 0; i < paths.length; i += chunkSize) {
+    const chunk = paths.slice(i, i + chunkSize);
+    const { error } = await supabase.storage.from("resources").remove(chunk);
+    if (error) console.warn("Storage cleanup error:", error.message);
+    else removed += chunk.length;
+  }
+  return removed;
+}
+
 /** Human-readable byte size, e.g. "1.4 GB". */
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

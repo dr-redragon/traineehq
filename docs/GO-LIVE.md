@@ -8,13 +8,30 @@ Written 2026-09-07 against branch `claude/teaching-register-traineehq-abk2cu`
 (PR #4) and Supabase project `twuvscymudpnokzfsqoy`. Each step says how to
 check it is done, so nothing rests on "it looked fine".
 
-**Where things stand today.** The application code is complete and tested (205
-tests, clean typecheck, clean build). The database is fully migrated — all 13
-migrations applied. But **the site is not live at any level**: `main` carries
-none of this work, two of the six edge functions were never deployed, the
-storage bucket is empty while eleven resources point into it, no email
-credential is set, and the register holds placeholder names. Phase 1 is the
-difference between a preview and a product.
+**Updated 2026-09-08.** Four of the blockers are now cleared. What remains
+needs a credential, a payment decision or a dashboard action — none of it can
+be done from a code session.
+
+Done since this was written:
+
+- **1.1 — merged.** PR #4 is on `main` (merge `81ecbfb`), after verifying 205
+  tests, clean typecheck and a clean build against its head.
+- **1.2 — deployed.** `register-api` (`verify_jwt` false) and `register-invite`
+  (true) are ACTIVE on `twuvscymudpnokzfsqoy`, each read back from the API and
+  diffed byte-for-byte against the source here. All six functions are live —
+  seven, with `delete-account` below.
+- **2.5 / 6.6 — settled.** The GitHub Pages workflow is gone and the two dead
+  Lovable migrations are in `supabase/archive/`.
+- **Three Phase 5 gaps closed** — drag-to-reorder, orphaned storage objects,
+  and account deletion that left the auth user behind.
+
+Still true, and still blocking:
+
+- **1.3 is in doubt** — see the note there. The source project for the storage
+  copy is not on this Supabase account any more.
+- **1.4** no `RESEND_API_KEY`, so every email path fails silently.
+- **1.5** the project is on Free and pauses after about a week of no traffic.
+- **Phase 3** the register still holds 52 placeholder trainees.
 
 ---
 
@@ -36,7 +53,7 @@ None of these are technical; every one of them changes the steps below.
 
 Each of these leaves a visible part of the site broken. Do them in order.
 
-### 1.1 Merge the work into `main`
+### 1.1 Merge the work into `main` — DONE (2026-09-08)
 
 Nothing in the last two weeks is deployed anywhere. `main` is still the old
 code: no registers, no rich-text notices, no Select mode, no upload fix.
@@ -51,7 +68,7 @@ git push origin main
 **Check:** open the production site, sign in, and look for **Teaching
 Registers** under *Account* in the sidebar.
 
-### 1.2 Deploy the two missing edge functions
+### 1.2 Deploy the two missing edge functions — DONE (2026-09-08)
 
 Four of the six functions are live. **`register-api` and `register-invite` have
 never been deployed**, and they are not optional: every register write goes
@@ -98,6 +115,26 @@ pass them in the environment, never commit them.
 
 **Check:** `select count(*) from storage.objects where bucket_id='resources'`
 returns 11, and a file downloads from the app.
+
+> **2026-09-08 — this step may no longer be possible, and it matters less than
+> "0 / 11" suggests.**
+>
+> The Supabase account now holds one organisation and three projects —
+> `DripDrop`, `ent-teaching-register` and `traineehq`. Neither old reference
+> (`dvrzoglirpnoafjrobhn`, `6cec5550…`) is among them, so there is no source to
+> copy from unless you can still reach that project by other means. Free
+> projects are removed after a long enough pause, and the advice in 3.4 to keep
+> the old projects around may simply have been overtaken.
+>
+> Against that: of the eleven rows, **nine are logo and favicon assets** —
+> 16px through 1024px, plus an SVG — which are regenerable in minutes. Only two
+> are real content: *HST Regional Teaching Program* (`.docx`) and
+> *Maternity_Leave_Guidance_Northwestern_only* (`.doc`, 35 KB). If the source
+> is gone, re-upload those two through the app and replace the logo rows; that
+> is an afternoon's annoyance, not lost institutional knowledge.
+>
+> Either way, do not leave the rows pointing at files that are not there: a
+> resource that 404s on download is worse than one that is absent.
 
 ### 1.4 Set the email credential
 
@@ -179,11 +216,13 @@ the API. Those are the deliberate design — they *are* the register's API, and
 each one checks its caller (membership, or the session id for the two anonymous
 paths). No action, but read the list once so you know what is exposed.
 
-### 2.5 Settle the deployment story
+### 2.5 Settle the deployment story — DONE (2026-09-08)
 
-If Netlify is the answer to 0.5, delete or disable
-`.github/workflows/deploy-pages.yml` so a push to `main` does not quietly
-publish a second copy. Note it also targets a branch that no longer matters.
+Done: `.github/workflows/deploy-pages.yml` is removed. Netlify is the
+deployment that actually serves this app — it runs the PR checks, and
+`netlify.toml` carries the SPA fallback and the `noindex` header — so the
+workflow was a second, drifting copy aimed at a branch that no longer exists.
+Git history keeps it if the decision is ever revisited.
 
 ---
 
@@ -334,13 +373,17 @@ None of these stop a launch. All of them will be noticed.
 
 **Main app** (from `docs/OUTSTANDING.md` §3–4)
 
-- Drag-to-reorder resources is broken — `handleDragEnd` returns early on a
-  row-to-row drop.
+- ~~Drag-to-reorder resources is broken.~~ **Fixed 2026-09-08.** The ordering
+  is now `planReorder()` in `src/lib/resourceOrdering.ts`, with 11 tests.
 - Subheadings are local state and vanish on refresh until a file is assigned.
-- Storage objects are never deleted when a resource is deleted or replaced, so
-  the bucket accumulates orphans.
-- Account deletion removes the profile but not the auth user — **the GDPR copy
-  on the profile page promises otherwise**, so this one has a compliance edge.
+  **Still open** — needs a real table and a migration.
+- ~~Storage objects are never deleted when a resource is deleted or replaced.~~
+  **Fixed 2026-09-08** — `removeStoredFiles()` covers all four paths that lose
+  a file. Note this stops *new* orphans; it does not sweep up existing ones.
+- ~~Account deletion removes the profile but not the auth user.~~ **Fixed
+  2026-09-08** — the `delete-account` edge function removes the auth user under
+  the service role, taking the account from the verified JWT and never from the
+  request body. It refuses to delete the last `super_admin`.
 - "Watch discussion" has a dashboard widget but no way to watch anything.
 - Password change has no re-authentication.
 - Promised in the README, never built: dark-mode toggle, GDPR consent banner,
@@ -365,9 +408,12 @@ None of these stop a launch. All of them will be noticed.
       exist and be accurate.
 - [ ] **A named person** who knows how to unpause the project, rotate the Resend
       key, and restore a backup.
-- [ ] **Repository hygiene.** `supabase/migrations/` still holds two migrations
-      that target the old Lovable project; `supabase db push` against this
-      project would try to apply them. Remove or archive them.
+- [x] **Repository hygiene.** ~~`supabase/migrations/` still holds two
+      migrations that target the old Lovable project.~~ **Done** — both are in
+      `supabase/archive/`. This mattered more than tidiness: the first of them
+      CREATEs `register_store` with `GRANT ... TO anon` and three `USING (true)`
+      policies, so a `db push` would have added a world-readable, world-writable
+      table to a project whose publishable key ships in every client bundle.
 
 ---
 
@@ -375,9 +421,10 @@ None of these stop a launch. All of them will be noticed.
 
 If you want the site genuinely live today and are willing to accept Phase 5:
 
-1. Merge PR #4 to `main` (1.1).
-2. `supabase functions deploy register-api register-invite` (1.2).
-3. Run `migrate-storage.mjs` (1.3).
+1. ~~Merge PR #4 to `main` (1.1).~~ **Done.**
+2. ~~`supabase functions deploy register-api register-invite` (1.2).~~ **Done.**
+3. Run `migrate-storage.mjs` (1.3) — **read the note there first; the source
+   project may no longer exist.**
 4. Set `RESEND_API_KEY` (1.4).
 5. Upgrade off Free, or accept that the site dies after a quiet week (1.5).
 6. Custom domain + Supabase redirect URLs (2.1, 2.2).
@@ -385,3 +432,4 @@ If you want the site genuinely live today and are willing to accept Phase 5:
 8. Walk Phase 4 on a phone.
 
 Steps 1–4 are the ones without which parts of the site are simply broken.
+1 and 2 are done; 3 is in doubt; **4 is the one still fully in your hands.**
