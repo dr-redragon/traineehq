@@ -40,12 +40,18 @@ const CELL_MARK: Record<string, string> = {
 };
 
 export function AttendanceGrid({
-  blob, sessions, onEdit, canEdit,
+  blob, sessions, onEdit, canEdit, onToggle,
 }: {
   blob: RegisterBlob;
   sessions: RegisterSession[];
   onEdit: (edit: RegisterEdit) => void;
   canEdit: boolean;
+  /**
+   * Told about every mark changed here, so the same change can reach the
+   * published teaching day. A tick in this grid is a check-in; without this the
+   * live sign-in list and the grid drift apart the moment anybody uses either.
+   */
+  onToggle?: (traineeId: string, sessionId: string, nowPresent: boolean) => void;
 }) {
   const [search, setSearch] = useState("");
   const [hideNotInProgramme, setHideNotInProgramme] = useState(true);
@@ -157,9 +163,10 @@ export function AttendanceGrid({
                         // "Not eligible" is a derived fact, not a mark — it comes
                         // from a status window, so it is changed there, not here.
                         disabled={!canEdit || cell.state === "na"}
-                        onClick={() =>
-                          onEdit((b) => toggleAttendance(b, row.trainee.id, cell.session.id))
-                        }
+                        onClick={() => {
+                          onEdit((b) => toggleAttendance(b, row.trainee.id, cell.session.id));
+                          onToggle?.(row.trainee.id, cell.session.id, cell.state !== "present");
+                        }}
                         title={`${row.trainee.name} — ${cell.session.title}`}
                         className={cn(
                           "h-7 w-7 rounded text-xs font-semibold transition-colors",

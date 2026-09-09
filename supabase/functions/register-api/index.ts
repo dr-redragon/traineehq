@@ -20,6 +20,15 @@
 // feedback_completed gate. It is never written to register_feedback, and nothing
 // here reads a feedback row alongside a name or an address.
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4?target=deno";
+import {
+  emailConfigured, explainFailure, fromEmail, sendEmail, usingSandboxSender,
+} from "./email.ts";
+
+// Where the feedback link in an outbound email points. Derived from the
+// environment, never from the request: a member could otherwise have the
+// training hub's own sender mail a link of their choosing to every trainee on
+// the register.
+const APP_BASE_URL = (Deno.env.get("APP_BASE_URL") || "https://traineehq.com").replace(/\/+$/, "");
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -52,6 +61,10 @@ const cleanText = (v: unknown, max = 300) => String(v ?? "").trim().slice(0, max
 const isEmail = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 const isUuid = (v: string) =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+// Organiser-written prose goes into an HTML email, so it is escaped on the way
+// in rather than trusted to be plain.
+const esc = (v: unknown) => String(v ?? "")
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 // A trainee marked present for whom the register holds no address still needs an
 // attendee row, or they cannot appear on the feedback form or be counted.
@@ -60,6 +73,18 @@ const isUuid = (v: string) =>
 const NO_EMAIL_DOMAIN = "@no-email.invalid";
 const placeholderEmail = (key: string) =>
   `t${String(key).replace(/[^a-zA-Z0-9]/g, "").slice(0, 40) || "unknown"}${NO_EMAIL_DOMAIN}`;
+const isPlaceholderEmail = (v: unknown) =>
+  String(v ?? "").toLowerCase().endsWith(NO_EMAIL_DOMAIN);
+
+/** The anonymous feedback page for one teaching day. */
+const feedbackUrl = (sessionId: string) =>
+  `${APP_BASE_URL}/registers/feedback?s=${encodeURIComponent(sessionId)}`;
+
+function ukDate(value: string): string {
+  return new Date(`${value}T00:00:00Z`).toLocaleDateString("en-GB", {
+    day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
+  });
+}
 
 /* ------------------------------------------------------------------- callers */
 
@@ -319,7 +344,153 @@ async function handleSessionStatus(db: SupabaseClient, sessionId: string) {
   const { count } = await db.from("register_feedback")
     .select("id", { count: "exact", head: true }).eq("session_id", sessionId);
 
-  return json({ ok: true, session, attendees, feedback_count: count ?? 0 });
+  // Said here rather than discovered on a failed send: whether mail can go out
+  // at all, and whether it is still going out from Resend's shared test address
+  // — which reports every send as a success and delivers to nobody.
+  return json({
+    ok: true, session, attendees, feedback_count: count ?? 0,
+    email_configured: emailConfigured(),
+    email_sandbox: usingSandboxSender(),
+    email_from: fromEmail(),
+  });
+}
+
+/**
+ * Email the feedback form to people who signed in and have not answered.
+ *
+ * The link is the same anonymous one the QR-adjacent feedback page uses; the
+ * addresses come from the attendee rows, never from the request. Anyone marked
+ * present with no address on file carries a placeholder, so they are reported
+ * by name instead of counted as a failure.
+ */
+async function handleEmailFeedbackLink(
+  db: SupabaseClient, sessionId: string, body: Record<string, unknown>,
+) {
+  if (!emailConfigured()) {
+    return json({ error: "Email is not configured yet (RESEND_API_KEY is not set)" }, 400);
+  }
+
+  const ids = Array.isArray(body.attendee_ids) ? body.attendee_ids.map((v) => String(v)) : [];
+
+  const { data: session } = await db.from("register_sessions")
+    .select("id, title, session_date").eq("id", sessionId).maybeSingle();
+  if (!session) return json({ error: "Unknown session" }, 404);
+
+  let q = db.from("register_attendees")
+    .select("id, name, email, checked_in_at, feedback_completed")
+    .eq("session_id", sessionId)
+    .not("checked_in_at", "is", null)
+    .eq("feedback_completed", false);
+  if (ids.length) q = q.in("id", ids);
+
+  const { data: all, error } = await q;
+  if (error) return json({ error: error.message }, 500);
+
+  const targets = (all ?? []).filter((t) => !isPlaceholderEmail(t.email));
+  const failures: { name: string; email: string; why: string }[] = (all ?? [])
+    .filter((t) => isPlaceholderEmail(t.email))
+    .map((t) => ({
+      name: t.name, email: "",
+      why: "No email on file — add one under Trainees & days, then send again.",
+    }));
+
+  const url = feedbackUrl(sessionId);
+  const dateLabel = ukDate(session.session_date);
+
+  let sent = 0;
+  for (const t of targets) {
+    const res = await sendEmail({
+      to: t.email,
+      subject: `Feedback for ${session.title} — and your certificate`,
+      html: `<div style="font-family:Segoe UI,system-ui,sans-serif;font-size:15px;color:#15211c;line-height:1.55">
+        <p>Dear ${esc(t.name)},</p>
+        <p>Thank you for attending <strong>${esc(session.title)}</strong> on ${esc(dateLabel)}.</p>
+        <p>Please complete the short feedback form below. It is anonymous — your answers are stored
+           with no name or address attached. Once it is submitted, your certificate of attendance
+           follows automatically.</p>
+        <p><a href="${url}" style="display:inline-block;background:#2c4d39;color:#fff;text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:600">Give feedback and get your certificate</a></p>
+        <p style="color:#7a7568;font-size:13px">Or paste this into your browser: ${url}</p>
+      </div>`,
+      text: `Dear ${t.name},\n\nThank you for attending ${session.title} on ${dateLabel}. ` +
+        `Please complete the anonymous feedback form to receive your certificate:\n${url}`,
+    });
+    if (res.ok) sent++;
+    else failures.push({ name: t.name, email: t.email, why: explainFailure(res.reason) });
+  }
+
+  return json({
+    ok: true, sent, considered: (all ?? []).length, failures,
+    sandbox: usingSandboxSender(), from: fromEmail(),
+  });
+}
+
+/**
+ * Ask a group of trainees why they were not at a teaching day.
+ *
+ * Who is absent-without-explanation is worked out in the browser, because
+ * eligibility, excusals and long-term status all live in the register blob and
+ * none of them exist in these tables. Only the addresses arrive here — and they
+ * are checked against this session's own register before anything is sent, so
+ * a member cannot use the hub's sender to mail an address of their choosing.
+ */
+async function handleChaseAbsences(
+  db: SupabaseClient, registerId: string, body: Record<string, unknown>,
+) {
+  if (!emailConfigured()) {
+    return json({ error: "Email is not configured yet (RESEND_API_KEY is not set)" }, 400);
+  }
+
+  const subject = cleanText(body.subject, 300);
+  const message = String(body.body ?? "").trim().slice(0, 8000);
+  const replyTo = (Array.isArray(body.reply_to) ? body.reply_to : [])
+    .map(cleanEmail).filter(isEmail).slice(0, 4);
+  const asked = [...new Set(
+    (Array.isArray(body.recipients) ? body.recipients : []).map(cleanEmail).filter(isEmail),
+  )];
+
+  if (!subject) return json({ error: "The email needs a subject" }, 400);
+  if (!message) return json({ error: "The email needs a message" }, 400);
+  if (!asked.length) return json({ error: "Nobody to send to" }, 400);
+  if (asked.length > 200) return json({ error: "That is more than 200 recipients — split it up" }, 400);
+
+  // Every address has to belong to a trainee on this register's own roster.
+  const { data: store } = await db.from("register_stores")
+    .select("data").eq("register_id", registerId).maybeSingle();
+  const roster = new Set(
+    ((store?.data as { trainees?: { email?: string }[] } | null)?.trainees ?? [])
+      .map((t) => cleanEmail(t?.email)).filter(Boolean),
+  );
+  const recipients = asked.filter((e) => roster.has(e));
+  const refused = asked.filter((e) => !roster.has(e));
+  if (!recipients.length) {
+    return json({ error: "None of those addresses are on this register's roster" }, 400);
+  }
+
+  // Everyone goes in BCC so recipients cannot see one another. The visible To:
+  // is the sending identity itself, which is the usual way to do this.
+  const visibleTo = fromEmail();
+  const html = `<div style="font-family:Segoe UI,system-ui,sans-serif;font-size:15px;color:#15211c;line-height:1.55">` +
+    message.split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("") +
+    `</div>`;
+
+  // Resend caps one message at 50 recipients, so this goes out in batches.
+  const BATCH = 45;
+  let sent = 0;
+  const failures: { batch: number; why: string }[] = [];
+  for (let i = 0; i < recipients.length; i += BATCH) {
+    const slice = recipients.slice(i, i + BATCH);
+    const res = await sendEmail({
+      to: visibleTo, bcc: slice, subject, html, text: message,
+      replyTo: replyTo.length ? replyTo : undefined,
+    });
+    if (res.ok) sent += slice.length;
+    else failures.push({ batch: Math.floor(i / BATCH) + 1, why: explainFailure(res.reason) });
+  }
+
+  return json({
+    ok: true, sent, considered: recipients.length, failures, not_on_roster: refused.length,
+    sandbox: usingSandboxSender(), from: visibleTo, reply_to: replyTo,
+  });
 }
 
 async function handleMarkAttended(
@@ -395,16 +566,38 @@ async function handleGetForm(db: SupabaseClient, registerId: string, sessionId: 
 async function handleSaveForm(
   db: SupabaseClient, registerId: string, body: Record<string, unknown>,
 ) {
+  const sessionId = cleanText(body.session_id, 64) || null;
+
+  // "Reset to the template" drops this day's own copy rather than overwriting
+  // it with a snapshot: null is what makes it inherit future template edits too.
+  if (body.reset === true) {
+    if (!sessionId) return json({ error: "Only a session can be reset to the template" }, 400);
+    const { error } = await db.from("register_sessions")
+      .update({ form: null }).eq("id", sessionId);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true, scope: "template", reset: true, form: await templateForm(db, registerId) });
+  }
+
   const cleaned = cleanForm(body.form);
   if ("error" in cleaned) return json({ error: cleaned.error }, 400);
 
-  const sessionId = cleanText(body.session_id, 64) || null;
+  // Saving one day's form and adopting it as the template is one action, not
+  // two: an organiser who has just got a form right should not have to
+  // re-navigate to make it the default.
+  const alsoTemplate = body.as_template === true;
 
   if (sessionId) {
     const { error } = await db.from("register_sessions")
       .update({ form: cleaned.form }).eq("id", sessionId);
     if (error) return json({ error: error.message }, 500);
-    return json({ ok: true, scope: "session", form: cleaned.form });
+
+    if (alsoTemplate) {
+      const { error: tplError } = await db.from("register_forms")
+        .upsert({ register_id: registerId, form: cleaned.form, updated_at: new Date().toISOString() },
+                { onConflict: "register_id" });
+      if (tplError) return json({ error: tplError.message }, 500);
+    }
+    return json({ ok: true, scope: "session", also_template: alsoTemplate, form: cleaned.form });
   }
 
   const { error } = await db.from("register_forms")
@@ -444,6 +637,12 @@ const ANON_ACTIONS = new Set(["check-in", "submit-feedback"]);
 const MEMBER_ACTIONS = new Set([
   "create-session", "session-status", "mark-attended",
   "get-form", "save-form", "reset-feedback",
+  "email-feedback-link", "chase-absences",
+]);
+
+// The subset that names one published teaching day rather than a whole register.
+const SESSION_ACTIONS = new Set([
+  "session-status", "mark-attended", "reset-feedback", "email-feedback-link",
 ]);
 
 Deno.serve(async (req) => {
@@ -489,6 +688,13 @@ Deno.serve(async (req) => {
       return json({ error: "You do not have access to that register" }, 403);
     }
 
+    // Named separately from the membership check above: these actions all
+    // operate on one teaching day, and without a session id they would query
+    // against null rather than saying what is missing.
+    if (!sessionId && SESSION_ACTIONS.has(action)) {
+      return json({ error: "Missing session" }, 400);
+    }
+
     switch (action) {
       case "create-session":  return await handleCreateSession(db, registerId, body);
       case "session-status":  return await handleSessionStatus(db, sessionId!);
@@ -496,6 +702,9 @@ Deno.serve(async (req) => {
       case "get-form":        return await handleGetForm(db, registerId, sessionId);
       case "save-form":       return await handleSaveForm(db, registerId, body);
       case "reset-feedback":  return await handleResetFeedback(db, sessionId!, body);
+      case "email-feedback-link":
+        return await handleEmailFeedbackLink(db, sessionId!, body);
+      case "chase-absences":  return await handleChaseAbsences(db, registerId, body);
       default:                return json({ error: `Unknown action: ${action}` }, 400);
     }
   } catch (err) {
@@ -504,12 +713,12 @@ Deno.serve(async (req) => {
   }
 });
 
-// NOT PORTED YET, and deliberately left out rather than half-done:
+// STILL NOT HERE, and deliberately so:
 //
-//   send-certificate, certificate-preview, email-feedback-link, chase-absences
+//   send-certificate, certificate-preview
 //
-// All four need pdf-lib (~1MB, lazily imported in the original) and a Resend
-// sender, and all four send mail to real trainees. They are a self-contained
-// chunk best done together, once the certificate template has somewhere to take
-// a register's name and deanery from — a single-tenant certificate says "ENT
-// Teaching Register" in its footer, which is wrong for every other register.
+// Both need pdf-lib (~1MB) server-side. The certificate is instead rendered in
+// the browser, where the organiser is already standing, and posted to the
+// `register-certificate` function already drawn — see the note at the top of
+// that file. Nothing else is outstanding: email-feedback-link and
+// chase-absences are above.

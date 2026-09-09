@@ -11,11 +11,12 @@ import { ManagePanel } from "@/components/register/ManagePanel";
 import { ReportPanel } from "@/components/register/ReportPanel";
 import { StatusPanel } from "@/components/register/StatusPanel";
 import { ExcusalsPanel } from "@/components/register/ExcusalsPanel";
-import { LiveSessionPanel } from "@/components/register/LiveSessionPanel";
+import { CheckInPanel } from "@/components/register/CheckInPanel";
 import { FeedbackPanel } from "@/components/register/FeedbackPanel";
 import { YearTabs } from "@/components/register/YearTabs";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
 import { useRegisterStore } from "@/hooks/useRegisterStore";
+import { useLiveAttendanceSync } from "@/hooks/useLiveAttendanceSync";
 import {
   ALL_YEARS, availableAcademicYears, defaultAcademicYear, sessionsInYear, sessionsSorted,
 } from "@/lib/register/months";
@@ -56,6 +57,13 @@ export default function RegisterDetail() {
 
   const { blob, isLoading: storeLoading, edit, isSaving } = useRegisterStore(
     entry?.i_am_member ? entry.id : undefined,
+  );
+
+  // A tick in the grid is a check-in, so it has to reach the published teaching
+  // day as well as the blob — otherwise that person is invisible to the live
+  // sign-in list, the feedback form and their own certificate.
+  const { pushMark } = useLiveAttendanceSync(
+    entry?.i_am_member ? entry.id : undefined, blob,
   );
 
   const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
@@ -155,14 +163,21 @@ export default function RegisterDetail() {
             <RegisterTab value="manage">Trainees &amp; days</RegisterTab>
             <RegisterTab value="status">Long-term status</RegisterTab>
             <RegisterTab value="excused">Excused absences</RegisterTab>
-            <RegisterTab value="live">Live day</RegisterTab>
+            <RegisterTab value="checkin">Check-in / QR</RegisterTab>
             <RegisterTab value="feedback">Feedback</RegisterTab>
             <RegisterTab value="reports">Reports</RegisterTab>
           </TabsList>
 
           <TabsContent value="attendance" className="mt-4 space-y-4">
             <YearTabs years={years} value={activeYear} onChange={setYear} />
-            <AttendanceGrid blob={blob} sessions={sessions} onEdit={edit} canEdit />
+            <AttendanceGrid
+              blob={blob}
+              sessions={sessions}
+              onEdit={edit}
+              canEdit
+              onToggle={(traineeId, sessionId, nowPresent) =>
+                void pushMark(traineeId, sessionId, nowPresent)}
+            />
           </TabsContent>
 
           <TabsContent value="manage" className="mt-4">
@@ -177,8 +192,8 @@ export default function RegisterDetail() {
             <ExcusalsPanel blob={blob} onEdit={edit} canEdit />
           </TabsContent>
 
-          <TabsContent value="live" className="mt-4">
-            <LiveSessionPanel blob={blob} registerId={entry.id} />
+          <TabsContent value="checkin" className="mt-4">
+            <CheckInPanel blob={blob} registerId={entry.id} onEdit={edit} />
           </TabsContent>
 
           <TabsContent value="feedback" className="mt-4">

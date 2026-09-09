@@ -3,17 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { RegisterPageShell } from "@/components/register/RegisterPageShell";
+import { FeedbackQuestionField } from "@/components/register/FeedbackQuestionField";
 import { fetchPublicSession, submitFeedback } from "@/lib/register/liveApi";
 import { recallCheckIn } from "@/lib/register/checkInMemory";
-import type { FeedbackQuestion } from "@/lib/register/types";
-import { cn } from "@/lib/utils";
 
 type Answers = Record<string, string | number | string[]>;
 
@@ -124,7 +121,8 @@ export default function Feedback() {
       <Card>
         <CardContent className="space-y-6 p-4">
           {questions.map((q) => (
-            <Question key={q.id} q={q} value={answers[q.id]} onChange={(v) => set(q.id, v)} />
+            <FeedbackQuestionField
+              key={q.id} q={q} value={answers[q.id]} onChange={(v) => set(q.id, v)} />
           ))}
 
           <div className="space-y-1.5">
@@ -159,98 +157,6 @@ export default function Feedback() {
         </CardContent>
       </Card>
     </Shell>
-  );
-}
-
-function Question({
-  q, value, onChange,
-}: {
-  q: FeedbackQuestion;
-  value: string | number | string[] | undefined;
-  onChange: (v: string | number | string[]) => void;
-}) {
-  const label = (
-    <Label className="text-sm font-medium">
-      {q.text} {q.required && <span className="text-destructive">*</span>}
-    </Label>
-  );
-
-  if (q.type === "scale") {
-    return (
-      <div className="space-y-2">
-        {label}
-        <div className="flex gap-1.5">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => onChange(n)}
-              aria-label={`${n} out of 5`}
-              className={cn(
-                "h-11 flex-1 rounded-md border text-sm font-semibold transition-colors",
-                Number(value) === n
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "hover:bg-muted",
-              )}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-        <div className="flex justify-between text-[11px] text-muted-foreground">
-          <span>{q.lowLabel ?? "Strongly disagree"}</span>
-          <span>{q.highLabel ?? "Strongly agree"}</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (q.type === "choice") {
-    return (
-      <div className="space-y-2">
-        {label}
-        <RadioGroup value={String(value ?? "")} onValueChange={onChange}>
-          {(q.options ?? []).map((o) => (
-            <div key={o} className="flex items-center gap-2">
-              <RadioGroupItem value={o} id={`${q.id}-${o}`} />
-              <Label htmlFor={`${q.id}-${o}`} className="text-sm font-normal">{o}</Label>
-            </div>
-          ))}
-        </RadioGroup>
-      </div>
-    );
-  }
-
-  if (q.type === "checkbox") {
-    const chosen = Array.isArray(value) ? value : [];
-    return (
-      <div className="space-y-2">
-        {label}
-        {(q.options ?? []).map((o) => (
-          <Label key={o} className="flex cursor-pointer items-center gap-2 text-sm font-normal">
-            <Checkbox
-              checked={chosen.includes(o)}
-              onCheckedChange={(on) =>
-                onChange(on === true ? [...chosen, o] : chosen.filter((x) => x !== o))}
-            />
-            {o}
-          </Label>
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-1.5">
-      {label}
-      {q.type === "long" ? (
-        <Textarea rows={3} value={String(value ?? "")} placeholder={q.placeholder}
-          onChange={(e) => onChange(e.target.value)} />
-      ) : (
-        <Input value={String(value ?? "")} placeholder={q.placeholder}
-          onChange={(e) => onChange(e.target.value)} />
-      )}
-    </div>
   );
 }
 

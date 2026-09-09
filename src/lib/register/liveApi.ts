@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
   FeedbackForm, FeedbackResponse, LiveSession, PublicRoster, PublicSession,
-  RegisterAttendee,
+  SendOutcome, SessionStatus,
 } from "./types";
 
 /**
@@ -115,11 +115,7 @@ export async function publishSession(args: {
   });
 }
 
-export async function fetchSessionStatus(sessionId: string): Promise<{
-  session: LiveSession;
-  attendees: RegisterAttendee[];
-  feedback_count: number;
-}> {
+export async function fetchSessionStatus(sessionId: string): Promise<SessionStatus> {
   return callApi("session-status", { session_id: sessionId });
 }
 
@@ -145,12 +141,68 @@ export async function getForm(args: { registerId: string; sessionId?: string | n
 }
 
 export async function saveForm(args: {
-  registerId: string; sessionId?: string | null; form: FeedbackForm;
-}): Promise<{ scope: "session" | "template" }> {
+  registerId: string;
+  sessionId?: string | null;
+  form: FeedbackForm;
+  /** Save this day's form and adopt it as the register's template in one go. */
+  alsoTemplate?: boolean;
+}): Promise<{ scope: "session" | "template"; also_template?: boolean; form: FeedbackForm }> {
   return callApi("save-form", {
     register_id: args.registerId,
     session_id: args.sessionId ?? null,
     form: args.form,
+    as_template: args.alsoTemplate === true,
+  });
+}
+
+/**
+ * Drop one teaching day's own form so it follows the template again.
+ *
+ * Not "copy the template onto it": the day's form is set back to null, so later
+ * template edits reach it too.
+ */
+export async function resetFormToTemplate(args: {
+  registerId: string; sessionId: string;
+}): Promise<{ form: FeedbackForm }> {
+  return callApi("save-form", {
+    register_id: args.registerId, session_id: args.sessionId, reset: true,
+  });
+}
+
+/**
+ * Email the anonymous feedback link to people who signed in and have not
+ * answered. `attendeeIds` narrows it to a chosen few; omitted, it goes to
+ * everyone outstanding.
+ */
+export async function emailFeedbackLink(args: {
+  sessionId: string; attendeeIds?: string[] | null;
+}): Promise<SendOutcome> {
+  return callApi("email-feedback-link", {
+    session_id: args.sessionId,
+    ...(args.attendeeIds?.length ? { attendee_ids: args.attendeeIds } : {}),
+  });
+}
+
+/**
+ * Ask a group of trainees why they were not at a teaching day.
+ *
+ * Who counts as unexplained is decided in the browser — eligibility, excusals
+ * and long-term status live in the register blob and nowhere else — so only the
+ * addresses travel. The function checks them against the roster before sending.
+ */
+export async function chaseAbsences(args: {
+  sessionId: string;
+  recipients: string[];
+  subject: string;
+  body: string;
+  replyTo?: string[];
+}): Promise<SendOutcome> {
+  return callApi("chase-absences", {
+    session_id: args.sessionId,
+    recipients: args.recipients,
+    subject: args.subject,
+    body: args.body,
+    reply_to: args.replyTo ?? [],
   });
 }
 

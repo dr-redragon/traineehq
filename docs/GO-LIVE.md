@@ -186,10 +186,11 @@ Then, in Supabase → Edge Functions → Secrets:
 |---|---|---|
 | `RESEND_FROM` | `HST Training Hub <no-reply@traineehq.com>` | The sending identity. The mailbox does not need to exist. A root-domain address is fine even though the return path lives on `send.` — DMARC passes on DKIM alignment with the root, which is what Resend signs. |
 | `RESEND_REPLY_TO` | a real mailbox you read | Where replies go. **A reply-to is not a sender**, so this can be an NHS or Gmail address on any domain. Without it, anyone replying to a certificate or an invitation is writing to `no-reply@`, which bounces. |
+| `APP_BASE_URL` | `https://traineehq.com` | Where the feedback link in an emailed form points. Deliberately a secret rather than something the browser sends, so a register member cannot have the hub's own sender mail a link of their choosing to a whole cohort. Only `register-api` reads it, and it already defaults to this. |
 
-All five functions read both, and fall back to the current behaviour when unset,
-so this is two secrets and no code change — and no redeploy, since secrets are
-read on the next call.
+All five functions read the two `RESEND_*` secrets, and fall back to the current
+behaviour when unset, so this is a few secrets and no code change — and no
+redeploy, since secrets are read on the next call.
 
 **If the ENT register already verified `traineehq.com`** in the same Resend
 account, the DNS work is done and only the two secrets are left.
@@ -595,7 +596,9 @@ None of these stop a launch. All of them will be noticed.
   the access page), or goes without, in which case the composition re-centres
   rather than leaving the badge's space empty. Downloading works today; emailing
   goes through `register-certificate` (deployed) and needs `RESEND_API_KEY`.
-  `email-feedback-link` and `chase-absences` are still not ported.
+  `email-feedback-link` and `chase-absences` were ported 2026-09-09 and need the
+  same key; set `APP_BASE_URL` too if the app is not served from
+  `https://traineehq.com`, since that is where the emailed feedback link points.
 - ~~**The standalone door.**~~ **Built 2026-09-08** at `/registers/sign-in`,
   offering both routes in against the same Supabase Auth. Verified in a browser:
   `/registers` and `/registers/:slug` land there, `/dashboard` still goes to
