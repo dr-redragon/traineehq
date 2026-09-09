@@ -103,7 +103,7 @@ export default function RegisterAccess() {
             <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> {entry.specialty_name}
           </Link>
         </Button>
-        <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Who can use this register</h1>
+        <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">Who can use this register</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Access is granted per person and has nothing to do with anyone's TraineeHQ role.
           Any member can admit someone; only an owner can change roles or remove people.

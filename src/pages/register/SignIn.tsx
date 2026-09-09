@@ -8,7 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { safeDestination } from "@/lib/safeDestination";
-import logoDark from "@/assets/logo-dark.png";
+import { RegisterMasthead } from "@/components/register/RegisterMasthead";
+import { useRegisterTheme } from "@/hooks/useRegisterTheme";
 
 /** Where to land once signed in, when nothing better was asked for. */
 const DEFAULT_DESTINATION = "/registers";
@@ -32,6 +33,7 @@ export default function RegisterSignIn() {
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  useRegisterTheme();
 
   // Where the guard was sending them before it found no session.
   const destination = safeDestination(
@@ -63,22 +65,15 @@ export default function RegisterSignIn() {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="border-b bg-card">
-        <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4">
-          <img src={logoDark} alt="" className="h-7 w-auto" />
-          <span className="font-display text-sm font-semibold tracking-tight">
-            Teaching registers
-          </span>
-        </div>
-      </header>
+      <RegisterMasthead />
 
       <main className="flex flex-1 items-center justify-center p-6">
         <div className="w-full max-w-sm animate-fade-in space-y-6">
           <div className="space-y-2 text-center">
-            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-accent/10">
-              <ClipboardList className="h-5 w-5 text-accent" />
+            <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+              <ClipboardList className="h-5 w-5 text-primary" />
             </div>
-            <h1 className="font-display text-xl font-bold">Sign in to the register</h1>
+            <h1 className="font-display text-2xl font-bold">Sign in to the register</h1>
             <p className="text-sm text-muted-foreground">
               Attendance, teaching days and reports for the specialties you help run.
             </p>
@@ -107,7 +102,7 @@ export default function RegisterSignIn() {
                 <Label htmlFor="register-password">Password</Label>
                 <Link
                   to="/forgot-password"
-                  className="text-xs text-accent hover:underline"
+                  className="text-xs text-primary hover:underline"
                 >
                   Forgot password?
                 </Link>

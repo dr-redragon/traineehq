@@ -55,6 +55,20 @@
     --success-foreground: 0 0% 100%;
     --warning: 33 90% 42%;
     --warning-foreground: 0 0% 100%;
+
+    /* Defaults for the teaching register's own tokens, so the utilities
+       built on them (bg-register-deep and friends) are never left pointing
+       at nothing outside the register. `.register-theme` at the foot of
+       this file is where they take on the register's colours. */
+    --register-deep: 208 73% 22%;
+    --register-deep-foreground: 0 0% 100%;
+    --register-deep-muted: 205 25% 75%;
+    --register-ink: 208 73% 28%;
+    --register-clay: 0 63% 42%;
+    --register-clay-soft: 20 60% 88%;
+    --register-clay-ink: 0 63% 28%;
+    --register-gold: 48 100% 50%;
+    --register-shadow: 0 1px 2px hsl(0 0% 0% / 0.06), 0 8px 24px hsl(0 0% 0% / 0.06);
   }
 
   .dark {
@@ -178,4 +192,156 @@
   }
 
 
+}
+
+
+/* ===================================================================== */
+/* The teaching register's own skin.                                     */
+/*                                                                       */
+/* The register is reached by direct link and stands on its own — it      */
+/* already refuses TraineeHQ's sidebar (see RegisterLayout) — so it wears */
+/* the palette of the ENT teaching register it grew out of: cream paper,  */
+/* moss green, a clay accent and a gold rule under the masthead, with     */
+/* Georgia over the sans body text.                                       */
+/*                                                                       */
+/* It is a token swap rather than a set of one-off classes, so every      */
+/* shadcn component inside the register follows without being touched.    */
+/* The class goes on <html> (see useRegisterTheme) because Radix renders  */
+/* dialogs, menus and toasts into a portal at the end of <body>: on a     */
+/* wrapper element every menu would stay TraineeHQ blue over a green      */
+/* page. next-themes puts `dark` on that same element, which is why the   */
+/* dark palette below is `.register-theme.dark`.                          */
+/* ===================================================================== */
+@layer base {
+  .register-theme {
+    /* Georgia for headings, the body font left alone: the serif headline
+       over a plain sans is the register's signature, and Manrope is close
+       enough to the Inter it uses to not be worth a second font download. */
+    --font-display: Georgia, "Times New Roman", serif;
+
+    --background: 48 36% 95%;        /* paper     #f6f4ec */
+    --foreground: 155 22% 11%;       /* ink       #15211c */
+
+    --card: 45 100% 98%;             /* card      #fffdf7 */
+    --card-foreground: 155 22% 11%;
+
+    --popover: 45 100% 98%;
+    --popover-foreground: 155 22% 11%;
+
+    --primary: 142 26% 33%;          /* moss      #3f6b4f */
+    --primary-foreground: 45 100% 98%;
+
+    --secondary: 70 20% 92%;         /* sage      #eef0e6 */
+    --secondary-foreground: 144 27% 24%;
+
+    --muted: 70 20% 92%;
+    /* A shade darker than the register's own #7a7568, which lands at 4.2:1 on
+       this paper. Everything secondary on the page is set in it, so it has to
+       clear 4.5. */
+    --muted-foreground: 42 8% 40%;
+
+    /* Sage, not clay. `accent` is what shadcn hovers a ghost button and a
+       menu row with; clay there would set every hover on fire. The clay is
+       kept for the things the register actually points at — the active tab
+       rule, an excused absence — under --register-clay. */
+    --accent: 70 20% 92%;
+    --accent-foreground: 144 27% 24%;
+
+    /* Clay, taken down far enough that white sits on it at 5:1. */
+    --destructive: 17 56% 44%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 45 24% 80%;            /* line      #d8d2c0 */
+    --input: 45 20% 74%;
+    --ring: 142 26% 33%;
+
+    /* 12px cards, 10px buttons — the register is rounder than gov.uk-plain
+       TraineeHQ, which sits at 4px. */
+    --radius: 0.75rem;
+
+    --success: 142 26% 33%;          /* moss */
+    --success-foreground: 45 100% 98%;
+    /* The 60-80% attendance band. The register's gold reads at 2.9:1 on
+       paper, and this is a number somebody acts on, so it is darkened until
+       it is legible rather than merely decorative. */
+    --warning: 38 60% 34%;
+    --warning-foreground: 45 100% 98%;
+
+    /* The register's own five, for the parts no shadcn token names. */
+    --register-deep: 144 27% 24%;            /* masthead  #2c4d39 */
+    --register-deep-foreground: 48 36% 95%;
+    --register-deep-muted: 136 15% 76%;      /* masthead sub-label #b8cbbd */
+    --register-ink: 144 27% 24%;             /* headline green on paper */
+    --register-clay: 17 54% 49%;
+    --register-clay-soft: 24 57% 79%;        /* excused   #e8c4ac */
+    --register-clay-ink: 17 60% 28%;         /* on clay-soft */
+    --register-gold: 40 48% 47%;
+    --register-shadow: 0 1px 2px hsl(155 22% 11% / 0.06), 0 8px 24px hsl(155 22% 11% / 0.06);
+  }
+
+  .register-theme.dark {
+    --background: 155 18% 9%;
+    --foreground: 45 25% 92%;
+
+    --card: 155 14% 12%;
+    --card-foreground: 45 25% 92%;
+
+    --popover: 155 14% 12%;
+    --popover-foreground: 45 25% 92%;
+
+    --primary: 142 30% 58%;
+    --primary-foreground: 155 22% 11%;
+
+    --secondary: 150 10% 18%;
+    --secondary-foreground: 45 25% 92%;
+
+    --muted: 150 10% 18%;
+    --muted-foreground: 45 10% 66%;
+
+    --accent: 150 12% 20%;
+    --accent-foreground: 45 25% 92%;
+
+    --destructive: 17 62% 56%;
+    --destructive-foreground: 155 22% 11%;
+
+    --border: 150 8% 24%;
+    --input: 150 8% 34%;
+    --ring: 142 32% 62%;
+
+    --success: 142 30% 58%;
+    --success-foreground: 155 22% 11%;
+    --warning: 40 55% 58%;
+    --warning-foreground: 155 22% 11%;
+
+    --register-deep: 155 20% 13%;
+    --register-deep-foreground: 45 25% 92%;
+    --register-deep-muted: 136 12% 62%;
+    --register-ink: 142 30% 66%;
+    --register-clay: 17 62% 62%;
+    --register-clay-soft: 20 30% 32%;
+    --register-clay-ink: 24 70% 84%;
+    --register-gold: 40 52% 55%;
+    --register-shadow: 0 1px 2px hsl(0 0% 0% / 0.3), 0 8px 24px hsl(0 0% 0% / 0.25);
+  }
+
+  /* Cards sit off the paper rather than being drawn on it — the shadow is
+     two very soft layers, so a page of them still reads as calm. */
+  .register-theme [data-slot="card"] {
+    box-shadow: var(--register-shadow);
+  }
+
+  @media print {
+    .register-theme [data-slot="card"] {
+      box-shadow: none;
+    }
+  }
+
+  /* The register's focus ring: moss rather than gov.uk yellow, and without
+     the black underbar, which reads as a mistake on cream. Kept at 3px so
+     it is no less visible than the one it replaces. */
+  .register-theme :focus-visible {
+    outline: 3px solid hsl(var(--ring));
+    outline-offset: 1px;
+    box-shadow: none;
+  }
 }

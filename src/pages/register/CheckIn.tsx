@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { RegisterPageShell } from "@/components/register/RegisterPageShell";
 import { checkIn, fetchPublicRoster, fetchPublicSession } from "@/lib/register/liveApi";
 import { GRADES } from "@/lib/register/constants";
 import { rememberCheckIn } from "@/lib/register/checkInMemory";
@@ -78,9 +79,9 @@ export default function CheckIn() {
       <Shell>
         <Card>
           <CardContent className="space-y-4 py-10 text-center">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600 dark:text-emerald-400" />
+            <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
             <div className="space-y-1.5">
-              <h1 className="font-display text-lg font-semibold">You're signed in</h1>
+              <h1 className="font-display text-xl font-bold">You're signed in</h1>
               <p className="text-sm text-muted-foreground">
                 {done.name} · {session.data.title}
               </p>
@@ -127,7 +128,7 @@ export default function CheckIn() {
   return (
     <Shell>
       <div className="space-y-1">
-        <h1 className="font-display text-xl font-semibold tracking-tight">
+        <h1 className="font-display text-xl font-bold tracking-tight">
           {session.data.title}
         </h1>
         <p className="text-sm text-muted-foreground">
@@ -203,18 +204,14 @@ export default function CheckIn() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto w-full max-w-md space-y-4">{children}</div>
-    </div>
-  );
+  return <RegisterPageShell>{children}</RegisterPageShell>;
 }
 
 function Message({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card>
       <CardContent className="space-y-2 py-10 text-center">
-        <h1 className="font-display text-lg font-semibold">{title}</h1>
+        <h1 className="font-display text-lg font-bold">{title}</h1>
         <p className="mx-auto max-w-sm text-sm text-muted-foreground">{children}</p>
       </CardContent>
     </Card>

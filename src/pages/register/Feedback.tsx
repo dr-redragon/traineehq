@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { RegisterPageShell } from "@/components/register/RegisterPageShell";
 import { fetchPublicSession, submitFeedback } from "@/lib/register/liveApi";
 import { recallCheckIn } from "@/lib/register/checkInMemory";
 import type { FeedbackQuestion } from "@/lib/register/types";
@@ -68,8 +69,8 @@ export default function Feedback() {
       <Shell>
         <Card>
           <CardContent className="space-y-3 py-10 text-center">
-            <CheckCircle2 className="mx-auto h-12 w-12 text-emerald-600 dark:text-emerald-400" />
-            <h1 className="font-display text-lg font-semibold">
+            <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
+            <h1 className="font-display text-xl font-bold">
               {done === "already_submitted" ? "You've already answered" : "Thank you"}
             </h1>
             <p className="mx-auto max-w-sm text-sm text-muted-foreground">
@@ -114,7 +115,7 @@ export default function Feedback() {
   return (
     <Shell>
       <div className="space-y-1">
-        <h1 className="font-display text-xl font-semibold tracking-tight">
+        <h1 className="font-display text-xl font-bold tracking-tight">
           {form?.title ?? "Session feedback"}
         </h1>
         <p className="text-sm text-muted-foreground">{session.data.title}</p>
@@ -254,18 +255,14 @@ function Question({
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-background px-4 py-10">
-      <div className="mx-auto w-full max-w-md space-y-4">{children}</div>
-    </div>
-  );
+  return <RegisterPageShell>{children}</RegisterPageShell>;
 }
 
 function Message({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <Card>
       <CardContent className="space-y-2 py-10 text-center">
-        <h1 className="font-display text-lg font-semibold">{title}</h1>
+        <h1 className="font-display text-lg font-bold">{title}</h1>
         <p className="mx-auto max-w-sm text-sm text-muted-foreground">{children}</p>
       </CardContent>
     </Card>
