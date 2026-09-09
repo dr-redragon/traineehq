@@ -1,0 +1,44 @@
+-- ============================================================================
+-- A SECOND teaching register, standing beside the first
+--
+-- This is a deliberate duplicate. TraineeHQ already carries a teaching register
+-- (public.registers and friends, reached at /registers). This migration builds a
+-- second, wholly independent one under a `classic_` prefix, reached at
+-- /classic-registers, whose front end reproduces the standalone ENT register at
+-- register.traineehq.com screen for screen.
+--
+-- WHY A DUPLICATE. The two are meant to be run side by side and compared, and
+-- then one of them is meant to be deleted. That only works if neither can break
+-- the other, so nothing is shared: separate tables, separate enum, separate
+-- RPCs, separate storage bucket, separate audit trigger. Dropping either system
+-- is `drop` on its own objects and touches nothing belonging to the other.
+--
+-- HOW IT WAS BUILT. The body below is a mechanical mirror of the migrations that
+-- built the first register, in their original order, with every schema-global
+-- identifier renamed. Column names (register_id), RPC parameter names
+-- (_register_id) and policy names are scoped to their own table and were
+-- deliberately left alone, so the two schemas diff cleanly line for line and it
+-- stays obvious that they are the same design. Each section says which migration
+-- it mirrors.
+--
+-- RE-RUNNABILITY. The replay defines classic_register_directory() three times,
+-- the last of which returns two more columns than the first. `create or replace`
+-- cannot widen a return type, so the first definition is preceded by a drop and
+-- this file can be applied twice. The grants following each definition restore
+-- what the drop removes. Verified by scripts/verify-classic-register-schema.sh,
+-- which applies the file, applies it again, and then runs the first register's
+-- own assertion suite against the copy.
+--
+-- WHAT IS PRESERVED, because these are the point of the exercise:
+--   * access is a TraineeHQ sign-in — there is no separate account system;
+--   * one register per (deanery, specialty), same as the first;
+--   * the same invite and access-request flow, with owner and editor roles;
+--   * a per-register certificate logo, uploaded by owners, optional by design.
+--
+-- WHAT IS NOT MIRRORED. The seed migration (20260907100000) is omitted: it
+-- imports the legacy ENT blob and promotes one named account. This register
+-- starts empty, and can_create_classic_register() lets any TraineeHQ admin
+-- create the first one from the UI.
+-- ============================================================================
+
+begin;

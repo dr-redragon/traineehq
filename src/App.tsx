@@ -22,6 +22,11 @@ import RegisterAccess from "./pages/RegisterAccess";
 import RegisterCheckIn from "./pages/register/CheckIn";
 import RegisterFeedback from "./pages/register/Feedback";
 import RegisterSignIn from "./pages/register/SignIn";
+import ClassicDirectory from "./pages/classic/Directory";
+import ClassicRegisterDetail from "./pages/classic/RegisterDetail";
+import ClassicCheckIn from "./pages/classic/CheckIn";
+import ClassicFeedback from "./pages/classic/Feedback";
+import ClassicSignIn from "./pages/classic/SignIn";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { DeaneryProvider } from "./contexts/DeaneryContext";
@@ -153,6 +158,45 @@ const App = () => (
               <Route path=":slug" element={<RegisterDetail />} />
               <Route path=":slug/access" element={<RegisterAccess />} />
             </Route>
+
+            {/*
+              THE CLASSIC REGISTER — a second teaching register, running beside
+              the one above so the two can be compared before one is kept.
+
+              It is a copy of the standalone ENT register at
+              register.traineehq.com: its own look, its own six tabs, its own
+              classic_* tables, its own sidebar link. Nothing here shares state
+              with /registers, so deleting either is a self-contained job.
+
+              Reached the same two ways the first one is: this standalone link,
+              or the sidebar. Access is a TraineeHQ sign-in either way — the
+              register has no accounts of its own.
+            */}
+            {/* Public, for the same reason /registers/checkin is: the person
+                scanning the QR code at a teaching day has no account, and the
+                session id in the link is the whole of their authority. */}
+            <Route path="/classic-registers/checkin" element={<ClassicCheckIn />} />
+            <Route path="/classic-registers/feedback" element={<ClassicFeedback />} />
+            {/* Static, so it outranks the ":slug" route rather than being read
+                as the slug of a register. */}
+            <Route path="/classic-registers/sign-in" element={<ClassicSignIn />} />
+
+            <Route
+              path="/classic-registers"
+              element={
+                <RequireAuth signInPath="/classic-registers/sign-in">
+                  <ClassicDirectory />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/classic-registers/:slug"
+              element={
+                <RequireAuth signInPath="/classic-registers/sign-in">
+                  <ClassicRegisterDetail />
+                </RequireAuth>
+              }
+            />
 
             {/* Admins only */}
             <Route

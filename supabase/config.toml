@@ -45,3 +45,20 @@ verify_jwt = false
 
 [functions.contact-form-email]
 verify_jwt = false
+
+# ---------------------------------------------------------------------------
+# The classic teaching register (/classic-registers)
+#
+# A duplicate of the three functions above, serving the second register that
+# runs beside the first while the two are compared. Same code, same checks,
+# pointed at the classic_* tables. Deployed separately so that deleting either
+# register means deleting its own functions and nothing else.
+# ---------------------------------------------------------------------------
+[functions.classic-register-invite]
+verify_jwt = true
+
+[functions.classic-register-api]
+verify_jwt = false
+
+[functions.classic-register-certificate]
+verify_jwt = true

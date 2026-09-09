@@ -4,12 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, Search, ChevronDown, ChevronRight,
-  LogOut, User, Shield, MessageSquare, ClipboardCheck
+  LogOut, User, Shield, MessageSquare, ClipboardCheck, ClipboardList
 } from "lucide-react";
 import logoDark from "@/assets/logo-dark.png";
 import { getIcon } from "@/lib/iconMap";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useMyRegisterMemberships } from "@/hooks/useRegisters";
+import { useMyRegisterMemberships as useMyClassicRegisterMemberships }
+  from "@/hooks/classic/useRegisters";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -44,6 +46,14 @@ export function AppSidebar() {
   // is far worse than showing a non-member a directory they may ask access from.
   const { data: myRegisters, isSuccess: membershipsLoaded } = useMyRegisterMemberships();
   const hasRegisters = !membershipsLoaded || (myRegisters?.length ?? 0) > 0;
+
+  // The classic register keeps its own membership table, so it is asked
+  // separately and shown on its own terms: somebody may hold a register in one
+  // system and none in the other, and while the two are being compared that is
+  // the normal state rather than a mistake.
+  const { data: myClassicRegisters, isSuccess: classicLoaded } =
+    useMyClassicRegisterMemberships();
+  const hasClassicRegisters = !classicLoaded || (myClassicRegisters?.length ?? 0) > 0;
 
   const { data: specialties } = useQuery({
     queryKey: ["sidebar-specialties", activeDeanery?.id],
@@ -259,6 +269,19 @@ export function AppSidebar() {
                     <NavLink to="/registers" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
                       <ClipboardCheck className="h-4 w-4" />
                       {!collapsed && <span>Teaching Registers</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {/* The second register, on its own link beside the first. Both are
+                  listed while the two are being compared; when one is chosen,
+                  its link and its code go together. */}
+              {hasClassicRegisters && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/classic-registers" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <ClipboardList className="h-4 w-4" />
+                      {!collapsed && <span>Registers (Classic)</span>}
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
