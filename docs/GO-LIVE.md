@@ -29,8 +29,8 @@ Still true, and still blocking:
 
 - **1.3 is in doubt** — see the note there. The source project for the storage
   copy is not on this Supabase account any more.
-- **1.4** the key is set and works, but the sender is still Resend's shared
-  testing address, so mail reaches nobody but the Resend account owner.
+- **1.4b** the key works, but the sender is still Resend's shared testing
+  address, so mail reaches nobody but the Resend account owner.
 - **1.5** the project is on Free and pauses after about a week of no traffic.
 - **Phase 3** the register still holds 52 placeholder trainees.
 
@@ -147,11 +147,11 @@ up on their next boot.
 Optionally also set `CONTACT_FORWARD_TO`, which decides where contact-form
 enquiries land; it currently falls back to an address baked into the source.
 
-### 1.4b Verify a sending domain, and set `RESEND_FROM`
+### 1.4b Send from `traineehq.com`, and set the two secrets
 
 **This is what still stops email reaching real people.** All five mailing
-functions send from `onboarding@resend.dev`, Resend's shared testing sender,
-and with no verified domain Resend refuses every recipient except the Resend
+functions send from `onboarding@resend.dev`, Resend's shared testing sender, and
+with no verified domain Resend refuses every recipient except the Resend
 account's own address — not even a plus-alias of it — with:
 
 > 403 validation_error: You can only send testing emails to your own email
@@ -164,13 +164,41 @@ and `access-request-email`. The HTTP call succeeds and the send does not, so it
 fails quietly unless somebody reads the logs — `invite-user` and
 `register-invite` at least return `email_sent: false`.
 
-1. Verify a domain you control at resend.com/domains (DNS records; NHS domains
-   may need the trust's IT to add them).
-2. Add a Supabase secret `RESEND_FROM`, e.g. `HST Training Hub
-   <noreply@yourdomain>`, using an address on that domain.
+**The domain is `traineehq.com`** — the one the ENT teaching register is served
+from (`register.traineehq.com`, per that repo's `CNAME`). Its DNS is at
+Cloudflare. That repo's `docs/SETUP.md` §2 already worked this case out, and
+it applies here unchanged:
 
-All five functions read `RESEND_FROM` and fall back to the testing sender, so
-this is one secret rather than a code change — and no redeploy.
+- `traineehq.com` already carries **iCloud custom-domain mail** — MX at
+  `mx01`/`mx02.mail.icloud.com` and a root `v=spf1 include:icloud.com ~all`.
+  **Do not touch either.**
+- Resend's records land elsewhere and coexist with it: its own MX and SPF TXT on
+  a `send.traineehq.com` subdomain, and a DKIM key on
+  `resend._domainkey.traineehq.com`. Neither is the root MX or the root SPF.
+- **Grey-cloud (DNS only) any CNAME** among them. Cloudflare proxies new CNAMEs
+  by default and that breaks verification. TXT and MX are never proxied.
+- If there is no `_dmarc.traineehq.com` yet, `v=DMARC1; p=none;` is safe to add
+  and affects neither iCloud sending nor receiving.
+
+Then, in Supabase → Edge Functions → Secrets:
+
+| Secret | Value | Why |
+|---|---|---|
+| `RESEND_FROM` | `HST Training Hub <no-reply@traineehq.com>` | The sending identity. The mailbox does not need to exist. A root-domain address is fine even though the return path lives on `send.` — DMARC passes on DKIM alignment with the root, which is what Resend signs. |
+| `RESEND_REPLY_TO` | a real mailbox you read | Where replies go. **A reply-to is not a sender**, so this can be an NHS or Gmail address on any domain. Without it, anyone replying to a certificate or an invitation is writing to `no-reply@`, which bounces. |
+
+All five functions read both, and fall back to the current behaviour when unset,
+so this is two secrets and no code change — and no redeploy, since secrets are
+read on the next call.
+
+**If the ENT register already verified `traineehq.com`** in the same Resend
+account, the DNS work is done and only the two secrets are left.
+
+**Volume, on Resend's free tier:** 100 emails/day, 3,000/month, 2 requests a
+second. A teaching day of thirty certificates fits; two big days in one calendar
+day would not. Note that unlike the ENT register's sender, these functions do
+not space out or retry a rate-limited send — a bulk push is not something they
+currently do, but it is worth knowing before one is added.
 
 **Check:** invite yourself at a second address from Admin → Users and receive
 the mail. `email_sent` comes back `true`.
@@ -513,7 +541,7 @@ If you want the site genuinely live today and are willing to accept Phase 5:
 2. ~~`supabase functions deploy register-api register-invite` (1.2).~~ **Done.**
 3. Run `migrate-storage.mjs` (1.3) — **read the note there first; the source
    project may no longer exist.**
-4. Verify a sending domain and set `RESEND_FROM` (1.4b) — the key itself is done.
+4. Verify `traineehq.com` in Resend, set `RESEND_FROM` and `RESEND_REPLY_TO` (1.4b).
 5. Upgrade off Free, or accept that the site dies after a quiet week (1.5).
 6. Custom domain + Supabase redirect URLs (2.1, 2.2).
 7. Replace the placeholder cohort (3.1) and invite the real users (3.2).

@@ -16,6 +16,15 @@ const RESEND_API = "https://api.resend.com/emails";
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
   "HST Training Hub <onboarding@resend.dev>";
 
+// Where replies land. The sender above is a no-reply address with no mailbox
+// behind it, so without this a trainee replying to their certificate gets a
+// bounce. A reply-to is not a sender: it can be any ordinary mailbox — NHS,
+// Gmail, anything — no matter which domain is verified in Resend. Comma- or
+// space-separated; unset means no Reply-To header at all.
+const REPLY_TO = (Deno.env.get("RESEND_REPLY_TO") ?? "")
+  .split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
+const replyTo = REPLY_TO.length ? { reply_to: REPLY_TO } : {};
+
 type RoleName = "super_admin" | "admin" | "facilitator" | "trainee";
 
 function inviteHtml(name: string, roleLabel: string, link: string) {
@@ -42,7 +51,7 @@ async function sendEmail(to: string, subject: string, html: string) {
   const res = await fetch(RESEND_API, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html }),
+    body: JSON.stringify({ from: FROM_EMAIL, to: [to], subject, html, ...replyTo }),
   });
   if (!res.ok) throw new Error(`Resend API error [${res.status}]: ${await res.text()}`);
   return res.json();
