@@ -228,6 +228,19 @@ reading and writing through `save_register()` with the version guard.
    adjusted percentages with the original's 80/60 colour bands, and the specific
    long-term status per trainee (`Mat leave`, `OOP`, `CCT`, `IDT in/out`) rather
    than one word for all of them.
+   **On a phone, a tap on a cell opens its details rather than changing it**
+   (`AttendanceCellPopover.tsx`, added 2026-09-09 from the standalone
+   register's own touch popover). There is no hover on a phone, so the marks
+   were unlabelled squares — which teaching day a column was, and what a square
+   meant, were both invisible — and the tap that would have shown a tooltip on
+   a desktop instead rewrote somebody's attendance on a 28px target, silently.
+   The popover names the day, the month, the trainee, the state and the grade,
+   and changing it takes a second press on a button that says what it will do.
+   A mouse click still toggles straight away, which is what marking a register
+   at a desk wants; `useTouchInput.ts` tells the two apart per interaction
+   rather than trying to classify the device. Hand-positioned rather than built
+   on the shared Radix popover: a year's grid is several hundred cells, and this
+   is one element, mounted only while it is open.
 2. ✅ Trainees and teaching days — `ManagePanel.tsx`, with `MonthInput.tsx`
    carrying `parseMonth`'s forgiving entry across, and the original's collapsed
    **Former trainees** list for anyone CCT'd or transferred out.
