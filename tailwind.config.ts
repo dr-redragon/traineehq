@@ -2,6 +2,19 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
+  future: {
+    // Only apply `hover:` styles on pointers that can actually hover.
+    //
+    // A phone has no hover, so it fakes one: tapping a button leaves it in
+    // :hover until you touch something else. On a set of toggle buttons that
+    // is not cosmetic — `variant="outline"`'s hover background is very close
+    // to the selected `variant="default"`, so the last button you tapped went
+    // on looking selected whether it was or not, and the year filters in the
+    // reports tab appeared to stick.
+    //
+    // This is Tailwind v4's default behaviour, brought forward.
+    hoverOnlyWhenSupported: true,
+  },
   content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
   prefix: "",
   theme: {

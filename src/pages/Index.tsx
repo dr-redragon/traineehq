@@ -19,6 +19,7 @@ import { BookmarksWidget } from "@/components/dashboard/BookmarksWidget";
 import { WatchedDiscussionsWidget } from "@/components/dashboard/WatchedDiscussionsWidget";
 import { StarredContactsWidget } from "@/components/dashboard/StarredContactsWidget";
 import { SpecialtiesWidget } from "@/components/dashboard/SpecialtiesWidget";
+import { RegistersWidget } from "@/components/dashboard/RegistersWidget";
 import { RecentResourcesWidget } from "@/components/dashboard/RecentResourcesWidget";
 import { FileBrowserWidget } from "@/components/dashboard/FileBrowserWidget";
 import { FileBrowserWidgetSettings } from "@/components/dashboard/FileBrowserWidgetSettings";
@@ -34,6 +35,7 @@ import { CSS } from "@dnd-kit/utilities";
 const WIDGET_LABELS: Record<WidgetId, string> = {
   announcements: "Announcements",
   specialties: "Your Specialties",
+  registers: "Teaching Registers",
   file_browser: "Quick Files",
   bookmarks: "Bookmarked Resources",
   recent_resources: "Recently Added",
@@ -219,6 +221,8 @@ const Index = () => {
     switch (widgetId) {
       case "specialties":
         return <SpecialtiesWidget />;
+      case "registers":
+        return <RegistersWidget />;
       case "bookmarks":
         return <BookmarksWidget />;
       case "recent_resources":

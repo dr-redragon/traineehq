@@ -29,6 +29,7 @@ import { RegisterProvider } from "./contexts/RegisterContext";
 import { RegisterLayout } from "./components/register/RegisterLayout";
 import { RequireAuth } from "./components/RequireAuth";
 import { GdprConsentNotice } from "./components/GdprConsentNotice";
+import { ScrollToTop } from "./components/ScrollToTop";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +76,9 @@ const App = () => (
               miss the organisers who live in the register. It renders nothing
               when signed out or already acknowledged. */}
           <GdprConsentNotice />
+          {/* Every page opens at its own beginning. Following a link from
+              halfway down one page used to land you halfway down the next. */}
+          <ScrollToTop />
           <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />

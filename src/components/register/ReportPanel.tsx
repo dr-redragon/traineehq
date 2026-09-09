@@ -3,6 +3,7 @@ import { FileText, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { YearChip } from "@/components/register/YearChip";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -69,16 +70,14 @@ export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; regist
             </p>
             <div className="flex flex-wrap gap-1.5">
               {years.map((year) => (
-                <Button
+                <YearChip
                   key={year}
-                  size="sm"
-                  variant={selected.includes(year) ? "default" : "outline"}
-                  className="h-7 px-2.5 text-xs"
+                  pressed={selected.includes(year)}
                   title={academicYearRange(year)}
                   onClick={() => toggleYear(year)}
                 >
                   {year}
-                </Button>
+                </YearChip>
               ))}
             </div>
             <div className="flex gap-3 pt-1 text-xs">

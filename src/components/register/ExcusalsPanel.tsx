@@ -184,8 +184,16 @@ export function ExcusalsPanel({
                 <p className="truncate text-sm font-medium">{trainee!.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
                   {formatMonth(session!.month, "en-GB")} · {session!.title}
-                  {excusal.reason ? ` — ${excusal.reason}` : ""}
                 </p>
+                {/* The reason gets a line of its own, and wraps. Appended to the
+                    line above it was the first thing a narrow screen truncated
+                    away — which left the one field somebody opens this tab to
+                    read invisible on a phone. */}
+                {excusal.reason && (
+                  <p className="mt-0.5 break-words text-xs text-foreground/80">
+                    {excusal.reason}
+                  </p>
+                )}
               </div>
               {canEdit && (
                 <Button
