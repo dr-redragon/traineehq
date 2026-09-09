@@ -229,7 +229,7 @@ larger than 50 MB uploads.
 **Deployment is GitHub Pages, on the apex `traineehq.com`.** This reverses the
 decision in 2.5 below.
 
-**Status, 2026-09-09.** The GitHub half is done and verified:
+**Status, 2026-09-09: `https://traineehq.com` is live and serving the app.**
 
 | Piece | State |
 |---|---|
@@ -237,7 +237,13 @@ decision in 2.5 below.
 | Pages enabled (Settings → Pages → Source: GitHub Actions) | done |
 | Custom domain entered in Settings | done — this is what committed `CNAME` at the repo root |
 | Build and deploy | **green** — run #8 (`c30cf73`), all ten steps including `deploy-pages` |
-| Cloudflare DNS | **outstanding — this is the only thing left** |
+| Cloudflare DNS (four apex A records, grey-clouded) | done |
+| Source set to **GitHub Actions** | done — see the blank-page note below; this was the last blocker |
+| `https://traineehq.com` serving the app | **live** |
+
+Remaining for Phase 2: the Supabase redirect URLs (2.2), which decide whether
+password resets and invitations work. Sign-in works without them; those two
+flows dead-end silently.
 
 Runs 1–7 of this workflow all failed at `actions/configure-pages` with
 `Get Pages site failed … Not Found`, because Pages had never been enabled.
