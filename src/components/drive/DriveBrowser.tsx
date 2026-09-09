@@ -1,10 +1,11 @@
 import { useState, useMemo, useRef } from "react";
 import {
-  DndContext, DragOverlay, KeyboardSensor, PointerSensor, pointerWithin,
-  rectIntersection, useSensor, useSensors, useDroppable,
+  DndContext, DragOverlay, pointerWithin,
+  rectIntersection, useDroppable,
   type CollisionDetection, type DragEndEvent, type DragOverEvent, type DragStartEvent,
 } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useDragSensors } from "@/hooks/useDragSensors";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -121,10 +122,9 @@ export function DriveBrowser({
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor)
-  );
+  // Rows are the drag target here, so touch activates on a hold rather than on
+  // movement — a swipe across a row has to stay a scroll.
+  const sensors = useDragSensors(6);
 
   /* ---------- Derived data ---------- */
   const currentFolder = useMemo(

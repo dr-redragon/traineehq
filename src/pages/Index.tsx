@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Clock, Megaphone, FileText, Video, LinkIcon, BookOpen, CheckSquare,
-  FolderOpen, ChevronRight, Settings2, GripVertical, Eye, EyeOff, X, Columns2, Rows3,
+  FolderOpen, ChevronRight, Settings2, Eye, EyeOff, X, Columns2, Rows3,
   ArrowLeftRight, Cog,
 } from "lucide-react";
 import { DashboardLayout } from "@/components/DashboardLayout";
@@ -24,13 +24,13 @@ import { RecentResourcesWidget } from "@/components/dashboard/RecentResourcesWid
 import { FileBrowserWidget } from "@/components/dashboard/FileBrowserWidget";
 import { FileBrowserWidgetSettings } from "@/components/dashboard/FileBrowserWidgetSettings";
 import {
-  DndContext, closestCenter, pointerWithin, rectIntersection,
-  PointerSensor, KeyboardSensor, useSensor, useSensors,
+  DndContext, closestCenter,
   type DragEndEvent, DragOverlay, type DragStartEvent, type DragOverEvent,
   useDroppable,
 } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { SortableWidget } from "@/components/dashboard/SortableWidget";
+import { useDragSensors } from "@/hooks/useDragSensors";
 
 const WIDGET_LABELS: Record<WidgetId, string> = {
   announcements: "Announcements",
@@ -42,30 +42,6 @@ const WIDGET_LABELS: Record<WidgetId, string> = {
   watched_discussions: "Watched Discussions",
   contacts: "Key Contacts",
 };
-
-function SortableWidget({ id, children, isEditing }: { id: string; children: React.ReactNode; isEditing: boolean }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="relative group">
-      {isEditing && (
-        <div
-          {...attributes}
-          {...listeners}
-          className="absolute -left-8 top-4 cursor-grab text-muted-foreground hover:text-foreground z-10"
-        >
-          <GripVertical className="h-4 w-4" />
-        </div>
-      )}
-      {children}
-    </div>
-  );
-}
 
 function DroppableColumn({ id, children, label }: { id: string; children: React.ReactNode; label: string }) {
   const { setNodeRef, isOver } = useDroppable({ id });
@@ -92,10 +68,7 @@ const Index = () => {
   const [settingsWidget, setSettingsWidget] = useState<WidgetId | null>(null);
   const { layout, hiddenWidgets, columns, rightColumnWidgets, widgetSettings, savePrefs } = useDashboardPreferences();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
-  );
+  const sensors = useDragSensors();
 
   const { data: profile } = useQuery({
     queryKey: ["my-profile", user?.id],
@@ -252,7 +225,7 @@ const Index = () => {
   };
 
   const renderEditCard = (widgetId: WidgetId) => (
-    <SortableWidget key={widgetId} id={widgetId} isEditing>
+    <SortableWidget key={widgetId} id={widgetId} label={WIDGET_LABELS[widgetId]} isEditing>
       <Card className="border-dashed">
         <CardContent className="flex items-center justify-between p-3">
           <span className="text-sm font-medium">{WIDGET_LABELS[widgetId]}</span>
@@ -298,7 +271,7 @@ const Index = () => {
   };
 
   const renderTwoColumnEditing = () => (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pl-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <DroppableColumn id="col-left" label="Left Column">
         {leftColumn.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-4">Drag widgets here</p>
@@ -326,7 +299,7 @@ const Index = () => {
   );
 
   const renderSingleColumn = () => (
-    <div className={isEditing ? "space-y-2 pl-8" : "space-y-6"}>
+    <div className={isEditing ? "space-y-2" : "space-y-6"}>
       {visibleWidgets.map((wId) => isEditing ? renderEditCard(wId) : renderViewCard(wId))}
     </div>
   );
@@ -355,8 +328,12 @@ const Index = () => {
         {isEditing && (
           <Card className="border-primary/20 bg-primary/5 animate-fade-in">
             <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium">Toggle widgets on or off, and drag to reorder{columns === 2 ? " between columns" : ""}:</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-sm font-medium">
+                  Toggle widgets on or off, and drag a handle to reorder
+                  {columns === 2 ? " between columns" : ""}. On a touch screen,
+                  press and hold the handle first.
+                </p>
                 <div className="flex items-center gap-1 border rounded-md p-0.5">
                   <Button
                     variant={columns === 1 ? "secondary" : "ghost"}

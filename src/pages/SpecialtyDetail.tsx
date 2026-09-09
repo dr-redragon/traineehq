@@ -27,11 +27,12 @@ import { useCanManageSpecialty } from "@/hooks/useUserRole";
 import { getIcon } from "@/lib/iconMap";
 import { isUuid, orFilterValue } from "@/lib/queryFilters";
 import {
-  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  DndContext, closestCenter,
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { SortableTabTrigger } from "@/components/SortableTabTrigger";
+import { useDragSensors } from "@/hooks/useDragSensors";
 
 const SpecialtyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -97,10 +98,7 @@ const SpecialtyDetail = () => {
     }
   }, [location.hash]);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor)
-  );
+  const sensors = useDragSensors();
 
   const { data: specialty, isLoading: specLoading } = useQuery({
     queryKey: ["specialty", id],
