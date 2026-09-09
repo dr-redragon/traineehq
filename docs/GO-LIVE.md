@@ -298,6 +298,35 @@ In the Cloudflare dashboard → **traineehq.com** → **DNS**:
    certificate issues. Allow anywhere from ten minutes to an hour, and test in
    a private window so nothing is served from cache.
 
+#### If the site loads but is blank
+
+**This happened on 2026-09-09 and cost an afternoon.** Symptom: `traineehq.com`
+resolves, TLS is fine, the page loads — and is completely empty.
+
+**Cause: Settings → Pages → Source was "Deploy from a branch" (`main` /
+`(root)`), not "GitHub Actions".** Branch mode serves the *repository root*,
+where `index.html` is Vite's source template whose only script tag is
+`<script type="module" src="/src/main.tsx">`. A browser cannot execute
+TypeScript, so the module fails, `<div id="root">` stays empty, and the page
+renders blank. Confirmed in a headless browser against both directories:
+
+| Served from | `#root` | Console |
+|---|---|---|
+| repo root | empty | `Failed to load module script … MIME type "video/mp2t"` |
+| `dist/` | 13,719 chars | renders the landing page |
+
+**Fix: set Source to "GitHub Actions".** Nothing else changes.
+
+Note the failure mode is quiet: with branch mode selected, a Pages site
+*exists*, so `configure-pages` succeeds and the workflow goes green while
+serving something else entirely. **A green deploy run does not mean the right
+files are being served** — it means the artifact uploaded. Check the Source
+setting before debugging anything else.
+
+This also decides which `CNAME` is live: in branch mode the repo-root one, in
+Actions mode `dist/CNAME` (from `public/CNAME`). Both hold `traineehq.com`, so
+switching between them does not drop the domain.
+
 #### Two things GitHub Pages cannot do that `netlify.toml` did
 
 Both worked around rather than lost:
