@@ -46,7 +46,7 @@ None of these are technical; every one of them changes the steps below.
 | 0.2 | **Paid Supabase, or not.** | Free projects pause after ~7 days without traffic and cap uploads at 50 MB. A paused project is a dead site. See 1.5. |
 | 0.3 | **Does the ENT register go live with the real cohort**, or start empty and be filled by organisers? | Decides whether Phase 3 is a data import or a five-minute setup. |
 | 0.4 | **Who are the first admins**, by email. | Only three accounts exist today. |
-| 0.5 | ~~**Netlify or GitHub Pages** — pick one.~~ **Settled 2026-09-09: GitHub Pages**, apex `traineehq.com`. | Requires the repo to be public — see 2.5 and the history gate in 3.5. Disconnect any Netlify site so the two do not both build `main`. |
+| 0.5 | ~~**Netlify or GitHub Pages** — pick one.~~ **Settled 2026-09-09: GitHub Pages**, apex `traineehq.com`. Deploy is green; only Cloudflare DNS remains (2.1). | Repo made public to allow it (3.5). **Netlify is still connected and still building — disconnect it** (2.5). |
 
 ---
 
@@ -226,46 +226,94 @@ larger than 50 MB uploads.
 
 ### 2.1 Point the domain at the site
 
-**Decided 2026-09-09: GitHub Pages, on the apex `traineehq.com`.** This
-reverses 2.5 below; the repo goes public to allow it (see the warning there).
+**Deployment is GitHub Pages, on the apex `traineehq.com`.** This reverses the
+decision in 2.5 below.
 
-Committed here already: `.github/workflows/deploy-pages.yml` (build, SPA
-fallback, publish), `public/CNAME` holding `traineehq.com`, and the two
-security headers moved into `index.html` as meta tags.
+**Status, 2026-09-09.** The GitHub half is done and verified:
 
-1. **Settings → Pages → Source: GitHub Actions.** Do this before the first run
-   or the workflow fails at the deploy step.
-2. **Cloudflare DNS** — four A records at the apex, all **grey-clouded
-   (DNS only)**:
+| Piece | State |
+|---|---|
+| Repository public | done |
+| Pages enabled (Settings → Pages → Source: GitHub Actions) | done |
+| Custom domain entered in Settings | done — this is what committed `CNAME` at the repo root |
+| Build and deploy | **green** — run #8 (`c30cf73`), all ten steps including `deploy-pages` |
+| Cloudflare DNS | **outstanding — this is the only thing left** |
 
-   ```
-   185.199.108.153   185.199.109.153   185.199.110.153   185.199.111.153
-   ```
+Runs 1–7 of this workflow all failed at `actions/configure-pages` with
+`Get Pages site failed … Not Found`, because Pages had never been enabled.
+Enabling it in Settings fixed that; run #8 is the first successful publish.
+Nothing had ever been deployed before it, to any URL.
 
-   Cloudflare proxies new records by default, and an orange cloud stops GitHub
-   from issuing the certificate. Same trap as the Resend records in 1.4b. Take
-   the canonical list from GitHub's own docs rather than this file if it is
-   ever in doubt.
-   - **Do not touch the iCloud MX records or the root SPF TXT.** A records and
-     MX records are independent; adding a website at the apex does not affect
-     mail.
-   - Optionally add `www` as a CNAME to `dr-redragon.github.io`, also grey.
-3. **Settings → Pages → Custom domain** → `traineehq.com`, then wait for the
-   certificate and tick **Enforce HTTPS**.
-4. **Verify the domain** under Settings → Pages (and account-level *Verified
-   domains*) so nobody else can claim it on Pages later.
+#### What is committed here
 
-**Two things GitHub Pages cannot do that `netlify.toml` did**, both worked
-around above rather than lost:
+- `.github/workflows/deploy-pages.yml` — builds `main` and publishes.
+- `public/CNAME` — Vite copies `public/` into `dist/`, so `dist/CNAME` lands at
+  the artifact root where Pages reads it. This is the copy that matters for
+  the Actions flow.
+- `CNAME` at the repo root — written by GitHub when the custom domain was set
+  in Settings. **It is not read by the Actions deployment** (which publishes
+  the artifact, not the repo root); it would matter only under the legacy
+  "deploy from a branch" mode. Both files say `traineehq.com`, so they cannot
+  disagree. Left in place because Settings manages it.
+
+#### Cloudflare — the remaining step
+
+In the Cloudflare dashboard → **traineehq.com** → **DNS**:
+
+1. **Remove any existing `A` or `CNAME` record whose name is the apex**
+   (`traineehq.com`, shown as `@`). One pointing elsewhere will fight these.
+
+2. **Add four `A` records**, identical but for the final octet:
+
+   | Type | Name | IPv4 | Proxy | TTL |
+   |---|---|---|---|---|
+   | A | `@` | `185.199.108.153` | **DNS only** | Auto |
+   | A | `@` | `185.199.109.153` | **DNS only** | Auto |
+   | A | `@` | `185.199.110.153` | **DNS only** | Auto |
+   | A | `@` | `185.199.111.153` | **DNS only** | Auto |
+
+   These are GitHub Pages' apex addresses; take the canonical list from
+   GitHub's own documentation if it is ever in doubt.
+
+3. **Grey-cloud every one of them.** Cloudflare proxies new records by default
+   (orange cloud). A proxied record stops GitHub issuing the Let's Encrypt
+   certificate, and the site serves a TLS warning instead. Click the cloud
+   until it reads *DNS only*. The same trap applies to the Resend records in
+   1.4b.
+
+   If the proxy is ever turned on later, Cloudflare's SSL/TLS mode must be
+   **Full (strict)** — "Flexible" against Pages gives a redirect loop.
+
+4. **Do not touch these while you are in there:**
+   - **MX** records (`mx01`/`mx02.mail.icloud.com`) — iCloud mail.
+   - The root **TXT** starting `v=spf1` — also mail.
+   - The `register` record — the old standalone teaching register (see 3.4).
+
+   A records and MX records are independent. Putting a website at the apex
+   does not affect mail.
+
+5. Back in **Settings → Pages**, wait for the DNS check to pass, then tick
+   **Enforce HTTPS**. "Domain's DNS record could not be verified" immediately
+   after the change is normal; so is a greyed-out HTTPS box while the
+   certificate issues. Allow anywhere from ten minutes to an hour, and test in
+   a private window so nothing is served from cache.
+
+#### Two things GitHub Pages cannot do that `netlify.toml` did
+
+Both worked around rather than lost:
 
 - **No rewrites.** The SPA fallback is `404.html`, a byte-copy of
-  `index.html`. Deep links work and keep their query string, but they are
-  served with HTTP 404 rather than 200. Browsers do not care; uptime checks
-  and link previewers do, so point any monitor at `/` and not at a deep link.
+  `index.html`, made in the workflow. Deep links work and keep their query
+  string — which is what QR check-in and password-reset links depend on — but
+  they are served with HTTP 404 rather than 200. Browsers do not care; uptime
+  checks and link previewers do, so point any monitor at `/`, never a deep
+  link.
 - **No custom headers.** `X-Robots-Tag` and `Referrer-Policy` are now meta
-  tags in `index.html`. **`X-Content-Type-Options: nosniff` has no meta
-  equivalent and is genuinely gone** — a small, accepted loss, since every
-  asset is a same-origin static file emitted by Vite.
+  tags in `index.html`. `robots.txt` still *allows* crawlers on purpose: a
+  disallowed page is never fetched, so its `noindex` is never read.
+  **`X-Content-Type-Options: nosniff` has no meta equivalent and is genuinely
+  gone** — a small, accepted loss, since every asset is a same-origin file
+  emitted by Vite.
 
 **Check:** load `https://traineehq.com/registers` directly in a fresh tab —
 not by clicking through — and get the app, not GitHub's 404 page.
@@ -309,21 +357,22 @@ paths). No action, but read the list once so you know what is exposed.
 ### 2.5 Settle the deployment story — REVERSED (2026-09-09)
 
 This section previously recorded the opposite decision: Pages removed, Netlify
-kept. **That has been reversed at your request** — the deployment is now
-GitHub Pages and `deploy-pages.yml` is back.
+kept. **That has been reversed** — the deployment is GitHub Pages, and it is
+live (see 2.1).
 
-The principle behind the original entry still stands, and now cuts the other
-way: **two deployments of the same app drift and confuse users.** If a Netlify
-site is still connected to this repo, disconnect it, or it will keep building
-every push to `main` alongside Pages. `netlify.toml` and `vercel.json` are
-left in the tree deliberately — they are the fallback if Pages does not work
-out, and they are inert with no site connected.
+**Netlify is still connected, and is still building.** Confirmed on 2026-09-09:
+a site named `taupe-crisp-3c4830` built PR #13 and posted a deploy-preview
+comment. So the original warning here now applies in reverse — **two
+deployments of the same app drift and confuse users**. Disconnect the Netlify
+site, or every push to `main` will build twice, and PRs will keep collecting
+Netlify comments that have nothing to do with the live site.
+
+`netlify.toml` and `vercel.json` stay in the tree deliberately: inert with no
+site connected, and the fallback if Pages is ever abandoned.
 
 **The cost of this choice, recorded plainly:** `OUTSTANDING.md` §1.4 chose
 Netlify precisely so the repo could stay private, because Pages on a private
-repo needs a paid plan. Going public exposes all 73 commits of history. See
-the note in §3.5 — that is a gate on making the repo public, not on any of
-the DNS work above.
+repo needs a paid plan. The repo is now public. See 3.5.
 
 ---
 
@@ -374,56 +423,46 @@ The old teaching register deployment (`register.traineehq.com`) should be frozen
 and redirected once organisers are on the new one, and the legacy
 `public.register_store` row dropped after its history is confirmed migrated.
 
-### 3.5 Before making the repository public — scrub the history
+### 3.5 The repository is public — one item left to confirm
 
-**This is a gate on flipping visibility, and only on that.** Everything in 2.1
-can be set up first; the workflow simply will not publish until the repo is
-public (or on a paid plan).
+**Done 2026-09-09: the repository was made public**, to allow Pages on the
+free plan (2.5). This section was written as a gate before that flip; it is
+now a record of what was published and the one question still open.
 
-`OUTSTANDING.md` §1.4 chose Netlify so the repo could stay private, and §0.2
-records the sibling repo `ent-teaching-register` having its history rewritten
-with `git-filter-repo` after real cohort data was committed. **This repo has a
-smaller version of the same problem.**
+A scan of all 73 commits and 472 blobs, run before the repo went public,
+found:
 
-A scan of all 73 commits and 472 blobs found:
-
-- **No secrets.** The only tokens in history are Supabase `anon` JWTs
-  (`role":"anon"`, project `ecyhvubwcqqghumnyxuu`), which are publishable by
-  design. No service-role key, no Resend key.
+- **No secrets.** The only tokens anywhere in history are Supabase `anon`
+  JWTs (`"role":"anon"`, project `ecyhvubwcqqghumnyxuu`) — publishable by
+  design, and the same class of key the client bundle ships today. No
+  service-role key, no Resend key.
 - **No cohort data.** The old `public/teaching-register.html` in history is the
-  app shell only — the roster lived in the database, not the file. The only
+  app shell only; the roster lived in the database, not the file. The only
   cohort names present are the deliberate placeholders ("Alice Abbott",
   `@example.invalid`).
-- **One thing to resolve: a deleted `src/lib/contacts.ts`** (blob
-  `938db7a`), a hardcoded key-contacts list of twelve named individuals with
-  addresses at real NHS domains — `uhb.nhs.uk`, `ouh.nhs.uk`, `mft.nhs.uk`,
-  `hee.nhs.uk`, `rcseng.ac.uk`. It is **not in the current tree**; it is
-  reachable only through history.
+- **One open item: a deleted `src/lib/contacts.ts`** (blob `938db7a`), a
+  hardcoded key-contacts list of twelve named individuals with addresses at
+  real NHS domains — `uhb.nhs.uk`, `ouh.nhs.uk`, `mft.nhs.uk`, `hee.nhs.uk`,
+  `rcseng.ac.uk`. Not in the current tree; reachable through history.
 
   Its shape says seed data — exactly one contact per category, tidy and
-  complete — and it sits alongside the same commit's other placeholders. But
-  it cannot be confirmed synthetic from the code alone, and unlike
-  `.invalid`, these addresses would deliver.
+  complete, alongside the same commit's other placeholders. That cannot be
+  confirmed from the code, and unlike `.invalid`, these addresses would
+  deliver.
 
-**So, before flipping to public, one of:**
+**What to do:**
 
-1. **Confirm the twelve are fabricated.** If so, nothing needs doing — publish
-   as is.
-2. **If any is a real person**, treat it as §0.2 did: rewrite history with
-   `git-filter-repo` to drop that blob, force-push, and send GitHub Support
-   the purge request (§0.2b has the wording). Do it *before* the repo is
-   public, while the audience is still only you — a scrub after publication
-   cannot un-publish anything, and forks and caches make it irreversible.
+1. **Confirm the twelve are fabricated.** If they are, nothing further is
+   needed and this item closes.
+2. **If any is a real person**, the history is already published, so a scrub
+   now reduces exposure rather than preventing it: rewrite with
+   `git-filter-repo` as §0.2 did for the sibling repo, force-push, and send
+   GitHub Support the purge request whose wording is in `OUTSTANDING.md`
+   §0.2b. Forks and existing clones cannot be reached by any of that.
 
 Under UK GDPR this is the same category of decision as the DPIA in Phase 6:
 NHS staff names and work addresses are personal data whether or not they are
 sensitive.
-
-**Check:** `git log --all --diff-filter=D -- src/lib/contacts.ts` returns
-nothing once scrubbed, verified from a fresh clone rather than this working
-copy.
-
----
 
 ---
 
