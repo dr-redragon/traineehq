@@ -105,7 +105,7 @@ export default function RegisterDirectory() {
     <div className="space-y-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">Teaching registers</h1>
+          <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">Teaching registers</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Each specialty in each deanery keeps its own register. You see the ones you
             have been given access to.

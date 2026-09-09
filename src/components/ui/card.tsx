@@ -3,7 +3,15 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("rounded-md border bg-card text-card-foreground", className)} {...props} />
+  // `data-slot` so a scoped theme can reach every card at once without each
+  // caller passing a class: the teaching register uses it to give its cards
+  // their soft lifted shadow (see `.register-theme` in index.css).
+  <div
+    ref={ref}
+    data-slot="card"
+    className={cn("rounded-md border bg-card text-card-foreground", className)}
+    {...props}
+  />
 ));
 Card.displayName = "Card";
 

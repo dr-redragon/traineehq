@@ -17,8 +17,8 @@ const MARK: Record<string, string> = { present: "✓", excused: "E", absent: "·
 
 function pctClass(pct: number | null) {
   if (pct === null) return "text-muted-foreground";
-  if (pct >= 80) return "text-emerald-600 dark:text-emerald-400";
-  if (pct >= 60) return "text-amber-600 dark:text-amber-400";
+  if (pct >= 80) return "text-success";
+  if (pct >= 60) return "text-warning";
   return "text-destructive";
 }
 
@@ -189,7 +189,7 @@ export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; regist
       {generated && selected.length > 0 && (
         <div className="space-y-8">
           <header className="space-y-1 border-b pb-4">
-            <h2 className="font-display text-lg font-semibold">{registerName}</h2>
+            <h2 className="font-display text-lg font-bold">{registerName}</h2>
             <p className="text-sm text-muted-foreground">
               Attendance report · {report.years.join(", ")} · generated{" "}
               {new Date().toLocaleDateString("en-GB", {
@@ -210,9 +210,19 @@ export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; regist
               ["Cohort adjusted", summary.adjPct === null ? "—" : `${summary.adjPct}%`],
               ["At or above 80%", `${summary.atOrAbove80} of ${summary.trainees}`],
             ] as const).map(([label, value]) => (
-              <div key={label}>
-                <p className="text-2xl font-semibold tabular-nums">{value}</p>
-                <p className="text-xs text-muted-foreground">{label}</p>
+              // The register's summary tile: the figure set large in the
+              // heading serif over a small-caps label, the way the register's
+              // own dashboard states its numbers.
+              <div
+                key={label}
+                className="rounded-lg border border-border bg-card p-4 shadow-register print:shadow-none"
+              >
+                <p className="font-display text-2xl font-bold tabular-nums text-register-ink">
+                  {value}
+                </p>
+                <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {label}
+                </p>
               </div>
             ))}
           </div>
@@ -230,7 +240,7 @@ export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; regist
                 <div className="overflow-x-auto rounded-lg border print:overflow-visible print:rounded-none">
                   <table className="w-full border-collapse text-sm">
                     <thead>
-                      <tr className="border-b bg-muted/50 text-left">
+                      <tr className="border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-register-ink [&_th]:font-bold">
                         <th className="px-3 py-2 font-medium">Trainee</th>
                         {grid && section.sessions.map((s) => (
                           <th key={s.id} className="px-1 py-2 text-center text-[11px] font-medium">

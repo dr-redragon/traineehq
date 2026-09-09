@@ -26,9 +26,12 @@ export default {
       },
     },
     extend: {
+      // Read through the CSS variables rather than naming the families here,
+      // so a scoped palette can swap them: the teaching register sets
+      // --font-display to Georgia and everything under `font-display` follows.
       fontFamily: {
-        display: ["Sora", "sans-serif"],
-        body: ["Manrope", "sans-serif"],
+        display: ["var(--font-display)", "Sora", "sans-serif"],
+        body: ["var(--font-body)", "Manrope", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -83,6 +86,22 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        // The teaching register's own accents — the deep masthead, the gold
+        // rule under it, and the clay it points with. See `.register-theme`
+        // in index.css.
+        register: {
+          deep: "hsl(var(--register-deep))",
+          "deep-foreground": "hsl(var(--register-deep-foreground))",
+          "deep-muted": "hsl(var(--register-deep-muted))",
+          ink: "hsl(var(--register-ink))",
+          clay: "hsl(var(--register-clay))",
+          "clay-soft": "hsl(var(--register-clay-soft))",
+          "clay-ink": "hsl(var(--register-clay-ink))",
+          gold: "hsl(var(--register-gold))",
+        },
+      },
+      boxShadow: {
+        register: "var(--register-shadow)",
       },
       borderRadius: {
         lg: "var(--radius)",

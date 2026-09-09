@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Loader2, Lock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { AttendanceGrid } from "@/components/register/AttendanceGrid";
 import { ManagePanel } from "@/components/register/ManagePanel";
 import { ReportPanel } from "@/components/register/ReportPanel";
@@ -18,6 +19,28 @@ import { useRegisterStore } from "@/hooks/useRegisterStore";
 import {
   ALL_YEARS, availableAcademicYears, defaultAcademicYear, sessionsInYear, sessionsSorted,
 } from "@/lib/register/months";
+
+/**
+ * A tab in the register's own idiom: a plain label that gains a clay rule when
+ * it is the one you are on, rather than shadcn's pill in a tray. The rule is
+ * three pixels of a colour used nowhere else on the page, so which panel is
+ * open reads at a glance from across a lecture theatre.
+ */
+function RegisterTab({ value, children }: { value: string; children: ReactNode }) {
+  return (
+    <TabsTrigger
+      value={value}
+      className={cn(
+        "rounded-none border-b-[3px] border-transparent bg-transparent px-3 py-3 text-[13px]",
+        "font-semibold text-muted-foreground shadow-none transition-colors hover:text-foreground",
+        "data-[state=active]:border-register-clay data-[state=active]:bg-transparent",
+        "data-[state=active]:text-register-ink data-[state=active]:shadow-none",
+      )}
+    >
+      {children}
+    </TabsTrigger>
+  );
+}
 
 /**
  * One register.
@@ -71,7 +94,7 @@ export default function RegisterDetail() {
             <Lock className="h-5 w-5 text-muted-foreground" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="font-display text-lg font-semibold">
+            <h1 className="font-display text-lg font-bold">
               You do not have access to this register
             </h1>
             <p className="mx-auto max-w-sm text-sm text-muted-foreground">
@@ -91,7 +114,7 @@ export default function RegisterDetail() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
         <div className="min-w-0">
-          <h1 className="font-display text-xl font-semibold tracking-tight sm:text-2xl">
+          <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
             {entry.specialty_name}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
@@ -116,15 +139,25 @@ export default function RegisterDetail() {
       ) : (
         <Tabs defaultValue="attendance">
           {/* Scrolls rather than wrapping or shrinking on a phone: five tabs
-              squeezed into 375px are unreadable and unhittable. */}
-          <TabsList className="flex h-auto w-full justify-start overflow-x-auto print:hidden">
-            <TabsTrigger value="attendance" className="text-xs">Attendance</TabsTrigger>
-            <TabsTrigger value="manage" className="text-xs">Trainees &amp; days</TabsTrigger>
-            <TabsTrigger value="status" className="text-xs">Long-term status</TabsTrigger>
-            <TabsTrigger value="excused" className="text-xs">Excused absences</TabsTrigger>
-            <TabsTrigger value="live" className="text-xs">Live day</TabsTrigger>
-            <TabsTrigger value="feedback" className="text-xs">Feedback</TabsTrigger>
-            <TabsTrigger value="reports" className="text-xs">Reports</TabsTrigger>
+              squeezed into 375px are unreadable and unhittable. Sticky, so the
+              masthead scrolls away but the way between panels does not — a
+              register with thirty trainees on it is a long page.
+
+              Bled to the edges with a negative margin so the rule under the
+              row reaches them, the way the register's own nav bar does. */}
+          <TabsList
+            className={cn(
+              "sticky top-0 z-20 -mx-4 flex h-auto w-full justify-start gap-1 overflow-x-auto",
+              "rounded-none border-b border-border bg-background px-4 py-0 print:hidden",
+            )}
+          >
+            <RegisterTab value="attendance">Attendance</RegisterTab>
+            <RegisterTab value="manage">Trainees &amp; days</RegisterTab>
+            <RegisterTab value="status">Long-term status</RegisterTab>
+            <RegisterTab value="excused">Excused absences</RegisterTab>
+            <RegisterTab value="live">Live day</RegisterTab>
+            <RegisterTab value="feedback">Feedback</RegisterTab>
+            <RegisterTab value="reports">Reports</RegisterTab>
           </TabsList>
 
           <TabsContent value="attendance" className="mt-4 space-y-4">

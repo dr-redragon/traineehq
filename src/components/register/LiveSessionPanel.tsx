@@ -349,7 +349,7 @@ export function LiveSessionPanel({
                 <div className="divide-y rounded-lg border">
                   {status.attendees.filter((a) => a.checked_in_at).map((a) => (
                     <div key={a.id} className="flex items-center gap-2 px-3 py-2">
-                      <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <Check className="h-4 w-4 shrink-0 text-success" />
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{a.name}</p>
                         <p className="truncate text-xs text-muted-foreground">

@@ -16,16 +16,23 @@ import { cn } from "@/lib/utils";
 /** The colour bands the original register used: 80 and 60 per cent. */
 function pctClass(pct: number | null) {
   if (pct === null) return "text-muted-foreground";
-  if (pct >= 80) return "text-emerald-600 dark:text-emerald-400";
-  if (pct >= 60) return "text-amber-600 dark:text-amber-400";
+  if (pct >= 80) return "text-success";
+  if (pct >= 60) return "text-warning";
   return "text-destructive";
 }
 
+/**
+ * The original register's marks, kept: a filled moss square for a day attended,
+ * clay for one excused, and an empty bordered cell for one missed. Missed is
+ * deliberately the quiet one — a row of them reads as a gap in the grid, which
+ * is the shape an organiser scans for, and it keeps a page of ordinary absence
+ * from becoming a wall of red.
+ */
 const CELL: Record<string, string> = {
-  present: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/25",
-  excused: "bg-amber-500/15 text-amber-700 dark:text-amber-300 hover:bg-amber-500/25",
-  absent:  "bg-destructive/10 text-destructive hover:bg-destructive/20",
-  na:      "bg-muted text-muted-foreground/60",
+  present: "bg-primary text-primary-foreground hover:bg-primary/85",
+  excused: "bg-register-clay-soft text-register-clay-ink hover:brightness-95",
+  absent:  "border border-border bg-card text-muted-foreground/70 hover:border-primary",
+  na:      "bg-muted text-muted-foreground/50",
 };
 
 const CELL_MARK: Record<string, string> = {
@@ -83,29 +90,29 @@ export function AttendanceGrid({
 
       {/* A register can run a dozen teaching days; the table scrolls inside its
           own box rather than pushing the page sideways on a phone. */}
-      <div className="overflow-x-auto rounded-lg border">
+      <div className="overflow-x-auto rounded-lg border bg-card shadow-register">
         <table className="w-full min-w-[640px] border-collapse text-sm">
           <thead>
-            <tr className="border-b bg-muted/50 text-left">
+            <tr className="border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-register-ink [&_th]:font-bold">
               <th
-                className="sticky left-0 z-10 cursor-pointer bg-muted/50 px-3 py-2 font-medium backdrop-blur"
+                className="sticky left-0 z-10 cursor-pointer bg-muted px-3 py-2.5"
                 onClick={() => sortBy("name")}
               >
                 Trainee <SortIcon k="name" />
               </th>
-              <th className="px-2 py-2 font-medium">Status</th>
+              <th className="px-2 py-2.5">Status</th>
               {sessions.map((s) => (
-                <th key={s.id} className="px-1 py-2 text-center text-[11px] font-medium" title={s.title}>
+                <th key={s.id} className="px-1 py-2.5 text-center" title={s.title}>
                   {formatMonth(s.month, "en-GB").replace(" ", " ")}
                 </th>
               ))}
-              <th className="cursor-pointer px-2 py-2 text-right font-medium" onClick={() => sortBy("att")}>
+              <th className="cursor-pointer px-2 py-2.5 text-right" onClick={() => sortBy("att")}>
                 Att/Elig <SortIcon k="att" />
               </th>
-              <th className="cursor-pointer px-2 py-2 text-right font-medium" onClick={() => sortBy("raw")}>
+              <th className="cursor-pointer px-2 py-2.5 text-right" onClick={() => sortBy("raw")}>
                 Raw <SortIcon k="raw" />
               </th>
-              <th className="cursor-pointer px-3 py-2 text-right font-medium" onClick={() => sortBy("adj")}>
+              <th className="cursor-pointer px-3 py-2.5 text-right" onClick={() => sortBy("adj")}>
                 Adjusted <SortIcon k="adj" />
               </th>
             </tr>
@@ -118,8 +125,8 @@ export function AttendanceGrid({
               );
 
               return (
-                <tr key={row.trainee.id} className="border-b last:border-0 hover:bg-muted/30">
-                  <td className="sticky left-0 z-10 bg-background px-3 py-1.5 font-medium">
+                <tr key={row.trainee.id} className="border-b last:border-0 hover:bg-muted/40">
+                  <td className="sticky left-0 z-10 bg-card px-3 py-1.5 font-medium">
                     <span className="block max-w-[180px] truncate">{row.trainee.name}</span>
                     {row.trainee.grade && (
                       <span className="text-[11px] font-normal text-muted-foreground">
@@ -192,10 +199,25 @@ export function AttendanceGrid({
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-        <span><span className="mr-1 font-semibold text-emerald-600 dark:text-emerald-400">✓</span>Attended</span>
-        <span><span className="mr-1 font-semibold text-amber-600 dark:text-amber-400">E</span>Excused</span>
-        <span><span className="mr-1 font-semibold text-destructive">·</span>Missed</span>
-        <span><span className="mr-1 font-semibold">–</span>Not eligible (leave, pre-start or post-CCT)</span>
+        {([
+          ["present", "Attended"],
+          ["excused", "Excused"],
+          ["absent", "Missed"],
+          ["na", "Not eligible (leave, pre-start or post-CCT)"],
+        ] as const).map(([state, label]) => (
+          <span key={state} className="inline-flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className={cn(
+                "inline-flex h-4 w-4 items-center justify-center rounded text-[10px] font-semibold",
+                CELL[state],
+              )}
+            >
+              {CELL_MARK[state]}
+            </span>
+            {label}
+          </span>
+        ))}
       </div>
       <p className="text-[11px] text-muted-foreground">
         <strong>Adjusted</strong> drops months a trainee was not in programme, then excused
