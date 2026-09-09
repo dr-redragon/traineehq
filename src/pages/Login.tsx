@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Mail, Lock, ArrowRight } from "lucide-react";
 import logoWhite from "@/assets/logo-white.png";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,30 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ContactForm from "@/components/ContactForm";
+import { safeDestination } from "@/lib/safeDestination";
+import { PolicyLink } from "@/components/PolicyLink";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  /**
+   * Where to go once signed in.
+   *
+   * RequireAuth has always passed the page it turned somebody away from, and
+   * this page has always ignored it — so following a deep link while signed out
+   * landed you on the dashboard, with the thing you had clicked forgotten. The
+   * register's own door sends people here the same way.
+   *
+   * safeDestination is what keeps this from being an open redirect.
+   */
+  const destination = safeDestination(
+    (location.state as { from?: unknown } | null)?.from,
+    "/dashboard",
+  );
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +41,7 @@ const Login = () => {
     if (error) {
       toast.error(error.message);
     } else {
-      navigate("/dashboard");
+      navigate(destination, { replace: true });
     }
   };
 
@@ -116,9 +134,9 @@ const Login = () => {
 
           <p className="text-center text-xs text-muted-foreground mt-4">
             By signing in, you agree to our{" "}
-            <a href="#" className="text-accent hover:underline">Privacy Policy</a>{" "}
+            <PolicyLink kind="privacy" className="text-accent hover:underline" />{" "}
             and{" "}
-            <a href="#" className="text-accent hover:underline">Terms of Use</a>.
+            <PolicyLink kind="terms" className="text-accent hover:underline" />.
           </p>
           <div className="mt-8 pt-6 border-t">
             <ContactForm compact />

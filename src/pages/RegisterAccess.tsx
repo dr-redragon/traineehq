@@ -15,6 +15,7 @@ import {
   useRegisterRequests, useRemoveMember, useSetMemberRole,
 } from "@/hooks/useRegisterAccess";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
+import { CertificateLogoPanel } from "@/components/register/CertificateLogoPanel";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import type { RegisterPerson, RegisterRole } from "@/lib/register/types";
 
@@ -247,6 +248,10 @@ export default function RegisterAccess() {
           </p>
         )}
       </section>
+
+      {/* The badge the register puts on its certificates: owners only, because
+          it is what the register signs its name with. */}
+      {iAmOwner && <CertificateLogoPanel register={entry} />}
 
       {/* ---------------------------------------------------------- invite -- */}
       <section className="space-y-3">

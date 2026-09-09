@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import QRCode from "qrcode";
-import { Check, Copy, ExternalLink, RefreshCw, Radio, X } from "lucide-react";
+import { Award, Check, Copy, ExternalLink, RefreshCw, Radio, X } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,13 @@ import {
 import { formatMonth, sessionsSorted } from "@/lib/register/months";
 import { isPresent } from "@/lib/register/attendance";
 import { isFormerTrainee } from "@/lib/register/eligibility";
-import type { RegisterBlob } from "@/lib/register/types";
+import { useRegister } from "@/contexts/RegisterContext";
+import {
+  bytesToBase64, certificateFilename, renderCertificatePdf,
+} from "@/lib/register/certificate";
+import { supabase } from "@/integrations/supabase/client";
+import { registerLogoUrl } from "@/lib/register/logo";
+import type { RegisterAttendee, RegisterBlob } from "@/lib/register/types";
 
 /** The first of the month, as a sensible default for a day in that month. */
 function firstOf(month: string): string {
@@ -30,6 +36,9 @@ export function LiveSessionPanel({
   registerId: string;
 }) {
   const queryClient = useQueryClient();
+  const { activeRegister } = useRegister();
+  const [issuing, setIssuing] = useState<string | null>(null);
+  const [emailing, setEmailing] = useState(false);
   const [localId, setLocalId] = useState("");
   const [date, setDate] = useState("");
   const [qr, setQr] = useState<string | null>(null);
@@ -119,6 +128,103 @@ export function LiveSessionPanel({
       .filter((t) => !selected?.local_id || !isPresent(blob, t.id, selected.local_id))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [blob, status?.attendees, selected?.local_id]);
+
+  /**
+   * Issue a certificate for one attendee.
+   *
+   * Generated in the browser: pdf-lib is about a megabyte, and putting it in an
+   * edge function would mean paying that on every cold start for a document the
+   * organiser is standing there waiting for. The register's own name and
+   * deanery go on it, which is the part the original got wrong.
+   */
+  const detailsFor = (attendee: RegisterAttendee) => ({
+    traineeName: attendee.name,
+    registerName: activeRegister?.name ?? "Teaching register",
+    deaneryName: activeRegister?.deanery_name ?? "",
+    sessionTitle: selected?.title ?? "Teaching session",
+    sessionDate: selected?.session_date ?? "",
+    location: selected?.location ?? null,
+    logoUrl: registerLogoUrl(activeRegister?.certificate_logo_path),
+  });
+
+  const downloadCertificate = async (attendee: RegisterAttendee) => {
+    if (!selected) return;
+    setIssuing(attendee.id);
+    try {
+      const details = detailsFor(attendee);
+      const bytes = await renderCertificatePdf(details);
+      const url = URL.createObjectURL(
+        new Blob([bytes as BlobPart], { type: "application/pdf" }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = certificateFilename(details);
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not make the certificate");
+    } finally {
+      setIssuing(null);
+    }
+  };
+
+  /**
+   * Email a certificate to everyone who has earned one and not yet had it.
+   *
+   * One request per person rather than one big batch: a bad address for one
+   * trainee should not cost the other nineteen their certificates, and the
+   * organiser wants to know which one failed.
+   */
+  const emailCertificates = async () => {
+    if (!selected) return;
+    const eligible = (status?.attendees ?? []).filter(
+      (a) => a.checked_in_at && a.feedback_completed && !a.certificate_sent_at,
+    );
+    if (!eligible.length) {
+      toast.info("Nobody is waiting for a certificate on this teaching day.");
+      return;
+    }
+
+    setEmailing(true);
+    let sent = 0;
+    const failures: string[] = [];
+
+    for (const attendee of eligible) {
+      try {
+        const bytes = await renderCertificatePdf(detailsFor(attendee));
+        const { data, error } = await supabase.functions.invoke("register-certificate", {
+          body: {
+            session_id: selected.id,
+            attendee_id: attendee.id,
+            pdf_base64: bytesToBase64(bytes),
+          },
+        });
+        // A refusal arrives as a non-2xx, whose body is on the Response the
+        // error carries — without reading it the organiser is told only that
+        // the function returned a non-2xx status code.
+        if (error) {
+          const carried = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
+          const detail = await carried?.json?.().catch(() => null);
+          throw new Error(detail?.error ?? "Could not send it");
+        }
+        const refusal = data as { error?: string } | null;
+        if (refusal?.error) throw new Error(refusal.error);
+        sent++;
+      } catch (e) {
+        failures.push(`${attendee.name}: ${e instanceof Error ? e.message : "failed"}`);
+      }
+    }
+
+    setEmailing(false);
+    await refetch();
+
+    if (sent) toast.success(`${sent} certificate${sent === 1 ? "" : "s"} sent.`);
+    if (failures.length) {
+      toast.error(failures[0], {
+        description: failures.length > 1 ? `and ${failures.length - 1} more` : undefined,
+      });
+    }
+  };
 
   if (!blob.sessions.length) {
     return (
@@ -251,6 +357,21 @@ export function LiveSessionPanel({
                           {a.feedback_completed ? "feedback given" : "feedback outstanding"}
                         </p>
                       </div>
+                      {/* Feedback first, as the original required: the
+                          certificate is what the feedback is exchanged for. */}
+                      <Button
+                        size="icon" variant="ghost" className="h-7 w-7"
+                        disabled={!a.feedback_completed || issuing === a.id}
+                        title={a.feedback_completed
+                          ? `Certificate for ${a.name}`
+                          : `${a.name} has not given feedback yet`}
+                        aria-label={a.feedback_completed
+                          ? `Download the certificate for ${a.name}`
+                          : `${a.name} has not given feedback yet`}
+                        onClick={() => downloadCertificate(a)}
+                      >
+                        <Award className="h-3.5 w-3.5" />
+                      </Button>
                       <Button size="icon" variant="ghost" className="h-7 w-7"
                         aria-label={`Unmark ${a.name}`}
                         onClick={() => mark.mutate({
@@ -260,6 +381,24 @@ export function LiveSessionPanel({
                       </Button>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {status?.attendees.some((a) => a.checked_in_at && a.feedback_completed) && (
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <Button
+                    size="sm" variant="outline" className="gap-1.5"
+                    disabled={emailing}
+                    onClick={emailCertificates}
+                  >
+                    <Award className="h-3.5 w-3.5" />
+                    {emailing ? "Sending…" : "Email certificates"}
+                  </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {status.attendees.filter(
+                      (a) => a.checked_in_at && a.feedback_completed && !a.certificate_sent_at,
+                    ).length} waiting
+                  </span>
                 </div>
               )}
 

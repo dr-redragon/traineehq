@@ -34,6 +34,10 @@ export interface RegisterDirectoryEntry {
   specialty_name: string;
   member_count: number;
   i_am_member: boolean;
+  /** Owners administer the register: membership, and its certificate badge. */
+  i_am_owner: boolean;
+  /** Object path in the register-logos bucket, or null for no badge. */
+  certificate_logo_path: string | null;
   /** The status of this user's most recent request, if they have ever made one. */
   my_request: RequestStatus | null;
 }

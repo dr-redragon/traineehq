@@ -21,12 +21,14 @@ import RegisterDetail from "./pages/RegisterDetail";
 import RegisterAccess from "./pages/RegisterAccess";
 import RegisterCheckIn from "./pages/register/CheckIn";
 import RegisterFeedback from "./pages/register/Feedback";
+import RegisterSignIn from "./pages/register/SignIn";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { DeaneryProvider } from "./contexts/DeaneryContext";
 import { RegisterProvider } from "./contexts/RegisterContext";
 import { RegisterLayout } from "./components/register/RegisterLayout";
 import { RequireAuth } from "./components/RequireAuth";
+import { GdprConsentNotice } from "./components/GdprConsentNotice";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +70,11 @@ const App = () => (
         <Sonner />
         {/* BASE_URL is "/" locally and "/<repo>/" on GitHub Pages. */}
         <BrowserRouter basename={import.meta.env.BASE_URL}>
+          {/* Mounted once rather than per-layout: the registers use their own
+              shell, and a notice that only appeared on TraineeHQ pages would
+              miss the organisers who live in the register. It renders nothing
+              when signed out or already acknowledged. */}
+          <GdprConsentNotice />
           <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />
@@ -92,6 +99,9 @@ const App = () => (
               else.
             */}
             <Route path="/registers/checkin" element={<RegisterCheckIn />} />
+            {/* The register's own front door. A static segment, so it outranks
+                the ":slug" route below rather than being read as a register. */}
+            <Route path="/registers/sign-in" element={<RegisterSignIn />} />
             <Route path="/registers/feedback" element={<RegisterFeedback />} />
 
             {/*
@@ -106,7 +116,7 @@ const App = () => (
             <Route
               path="/registers"
               element={
-                <RequireAuth>
+                <RequireAuth signInPath="/registers/sign-in">
                   <RegisterProvider>
                     <RegisterLayout />
                   </RegisterProvider>
