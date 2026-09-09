@@ -29,7 +29,8 @@ Still true, and still blocking:
 
 - **1.3 is in doubt** — see the note there. The source project for the storage
   copy is not on this Supabase account any more.
-- **1.4** no `RESEND_API_KEY`, so every email path fails silently.
+- **1.4** the key is set and works, but the sender is still Resend's shared
+  testing address, so mail reaches nobody but the Resend account owner.
 - **1.5** the project is on Free and pauses after about a week of no traffic.
 - **Phase 3** the register still holds 52 placeholder trainees.
 
@@ -136,17 +137,43 @@ returns 11, and a file downloads from the app.
 > Either way, do not leave the rows pointing at files that are not there: a
 > resource that 404s on download is worse than one that is absent.
 
-### 1.4 Set the email credential
+### 1.4 Set the email credential — **done**, but see 1.4b
 
-`RESEND_API_KEY` is not set on this project, so **every email path fails
-silently**: user invites, access-request confirmations, the contact form.
+`RESEND_API_KEY` is set on the project and verified working: a contact-form
+enquiry, an access-request confirmation and a certificate with a PDF attachment
+were all delivered on 9 Sep. No redeploy was needed — functions pick the secret
+up on their next boot.
 
-Supabase dashboard → Edge Functions → Secrets → add `RESEND_API_KEY`
-(optionally `CONTACT_FORWARD_TO`). Redeploy the functions afterwards so they
-pick it up.
+Optionally also set `CONTACT_FORWARD_TO`, which decides where contact-form
+enquiries land; it currently falls back to an address baked into the source.
+
+### 1.4b Verify a sending domain, and set `RESEND_FROM`
+
+**This is what still stops email reaching real people.** All five mailing
+functions send from `onboarding@resend.dev`, Resend's shared testing sender,
+and with no verified domain Resend refuses every recipient except the Resend
+account's own address — not even a plus-alias of it — with:
+
+> 403 validation_error: You can only send testing emails to your own email
+> address. To send emails to other recipients, please verify a domain at
+> resend.com/domains, and change the `from` address to an email using this
+> domain.
+
+Confirmed live against `invite-user`, `register-invite`, `contact-form-email`
+and `access-request-email`. The HTTP call succeeds and the send does not, so it
+fails quietly unless somebody reads the logs — `invite-user` and
+`register-invite` at least return `email_sent: false`.
+
+1. Verify a domain you control at resend.com/domains (DNS records; NHS domains
+   may need the trust's IT to add them).
+2. Add a Supabase secret `RESEND_FROM`, e.g. `HST Training Hub
+   <noreply@yourdomain>`, using an address on that domain.
+
+All five functions read `RESEND_FROM` and fall back to the testing sender, so
+this is one secret rather than a code change — and no redeploy.
 
 **Check:** invite yourself at a second address from Admin → Users and receive
-the mail.
+the mail. `email_sent` comes back `true`.
 
 ### 1.5 Decide the Supabase plan, and act on it
 
@@ -486,7 +513,7 @@ If you want the site genuinely live today and are willing to accept Phase 5:
 2. ~~`supabase functions deploy register-api register-invite` (1.2).~~ **Done.**
 3. Run `migrate-storage.mjs` (1.3) — **read the note there first; the source
    project may no longer exist.**
-4. Set `RESEND_API_KEY` (1.4).
+4. Verify a sending domain and set `RESEND_FROM` (1.4b) — the key itself is done.
 5. Upgrade off Free, or accept that the site dies after a quiet week (1.5).
 6. Custom domain + Supabase redirect URLs (2.1, 2.2).
 7. Replace the placeholder cohort (3.1) and invite the real users (3.2).
