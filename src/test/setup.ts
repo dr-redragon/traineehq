@@ -35,3 +35,9 @@ Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.setPointerCapture ??= () => {};
 Element.prototype.releasePointerCapture ??= () => {};
 Element.prototype.scrollIntoView ??= () => {};
+
+// jsdom has no layout, so it implements no scrolling: window.scrollTo logs a
+// "Not implemented" error through the virtual console rather than throwing.
+// Nothing fails, but the noise buries real output, and code under test is
+// entitled to ask the window to scroll.
+window.scrollTo = (() => {}) as typeof window.scrollTo;

@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { YearChip } from "@/components/register/YearChip";
 import { ALL_YEARS, academicYearRange } from "@/lib/register/months";
 
 /**
@@ -17,27 +17,23 @@ export function YearTabs({
   return (
     <div className="flex flex-wrap gap-1.5">
       {years.map((year) => (
-        <Button
+        <YearChip
           key={year}
-          size="sm"
-          variant={value === year ? "default" : "outline"}
-          className="h-7 px-2.5 text-xs"
+          pressed={value === year}
           title={academicYearRange(year)}
           onClick={() => onChange(year)}
         >
           {year}
-        </Button>
+        </YearChip>
       ))}
       {years.length > 1 && (
-        <Button
-          size="sm"
-          variant={value === ALL_YEARS ? "default" : "outline"}
-          className="h-7 px-2.5 text-xs"
+        <YearChip
+          pressed={value === ALL_YEARS}
           title="Every academic year at once"
           onClick={() => onChange(ALL_YEARS)}
         >
           All years
-        </Button>
+        </YearChip>
       )}
     </div>
   );

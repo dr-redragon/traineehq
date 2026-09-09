@@ -9,7 +9,8 @@ export type WidgetId =
   | "recent_resources"
   | "watched_discussions"
   | "contacts"
-  | "file_browser";
+  | "file_browser"
+  | "registers";
 
 export interface WidgetSettings {
   file_browser?: {
@@ -22,6 +23,7 @@ export interface WidgetSettings {
 const DEFAULT_LAYOUT: WidgetId[] = [
   "announcements",
   "specialties",
+  "registers",
   "file_browser",
   "bookmarks",
   "recent_resources",
