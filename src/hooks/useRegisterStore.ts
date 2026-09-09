@@ -33,7 +33,22 @@ const MAX_ATTEMPTS = 4;
  * collision resolves in one or two; more than that means something is writing
  * in a loop, and failing loudly beats retrying forever.
  */
-export function useRegisterStore(registerId: string | undefined) {
+export function useRegisterStore(
+  registerId: string | undefined,
+  options: {
+    /**
+     * Keep the blob fresh while a teaching day is being run.
+     *
+     * A trainee scanning the QR writes the attendance mark server-side, through
+     * `register_record_checkin()`. Nothing tells this tab about it, so without a
+     * poll the organiser watches a grid that says nobody has arrived. Only the
+     * Check-in tab asks for this: everywhere else, a register is a document
+     * somebody is reading, and re-fetching it every twenty seconds would be
+     * traffic spent on nothing.
+     */
+    live?: boolean;
+  } = {},
+) {
   const queryClient = useQueryClient();
   const { data: user } = useCurrentUser();
   const queryKey = ["register-store", registerId, user?.id];
@@ -42,6 +57,10 @@ export function useRegisterStore(registerId: string | undefined) {
     queryKey,
     queryFn: () => fetchRegisterStore(registerId!),
     enabled: !!registerId && !!user,
+    refetchInterval: options.live ? 20_000 : false,
+    // Coming back to the tab after showing the QR on the projector should not
+    // mean waiting out the interval to see who signed in.
+    refetchOnWindowFocus: options.live,
   });
 
   const mutation = useMutation({
@@ -88,5 +107,7 @@ export function useRegisterStore(registerId: string | undefined) {
     /** Apply an edit. Retries on a conflict by replaying it on the newer blob. */
     edit,
     isSaving: mutation.isPending,
+    /** Re-read now, rather than waiting for the poll. */
+    refresh: () => queryClient.invalidateQueries({ queryKey }),
   };
 }

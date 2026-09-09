@@ -11,6 +11,7 @@ import { RegisterPageShell } from "@/components/register/RegisterPageShell";
 import { FeedbackQuestionField } from "@/components/register/FeedbackQuestionField";
 import { fetchPublicSession, submitFeedback } from "@/lib/register/liveApi";
 import { recallCheckIn } from "@/lib/register/checkInMemory";
+import type { CertificateOutcome } from "@/lib/register/types";
 
 type Answers = Record<string, string | number | string[]>;
 
@@ -30,7 +31,9 @@ export default function Feedback() {
   const [answers, setAnswers] = useState<Answers>({});
   const [comments, setComments] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState<"recorded" | "already_submitted" | null>(null);
+  const [done, setDone] = useState<
+    { status: "recorded" | "already_submitted"; certificate?: CertificateOutcome } | null
+  >(null);
   const [problem, setProblem] = useState("");
 
   const session = useQuery({
@@ -68,12 +71,18 @@ export default function Feedback() {
           <CardContent className="space-y-3 py-10 text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-success" />
             <h1 className="font-display text-xl font-bold">
-              {done === "already_submitted" ? "You've already answered" : "Thank you"}
+              {done.status === "already_submitted" ? "You've already answered" : "Thank you"}
             </h1>
             <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-              {done === "already_submitted"
+              {done.status === "already_submitted"
                 ? "We have your feedback for this teaching day already."
                 : "Your answers are anonymous — they are stored with no name attached."}
+            </p>
+            {/* What became of the certificate this was exchanged for. Said here
+                because the sign-in page promised it, and "thank you" alone
+                leaves somebody wondering whether to chase it. */}
+            <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+              {certificateNote(done.certificate)}
             </p>
           </CardContent>
         </Card>
@@ -101,7 +110,7 @@ export default function Feedback() {
       const result = await submitFeedback({
         sessionId, identifier: identifier.trim(), overallRating: rating, answers, comments,
       });
-      setDone(result.status);
+      setDone({ status: result.status, certificate: result.certificate });
     } catch (e) {
       setProblem(e instanceof Error ? e.message : "Something went wrong — please try again.");
     } finally {
@@ -158,6 +167,37 @@ export default function Feedback() {
       </Card>
     </Shell>
   );
+}
+
+/**
+ * What to tell the trainee about their certificate.
+ *
+ * Every outcome gets a sentence, including the ones that are somebody else's
+ * problem: a trainee who is told "your certificate is on its way" and receives
+ * nothing has no way of knowing whether to wait or to ask.
+ */
+function certificateNote(outcome: CertificateOutcome | undefined): string {
+  switch (outcome) {
+    case "sent":
+      return "Your certificate of attendance is on its way to the address you signed in with.";
+    case "already_sent":
+    case "already_recorded":
+      return "Your certificate has already been sent.";
+    case "skipped_no_email":
+      return "We have no email address on file for you, so your certificate cannot be sent — "
+        + "ask the organiser to add one.";
+    case "skipped_no_match":
+    case "skipped_not_checked_in":
+      return "We could not match you to a sign-in for this teaching day, so no certificate has "
+        + "been issued. Ask the organiser to check the register.";
+    case "email_not_configured":
+    case "failed_email":
+    case "failed_pdf":
+      return "Your feedback is recorded, but the certificate could not be sent just now. "
+        + "The organiser can issue it.";
+    default:
+      return "Your certificate follows by email.";
+  }
 }
 
 function Shell({ children }: { children: React.ReactNode }) {

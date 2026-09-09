@@ -55,8 +55,13 @@ export default function RegisterDetail() {
   const { data: directory, isLoading: directoryLoading } = useRegisterDirectory();
   const entry = directory?.find((r) => r.slug === slug);
 
+  // Controlled, so the store knows when the Check-in tab is the one on screen
+  // and can keep itself fresh against trainees signing in.
+  const [tab, setTab] = useState("attendance");
+
   const { blob, isLoading: storeLoading, edit, isSaving } = useRegisterStore(
     entry?.i_am_member ? entry.id : undefined,
+    { live: tab === "checkin" },
   );
 
   // A tick in the grid is a check-in, so it has to reach the published teaching
@@ -145,7 +150,7 @@ export default function RegisterDetail() {
       {storeLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : (
-        <Tabs defaultValue="attendance">
+        <Tabs value={tab} onValueChange={setTab}>
           {/* Scrolls rather than wrapping or shrinking on a phone: five tabs
               squeezed into 375px are unreadable and unhittable. Sticky, so the
               masthead scrolls away but the way between panels does not — a
@@ -193,7 +198,8 @@ export default function RegisterDetail() {
           </TabsContent>
 
           <TabsContent value="checkin" className="mt-4">
-            <CheckInPanel blob={blob} registerId={entry.id} onEdit={edit} />
+            <CheckInPanel
+              blob={blob} registerId={entry.id} registerSlug={entry.slug} onEdit={edit} />
           </TabsContent>
 
           <TabsContent value="feedback" className="mt-4">

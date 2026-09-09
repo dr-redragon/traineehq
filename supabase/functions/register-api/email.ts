@@ -6,6 +6,11 @@
 // them. Swapping Resend for SendGrid, Postmark or an institutional relay means
 // rewriting this file and nothing else.
 
+export interface EmailAttachment {
+  filename: string;
+  content: Uint8Array;
+}
+
 export interface EmailMessage {
   to: string;
   /** Used by the chaser, so recipients cannot see one another. */
@@ -15,6 +20,24 @@ export interface EmailMessage {
   subject: string;
   html: string;
   text?: string;
+  /** The certificate PDF. Resend takes attachments base64-encoded. */
+  attachments?: EmailAttachment[];
+}
+
+/**
+ * Bytes to base64.
+ *
+ * Chunked rather than `String.fromCharCode(...bytes)`, which passes every byte
+ * as a separate argument and blows the call-stack limit somewhere around a
+ * hundred thousand of them — well inside the size of a certificate.
+ */
+function base64(bytes: Uint8Array): string {
+  const CHUNK = 0x8000;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
 }
 
 // The failures worth telling an organiser apart. Everything else is "provider".
@@ -114,6 +137,11 @@ export async function sendEmail(message: EmailMessage): Promise<EmailResult> {
   if (message.text) body.text = message.text;
   const replyTo = message.replyTo?.length ? message.replyTo : replyToAddresses();
   if (replyTo.length) body.reply_to = replyTo;
+  if (message.attachments?.length) {
+    body.attachments = message.attachments.map((a) => ({
+      filename: a.filename, content: base64(a.content),
+    }));
+  }
 
   for (let attempt = 0; attempt < 3; attempt++) {
     await throttle();

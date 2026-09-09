@@ -17,7 +17,7 @@ import { LiveDayCard } from "@/components/register/LiveDayCard";
 import { YearTabs } from "@/components/register/YearTabs";
 import { useLiveAttendanceSync } from "@/hooks/useLiveAttendanceSync";
 import { fetchSessionStatus } from "@/lib/register/liveApi";
-import { gradeAt, isPresent } from "@/lib/register/attendance";
+import { gradeAt, isPresent, refreshGrades } from "@/lib/register/attendance";
 import { setAttendance } from "@/lib/register/blob";
 import { splitByEmail, unexplainedAbsentees } from "@/lib/register/chase";
 import { GRADES } from "@/lib/register/constants";
@@ -46,10 +46,11 @@ import { cn } from "@/lib/utils";
  * grid — is pushed to the live list through `mark-attended`.
  */
 export function CheckInPanel({
-  blob, registerId, onEdit,
+  blob, registerId, registerSlug, onEdit,
 }: {
   blob: RegisterBlob;
   registerId: string;
+  registerSlug: string;
   onEdit: (edit: RegisterEdit) => void;
 }) {
   const { activeRegister } = useRegister();
@@ -120,12 +121,16 @@ export function CheckInPanel({
     [blob, active],
   );
 
-  const notYetIn = useMemo(
-    () => (active
-      ? blob.trainees.filter((t) => !isPresent(blob, t.id, active.id))
-        .sort((a, b) => a.name.localeCompare(b.name))
-      : []),
-    [blob, active],
+  /**
+   * Everyone, not only the people not yet marked.
+   *
+   * Re-marking somebody already present is how their grade gets corrected —
+   * they signed in as ST5 and are actually ST6 — so hiding them would remove
+   * the only way to fix it from the tab where it is noticed.
+   */
+  const pickable = useMemo(
+    () => [...blob.trainees].sort((a, b) => a.name.localeCompare(b.name)),
+    [blob.trainees],
   );
 
   const markPresent = () => {
@@ -134,9 +139,14 @@ export function CheckInPanel({
       return;
     }
     const trainee = blob.trainees.find((t) => t.id === manualTrainee);
-    onEdit((b) => setAttendance(b, manualTrainee, active.id, true, manualGrade || undefined));
+    // Marking present with a grade is a sign-in, so it re-dates the grade held
+    // on the roster exactly as the trainee's own sign-in would.
+    onEdit((b) =>
+      refreshGrades(setAttendance(b, manualTrainee, active.id, true, manualGrade || undefined)).blob);
     void pushMark(manualTrainee, active.id, true, manualGrade || undefined);
-    toast.success(`${trainee?.name ?? "Trainee"} marked present.`);
+    toast.success(
+      `${trainee?.name ?? "Trainee"} marked present${manualGrade ? ` as ${manualGrade}` : ""}.`,
+    );
     setManualTrainee("");
     setManualGrade("");
   };
@@ -274,8 +284,11 @@ export function CheckInPanel({
                   <Select value={manualTrainee} onValueChange={setManualTrainee}>
                     <SelectTrigger><SelectValue placeholder="Trainee…" /></SelectTrigger>
                     <SelectContent>
-                      {notYetIn.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                      {pickable.map((t) => (
+                        <SelectItem key={t.id} value={t.id}>
+                          {t.name}
+                          {active && isPresent(blob, t.id, active.id) ? " — already in" : ""}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -324,6 +337,7 @@ export function CheckInPanel({
               key={active.id}
               blob={blob}
               registerId={registerId}
+              registerSlug={registerSlug}
               session={active}
               live={live}
               onEdit={onEdit}

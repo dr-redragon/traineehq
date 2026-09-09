@@ -1,4 +1,4 @@
-import type { RegisterBlob, RegisterSession } from "./types";
+import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
 import { sessionsSorted } from "./months";
 
 /**
@@ -66,4 +66,46 @@ export function latestGrade(
   }
 
   return "";
+}
+
+/**
+ * Re-date every trainee's grade from the newest sign-in that recorded one.
+ *
+ * A grade is not a property of a person, it is a property of a rotation: the
+ * trainee tells us what they are on the sign-in form, and the answer changes
+ * every August. So the record on the trainee tracks their most recent sign-in,
+ * and `gradeFrom` remembers which teaching day it came from.
+ *
+ * That date is the whole point. Without it, folding in a batch of sign-ins in
+ * any order lets an old one win, and a grade an organiser corrected by hand is
+ * undone by the next re-sync of a day that happened two years ago. With it, a
+ * grade only ever moves forward: a later month supersedes an earlier one, and a
+ * hand-set grade stands until an actual later sign-in disagrees.
+ *
+ * Pure, like everything else that edits the blob — `useRegisterStore` replays
+ * these against a newer blob when a save collides.
+ */
+export function refreshGrades(blob: RegisterBlob): { blob: RegisterBlob; changed: number } {
+  const all = sessionsSorted(blob.sessions);
+  let changed = 0;
+
+  const trainees = blob.trainees.map((trainee): RegisterTrainee => {
+    let grade = "";
+    let month = "";
+    for (let i = all.length - 1; i >= 0; i--) {
+      const g = gradeAt(blob, trainee.id, all[i].id);
+      if (g) { grade = g; month = all[i].month; break; }
+    }
+    if (!grade) return trainee;
+
+    // Strictly later than the month the held grade was dated from. Equal months
+    // change nothing, so re-syncing the same teaching day twice is a no-op.
+    if (month <= (trainee.gradeFrom ?? "")) return trainee;
+    if (trainee.grade === grade && trainee.gradeFrom === month) return trainee;
+
+    changed++;
+    return { ...trainee, grade, gradeFrom: month };
+  });
+
+  return { blob: changed ? { ...blob, trainees } : blob, changed };
 }

@@ -277,6 +277,14 @@ reading and writing through `save_register()` with the version guard.
    Before this, making a past teaching day live to collect feedback produced an
    empty sign-in list beside a grid full of ticks, and nobody who had actually
    attended could be sent the form.
+4b. ✅ The session console — `pages/register/SessionConsole.tsx` at
+   `/registers/:slug/day?s=…`, reached from the Check-in tab exactly as
+   `session.html` was. Both QR codes (sign-in and feedback) with their links, the
+   stats strip, the full attendee table with per-person send/resend and a
+   feedback reset, the certificate preview, the delete-all-feedback door, and the
+   report: overall distribution, per-question results by type (a scale averages,
+   a choice or checkbox is tallied keeping the options nobody picked, free text
+   is listed), comments with dates, recurring words, and the CSV.
 5. ✅ Feedback reporting and form design — `FeedbackPanel.tsx` for per-question
    averages, the rating distribution, the comments and a CSV export, read off
    the session's *own* stored form so rewording a question later cannot relabel
@@ -347,6 +355,31 @@ the footer. Rendered in the browser (a dynamic pdf-lib import, so the megabyte
 lands in its own chunk) and posted already drawn to `register-certificate`,
 which emails it — taking the address from the database rather than the request,
 so it cannot be used as an authenticated open relay.
+
+**Everything else: ported 2026-09-09 (second pass).** The remaining gaps against
+the standalone register are closed:
+
+- `submit-feedback` **issues the certificate itself**, server-side, which is
+  what the sign-in page has always promised a trainee. `certificate.ts` is the
+  same design as the browser's, ported to Deno because the moment a certificate
+  is owed is the moment a trainee submits — on their phone, at night, with no
+  organiser's browser open. `certificateParity.test.ts` reads that file and
+  pins the wording, palette, geometry and line order to the browser's.
+- `send-certificate` (with `force`, for somebody who answered on paper) and
+  `certificate-preview`.
+- `reset-feedback` gained the original's `confirm` path, which deletes a
+  teaching day's responses and reopens the form. It is the only way to remove an
+  individual answer, precisely because nothing links one to a person.
+- `session-status` reports `email_reply_to`, so the sender is shown when it is
+  working and not only when it is broken.
+
+**A sign-in is a write like any other.** `register_record_checkin()` and
+`register_enrol_trainee()` patched the blob without bumping `version`, so an
+organiser holding a blob from before a sign-in had their next tick accepted —
+and it overwrote the sign-in, silently. `20260909120000` bumps the version, which
+turns that into the conflict it always was and lets `useRegisterStore`'s existing
+replay keep both. The Check-in tab also re-reads the blob every twenty seconds,
+so sign-ins appear as they happen rather than when somebody presses re-sync.
 
 **`email-feedback-link` and `chase-absences`: ported 2026-09-09.** Both send
 through `supabase/functions/register-api/email.ts`, which throttles to the

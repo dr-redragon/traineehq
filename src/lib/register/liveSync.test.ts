@@ -136,12 +136,17 @@ describe("mergeCheckIns", () => {
 
 describe("describeSync", () => {
   it("says plainly when there was nothing to do", () => {
-    const nothing = { blob: blob(), added: 0, regraded: 0, emailed: 0, enrolled: [] };
+    const nothing = {
+      blob: blob(), added: 0, regraded: 0, emailed: 0, enrolled: [], regraded_records: 0,
+    };
     expect(describeSync(nothing, 0)).toMatch(/already matched/);
   });
 
   it("counts both directions", () => {
-    const result = { blob: blob(), added: 2, regraded: 0, emailed: 1, enrolled: ["Dana Okafor"] };
+    const result = {
+      blob: blob(), added: 2, regraded: 0, emailed: 1, enrolled: ["Dana Okafor"],
+      regraded_records: 0,
+    };
     const text = describeSync(result, 3);
     expect(text).toContain("2 sign-ins added");
     expect(text).toContain("3 marked present here are now on the live list too");

@@ -21,8 +21,9 @@
 // here reads a feedback row alongside a name or an address.
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.4?target=deno";
 import {
-  emailConfigured, explainFailure, fromEmail, sendEmail, usingSandboxSender,
+  emailConfigured, explainFailure, fromEmail, replyToAddresses, sendEmail, usingSandboxSender,
 } from "./email.ts";
+import { certificateFilename, renderCertificatePdf } from "./certificate.ts";
 
 // Where the feedback link in an outbound email points. Derived from the
 // environment, never from the request: a member could otherwise have the
@@ -286,11 +287,27 @@ async function handleSubmitFeedback(db: SupabaseClient, body: Record<string, unk
     return json({ error: "This feedback link is not valid any more" }, 404);
   }
   if (row.status === "already_submitted") {
-    return json({ ok: true, status: "already_submitted" });
+    return json({ ok: true, status: "already_submitted", certificate: "already_recorded" });
   }
-  // Feedback is kept either way; "unmatched" simply means there is nobody to
-  // issue a certificate to once certificates are ported.
-  return json({ ok: true, status: "recorded", matched: row.status === "recorded" });
+  // Feedback is kept either way; "unmatched" means the identifier matched
+  // nobody who signed in, so there is no attendee to issue a certificate to.
+  if (row.status === "recorded_unmatched") {
+    return json({ ok: true, status: "recorded", matched: false, certificate: "skipped_no_match" });
+  }
+
+  // The exchange the sign-in page promises: the feedback is what releases the
+  // certificate, and it is released here, at the moment it is earned, rather
+  // than waiting for an organiser to be at a screen.
+  const certificate = await issueCertificate(db, {
+    id: row.attendee_id,
+    session_id: sessionId,
+    name: row.attendee_name,
+    email: row.attendee_email,
+    checked_in: !!row.checked_in,
+    certificate_sent_at: row.certificate_sent_at,
+  });
+
+  return json({ ok: true, status: "recorded", matched: true, certificate });
 }
 
 async function handleCreateSession(
@@ -352,7 +369,196 @@ async function handleSessionStatus(db: SupabaseClient, sessionId: string) {
     email_configured: emailConfigured(),
     email_sandbox: usingSandboxSender(),
     email_from: fromEmail(),
+    // Said even when everything is working, so an organiser can see where
+    // trainees' replies will land before one of them replies.
+    email_reply_to: replyToAddresses(),
   });
+}
+
+/* -------------------------------------------------------------- certificates */
+
+/** The register's own name, deanery and badge, for what goes on the paper. */
+async function registerIdentity(db: SupabaseClient, registerId: string) {
+  const { data } = await db.from("registers")
+    .select("name, certificate_logo_path, deaneries(name)")
+    .eq("id", registerId).maybeSingle();
+
+  const row = data as {
+    name?: string;
+    certificate_logo_path?: string | null;
+    deaneries?: { name?: string } | { name?: string }[] | null;
+  } | null;
+
+  const deanery = Array.isArray(row?.deaneries) ? row?.deaneries[0] : row?.deaneries;
+  const path = row?.certificate_logo_path ?? null;
+
+  return {
+    registerName: row?.name ?? "Teaching register",
+    deaneryName: deanery?.name ?? "",
+    // The badge bucket is public-read, so this URL keeps working whenever the
+    // certificate is issued. A signed one would expire and quietly produce a
+    // certificate with no badge months later.
+    logoUrl: path
+      ? `${Deno.env.get("SUPABASE_URL")}/storage/v1/object/public/register-logos/${path}`
+      : null,
+  };
+}
+
+/** Every way issuing a certificate can end, as one word the UI can explain. */
+type CertificateOutcome =
+  | "sent" | "already_sent" | "skipped_not_checked_in" | "skipped_no_feedback"
+  | "skipped_no_email" | "email_not_configured" | "failed_pdf" | "failed_email";
+
+/**
+ * Draw a certificate and email it, if this person has earned one.
+ *
+ * Called on the trainee's own submission — which is the point. The sign-in page
+ * tells them that completing the feedback releases their certificate, and until
+ * this existed that was only true if an organiser happened to be at a screen
+ * afterwards and pressed a button.
+ *
+ * `certificate_sent_at` is stamped only once the send has actually succeeded,
+ * so a failure can be retried rather than looking like it worked.
+ */
+async function issueCertificate(
+  db: SupabaseClient,
+  attendee: {
+    id: string; session_id: string; name: string; email: string;
+    checked_in: boolean; certificate_sent_at: string | null;
+  },
+  force = false,
+): Promise<CertificateOutcome> {
+  if (attendee.certificate_sent_at && !force) return "already_sent";
+  if (!attendee.checked_in && !force) return "skipped_not_checked_in";
+  if (isPlaceholderEmail(attendee.email)) return "skipped_no_email";
+  if (!emailConfigured()) return "email_not_configured";
+
+  const { data: session } = await db.from("register_sessions")
+    .select("id, register_id, title, session_date, location")
+    .eq("id", attendee.session_id).maybeSingle();
+  if (!session) return "failed_pdf";
+
+  const identity = await registerIdentity(db, session.register_id);
+  const details = {
+    traineeName: attendee.name,
+    registerName: identity.registerName,
+    deaneryName: identity.deaneryName,
+    sessionTitle: session.title,
+    sessionDate: session.session_date,
+    location: session.location,
+    logoUrl: identity.logoUrl,
+  };
+
+  let pdf: Uint8Array;
+  try {
+    pdf = await renderCertificatePdf(details);
+  } catch (err) {
+    console.error("certificate render failed", err);
+    return "failed_pdf";
+  }
+
+  const dateLabel = ukDate(session.session_date);
+  const res = await sendEmail({
+    to: attendee.email,
+    subject: `Your certificate — ${session.title}`,
+    html: `<div style="font-family:Segoe UI,system-ui,sans-serif;font-size:15px;color:#15211c;line-height:1.55">
+      <p>Dear ${esc(attendee.name)},</p>
+      <p>Thank you for attending <strong>${esc(session.title)}</strong> on ${esc(dateLabel)},
+         and for completing the feedback form. Your certificate of attendance is attached.</p>
+      <p style="color:#7a7568;font-size:13px">${esc(identity.registerName)}</p>
+    </div>`,
+    text: `Dear ${attendee.name},\n\nThank you for attending ${session.title} on ${dateLabel}. ` +
+      `Your certificate of attendance is attached.\n\n${identity.registerName}`,
+    attachments: [{ filename: certificateFilename(details), content: pdf }],
+  });
+
+  if (!res.ok) {
+    console.error("certificate email failed", res.error);
+    return "failed_email";
+  }
+
+  await db.from("register_attendees")
+    .update({ certificate_sent_at: new Date().toISOString() })
+    .eq("id", attendee.id);
+
+  return "sent";
+}
+
+/** Issue one certificate on demand, from the session console. */
+async function handleSendCertificate(
+  db: SupabaseClient, sessionId: string, body: Record<string, unknown>,
+) {
+  const attendeeId = cleanText(body.attendee_id, 64);
+  // `force` is the organiser overruling the feedback gate — somebody who gave
+  // their feedback on paper, or a certificate that has to be reissued.
+  const force = body.force === true;
+  if (!attendeeId) return json({ error: "Missing attendee" }, 400);
+
+  const { data: attendee } = await db.from("register_attendees")
+    .select("id, session_id, name, email, checked_in_at, feedback_completed, certificate_sent_at")
+    .eq("id", attendeeId).eq("session_id", sessionId).maybeSingle();
+  if (!attendee) return json({ error: "That person is not on this teaching day" }, 404);
+
+  if (!attendee.feedback_completed && !force) {
+    return json({ ok: true, certificate: "skipped_no_feedback" });
+  }
+
+  const certificate = await issueCertificate(db, {
+    id: attendee.id,
+    session_id: attendee.session_id,
+    name: attendee.name,
+    email: attendee.email,
+    checked_in: !!attendee.checked_in_at,
+    certificate_sent_at: attendee.certificate_sent_at,
+  }, force);
+
+  return json({ ok: true, certificate });
+}
+
+/** Draw a certificate without sending it, so the design can be checked. */
+async function handleCertificatePreview(
+  db: SupabaseClient, registerId: string, sessionId: string | null,
+  body: Record<string, unknown>,
+) {
+  const name = cleanText(body.name, 120) || "Dr Example Trainee";
+
+  let title = "Teaching day";
+  let date = new Date().toISOString().slice(0, 10);
+  let location: string | null = null;
+
+  if (sessionId) {
+    const { data: session } = await db.from("register_sessions")
+      .select("title, session_date, location").eq("id", sessionId).maybeSingle();
+    if (session) {
+      title = session.title;
+      date = session.session_date;
+      location = session.location;
+    }
+  }
+
+  const identity = await registerIdentity(db, registerId);
+  try {
+    const pdf = await renderCertificatePdf({
+      traineeName: name,
+      registerName: identity.registerName,
+      deaneryName: identity.deaneryName,
+      sessionTitle: title,
+      sessionDate: date,
+      location,
+      logoUrl: identity.logoUrl,
+    });
+    // Base64 rather than the raw bytes: this rides back through the same JSON
+    // envelope as every other action, and the caller turns it into a blob.
+    let binary = "";
+    const CHUNK = 0x8000;
+    for (let i = 0; i < pdf.length; i += CHUNK) {
+      binary += String.fromCharCode(...pdf.subarray(i, i + CHUNK));
+    }
+    return json({ ok: true, pdf_base64: btoa(binary) });
+  } catch (err) {
+    console.error("certificate preview failed", err);
+    return json({ error: "The certificate could not be drawn" }, 500);
+  }
 }
 
 /**
@@ -608,24 +814,47 @@ async function handleSaveForm(
 }
 
 /**
- * Let somebody fill the form in again.
+ * Let somebody fill the form in again, or clear a whole teaching day.
  *
- * Clears the gate, not the response: their previous answers stay in the record
- * and stay anonymous — there is no way to find them to delete, which is the
- * point of the anonymity rule.
+ * With an `attendee_id`, this clears one person's gate and nothing else: their
+ * previous answers stay in the record and stay anonymous — there is no way to
+ * find them to delete, which is the point of the anonymity rule.
+ *
+ * With `confirm: true` and no attendee, it deletes every response for the day
+ * and reopens the form for everyone. That is the only way to remove an
+ * individual answer, precisely because nothing links one to a person: a test
+ * run, or a form that asked the wrong question, can only be undone wholesale.
+ * Certificates already issued are left alone — they were earned.
  */
 async function handleResetFeedback(
   db: SupabaseClient, sessionId: string, body: Record<string, unknown>,
 ) {
   const attendeeId = cleanText(body.attendee_id, 64);
-  if (!attendeeId) return json({ error: "Missing attendee" }, 400);
 
-  const { error } = await db.from("register_attendees")
-    .update({ feedback_completed: false })
-    .eq("id", attendeeId).eq("session_id", sessionId);
+  if (attendeeId) {
+    const { error } = await db.from("register_attendees")
+      .update({ feedback_completed: false })
+      .eq("id", attendeeId).eq("session_id", sessionId);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true, deleted: 0 });
+  }
 
-  if (error) return json({ error: error.message }, 500);
-  return json({ ok: true });
+  if (body.confirm !== true) {
+    return json({ error: "Deleting a teaching day's feedback has to be confirmed" }, 400);
+  }
+
+  const { count } = await db.from("register_feedback")
+    .select("id", { count: "exact", head: true }).eq("session_id", sessionId);
+
+  const { error: delError } = await db.from("register_feedback")
+    .delete().eq("session_id", sessionId);
+  if (delError) return json({ error: delError.message }, 500);
+
+  const { error: gateError } = await db.from("register_attendees")
+    .update({ feedback_completed: false }).eq("session_id", sessionId);
+  if (gateError) return json({ error: gateError.message }, 500);
+
+  return json({ ok: true, deleted: count ?? 0 });
 }
 
 /* -------------------------------------------------------------------- router */
@@ -638,11 +867,13 @@ const MEMBER_ACTIONS = new Set([
   "create-session", "session-status", "mark-attended",
   "get-form", "save-form", "reset-feedback",
   "email-feedback-link", "chase-absences",
+  "send-certificate", "certificate-preview",
 ]);
 
 // The subset that names one published teaching day rather than a whole register.
 const SESSION_ACTIONS = new Set([
   "session-status", "mark-attended", "reset-feedback", "email-feedback-link",
+  "send-certificate",
 ]);
 
 Deno.serve(async (req) => {
@@ -705,6 +936,10 @@ Deno.serve(async (req) => {
       case "email-feedback-link":
         return await handleEmailFeedbackLink(db, sessionId!, body);
       case "chase-absences":  return await handleChaseAbsences(db, registerId, body);
+      case "send-certificate":
+        return await handleSendCertificate(db, sessionId!, body);
+      case "certificate-preview":
+        return await handleCertificatePreview(db, registerId, sessionId, body);
       default:                return json({ error: `Unknown action: ${action}` }, 400);
     }
   } catch (err) {
@@ -713,12 +948,12 @@ Deno.serve(async (req) => {
   }
 });
 
-// STILL NOT HERE, and deliberately so:
+// Every action the standalone register had is now here, bar the ones that
+// administered its single tenant's logins — those are TraineeHQ's own account
+// system, not the register's.
 //
-//   send-certificate, certificate-preview
-//
-// Both need pdf-lib (~1MB) server-side. The certificate is instead rendered in
-// the browser, where the organiser is already standing, and posted to the
-// `register-certificate` function already drawn — see the note at the top of
-// that file. Nothing else is outstanding: email-feedback-link and
-// chase-absences are above.
+// `register-certificate` remains as the path an organiser's browser uses to
+// email a PDF it has already drawn: the certificate an organiser downloads and
+// the one a trainee is sent are the same document either way, and that function
+// keeps the rule that the address comes from the database rather than the
+// request.

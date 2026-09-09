@@ -93,6 +93,15 @@ export interface RegisterTrainee {
   name: string;
   /** Set by hand for someone who has not signed in yet; otherwise self-reported. */
   grade?: string;
+  /**
+   * The month `grade` was last dated from, 'YYYY-MM'.
+   *
+   * A grade follows whatever the trainee last put on the sign-in form, so this
+   * is what stops an older sign-in from undoing a newer one — and what lets a
+   * grade set by hand stand until a *later* teaching day supersedes it. See
+   * `refreshGrades`.
+   */
+  gradeFrom?: string;
   /** Where certificates are sent. Absent until the trainee supplies one. */
   email?: string;
 }
@@ -210,7 +219,20 @@ export interface SessionStatus {
   email_configured: boolean;
   email_sandbox: boolean;
   email_from: string;
+  /** Where trainees' replies land, so it can be shown before one replies. */
+  email_reply_to: string[];
 }
+
+/**
+ * Every way issuing a certificate can end.
+ *
+ * A word rather than a boolean because "nothing was sent" has half a dozen
+ * different remedies, and the organiser needs to be told which one applies.
+ */
+export type CertificateOutcome =
+  | "sent" | "already_sent" | "already_recorded" | "skipped_not_checked_in"
+  | "skipped_no_feedback" | "skipped_no_email" | "skipped_no_match"
+  | "email_not_configured" | "failed_pdf" | "failed_email";
 
 /** The outcome of one bulk send: who got it, and by name who did not. */
 export interface SendOutcome {

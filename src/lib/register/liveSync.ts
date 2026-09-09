@@ -1,4 +1,4 @@
-import { attendanceKey, gradeAt, isPresent } from "./attendance";
+import { attendanceKey, gradeAt, isPresent, refreshGrades } from "./attendance";
 import { newId } from "./blob";
 import type { AttendanceMark, RegisterAttendee, RegisterBlob, RegisterTrainee } from "./types";
 
@@ -75,6 +75,8 @@ export interface MergeResult {
   emailed: number;
   /** People who signed in under a name the roster did not hold. */
   enrolled: string[];
+  /** Trainees whose held grade this moved on to a later teaching day's. */
+  regraded_records: number;
 }
 
 /**
@@ -143,7 +145,17 @@ export function mergeCheckIns(
     }
   }
 
-  return { blob: { ...blob, trainees, attendance }, added, regraded, emailed, enrolled };
+  // A sign-in is where a grade comes from, so folding sign-ins in re-dates the
+  // grades held on the roster — see `refreshGrades`. Doing it here rather than
+  // at the call site is what makes "Re-sync sign-ins" leave the register in the
+  // state it would have been in had every sign-in arrived live.
+  const dated = refreshGrades({ ...blob, trainees, attendance });
+
+  return {
+    blob: dated.blob,
+    added, regraded, emailed, enrolled,
+    regraded_records: dated.changed,
+  };
 }
 
 /** One sentence saying what a re-sync actually did, or that it found nothing. */
@@ -157,8 +169,9 @@ export function describeSync(result: MergeResult, pushed: number): string {
       `${pushed} marked present here ${pushed === 1 ? "is" : "are"} now on the live list too.`,
     );
   }
-  if (result.regraded) {
-    parts.push(`${result.regraded} grade${result.regraded === 1 ? "" : "s"} corrected.`);
+  if (result.regraded || result.regraded_records) {
+    const n = Math.max(result.regraded, result.regraded_records);
+    parts.push(`${n} grade${n === 1 ? "" : "s"} brought up to date.`);
   }
   if (result.emailed) {
     parts.push(`${result.emailed} email${result.emailed === 1 ? "" : "s"} added to the roster.`);

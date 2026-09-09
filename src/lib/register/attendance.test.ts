@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { attendanceKey, gradeAt, isPresent, latestGrade } from "./attendance";
+import { attendanceKey, gradeAt, isPresent, latestGrade, refreshGrades } from "./attendance";
 import { EMPTY_REGISTER, type RegisterBlob } from "./types";
 
 const sessions = [
@@ -103,5 +103,68 @@ describe("latestGrade", () => {
 
   it("copes with an empty register", () => {
     expect(latestGrade({ ...EMPTY_REGISTER }, "t1")).toBe("");
+  });
+});
+
+describe("refreshGrades", () => {
+  const days = [
+    { id: "s1", month: "2024-09", title: "Old year" },
+    { id: "s2", month: "2025-09", title: "This year" },
+  ];
+
+  const roster = (trainee: Partial<RegisterBlob["trainees"][number]> = {}) => ({
+    ...EMPTY_REGISTER,
+    sessions: days,
+    trainees: [{ id: "t1", name: "Alice", ...trainee }],
+  });
+
+  it("dates the grade from the newest sign-in that recorded one", () => {
+    const { blob: next, changed } = refreshGrades({
+      ...roster(),
+      attendance: { "t1|s1": { grade: "ST4" }, "t1|s2": { grade: "ST5" } },
+    });
+    expect(changed).toBe(1);
+    expect(next.trainees[0]).toMatchObject({ grade: "ST5", gradeFrom: "2025-09" });
+  });
+
+  it("leaves a hand-set grade alone until a later day disagrees", () => {
+    // Set by hand today; the only sign-in with a grade is a year older, so it
+    // must not win.
+    const held = roster({ grade: "ST6", gradeFrom: "2025-09" });
+    const { blob: next, changed } = refreshGrades({
+      ...held, attendance: { "t1|s1": { grade: "ST4" } },
+    });
+    expect(changed).toBe(0);
+    expect(next.trainees[0].grade).toBe("ST6");
+  });
+
+  it("supersedes a hand-set grade from a later teaching day", () => {
+    const held = roster({ grade: "ST6", gradeFrom: "2024-09" });
+    const { blob: next } = refreshGrades({
+      ...held, attendance: { "t1|s2": { grade: "ST7" } },
+    });
+    expect(next.trainees[0]).toMatchObject({ grade: "ST7", gradeFrom: "2025-09" });
+  });
+
+  it("is a no-op run twice, so re-syncing the same day changes nothing", () => {
+    const once = refreshGrades({
+      ...roster(), attendance: { "t1|s2": { grade: "ST5" } },
+    });
+    const twice = refreshGrades(once.blob);
+    expect(twice.changed).toBe(0);
+    expect(twice.blob).toBe(once.blob);
+  });
+
+  it("says nothing about a trainee who has never signed in with a grade", () => {
+    const { blob: next, changed } = refreshGrades(roster());
+    expect(changed).toBe(0);
+    expect(next.trainees[0].gradeFrom).toBeUndefined();
+  });
+
+  it("leaves the blob it was given untouched", () => {
+    const before = { ...roster(), attendance: { "t1|s2": { grade: "ST5" } } };
+    const snapshot = JSON.stringify(before);
+    refreshGrades(before);
+    expect(JSON.stringify(before)).toBe(snapshot);
   });
 });

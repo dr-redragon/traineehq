@@ -31,7 +31,9 @@ export default function CheckIn() {
   const [email, setEmail] = useState("");
   const [grade, setGrade] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [done, setDone] = useState<{ name: string; enrolled: boolean } | null>(null);
+  const [done, setDone] = useState<
+    { name: string; grade: string; email: string; enrolled: boolean } | null
+  >(null);
   const [problem, setProblem] = useState("");
 
   const session = useQuery({
@@ -83,18 +85,21 @@ export default function CheckIn() {
             <div className="space-y-1.5">
               <h1 className="font-display text-xl font-bold">You're signed in</h1>
               <p className="text-sm text-muted-foreground">
-                {done.name} · {session.data.title}
+                {done.name} ({done.grade}) · {session.data.title}
               </p>
             </div>
+            <p className="mx-auto max-w-sm text-xs text-muted-foreground">
+              After the session you'll get a short feedback form; completing it releases your
+              certificate{done.email
+                ? ` to ${done.email}`
+                : " to the address we hold for you"}.
+            </p>
             {done.enrolled && (
               <p className="mx-auto max-w-sm text-xs text-muted-foreground">
-                You weren't on the register's list, so you've been added to it — you'll be
-                there for future teaching days too.
+                You weren't on the register's list, so you've been added to it — your name will
+                be there next time.
               </p>
             )}
-            <p className="mx-auto max-w-sm text-xs text-muted-foreground">
-              After the session you'll be asked for a short piece of feedback.
-            </p>
           </CardContent>
         </Card>
       </Shell>
@@ -103,8 +108,19 @@ export default function CheckIn() {
 
   const submit = async () => {
     if (!name) { setProblem("Choose your name, or add it if it isn't listed."); return; }
-    if (emailRequired && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setProblem("A valid email address is needed so your certificate can be sent.");
+    // Required, as the original required it: a grade is a fact about this
+    // rotation, not about the person, so it is the one thing that has to be
+    // asked every time. It is also what goes on their certificate.
+    if (!grade) { setProblem("Please choose your grade."); return; }
+    // A typed address is always validated, so a typo cannot silently overwrite
+    // the one already on file.
+    if (email.trim()) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        setProblem("Please enter a valid email address.");
+        return;
+      }
+    } else if (emailRequired) {
+      setProblem("Please enter your email so your certificate can be sent.");
       return;
     }
 
@@ -117,7 +133,7 @@ export default function CheckIn() {
       // Remembered so the feedback form can identify them without ever showing
       // anybody a list of who attended.
       rememberCheckIn(sessionId, { attendeeId: result.attendee.id, name });
-      setDone({ name, enrolled: result.enrolled });
+      setDone({ name, grade, email: email.trim(), enrolled: result.enrolled });
     } catch (e) {
       setProblem(e instanceof Error ? e.message : "Something went wrong — please try again.");
     } finally {
@@ -166,7 +182,8 @@ export default function CheckIn() {
 
           <div className="space-y-1.5">
             <Label htmlFor="grade" className="text-xs">
-              Grade <span className="text-muted-foreground">(as of today)</span>
+              Grade <span className="text-destructive">*</span>{" "}
+              <span className="text-muted-foreground">(as of today)</span>
             </Label>
             <Select value={grade} onValueChange={setGrade}>
               <SelectTrigger id="grade"><SelectValue placeholder="Choose" /></SelectTrigger>

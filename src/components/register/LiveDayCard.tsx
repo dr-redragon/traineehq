@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Award, Copy, ExternalLink, Loader2, Mail, Pencil, Radio, RefreshCw, RotateCcw,
+  Award, ClipboardList, Copy, ExternalLink, Loader2, Mail, Pencil, Radio, RefreshCw, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -13,14 +14,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  emailFeedbackLink, fetchSessionStatus, publishSession, resetFeedback,
+  emailFeedbackLink, fetchSessionStatus, publishSession, resetFeedback, sendCertificate,
 } from "@/lib/register/liveApi";
+import { CERTIFICATE_OUTCOME } from "@/lib/register/certificateOutcome";
 import { describeSync, mergeCheckIns } from "@/lib/register/liveSync";
-import {
-  bytesToBase64, certificateFilename, renderCertificatePdf,
-} from "@/lib/register/certificate";
+import { certificateFilename, renderCertificatePdf } from "@/lib/register/certificate";
 import { registerLogoUrl } from "@/lib/register/logo";
-import { supabase } from "@/integrations/supabase/client";
 import { useRegister } from "@/contexts/RegisterContext";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import type {
@@ -41,10 +40,12 @@ const ukDate = (value: string) =>
  * afterwards — rather than as one undifferentiated row of controls.
  */
 export function LiveDayCard({
-  blob, registerId, session, live, onEdit, onPublished, pushAllPresent, onEditForm,
+  blob, registerId, registerSlug, session, live, onEdit, onPublished, pushAllPresent, onEditForm,
 }: {
   blob: RegisterBlob;
   registerId: string;
+  /** For the link through to this teaching day's own console. */
+  registerSlug: string;
   /** The day in the register blob. */
   session: RegisterSession;
   /** Its published counterpart, once there is one. */
@@ -198,9 +199,16 @@ export function LiveDayCard({
   };
 
   /**
+   * Catch up anyone still owed a certificate.
+   *
+   * Ordinarily nobody is: submitting the feedback issues it, server-side, at
+   * the moment it is earned. This is the repair path — for a day whose feedback
+   * came in before that worked, or a send that failed on a bad address since
+   * corrected.
+   *
    * One request per person rather than one batch: a bad address for one trainee
-   * should not cost the other nineteen their certificates, and the organiser
-   * wants to know which one failed.
+   * should not cost the other nineteen theirs, and the organiser wants to know
+   * which one failed.
    */
   const emailCertificates = async () => {
     if (!live) return;
@@ -216,23 +224,13 @@ export function LiveDayCard({
 
     for (const attendee of eligible) {
       try {
-        const bytes = await renderCertificatePdf(detailsFor(attendee));
-        const { data, error } = await supabase.functions.invoke("register-certificate", {
-          body: {
-            session_id: live.id, attendee_id: attendee.id, pdf_base64: bytesToBase64(bytes),
-          },
+        const { certificate } = await sendCertificate({
+          sessionId: live.id, attendeeId: attendee.id,
         });
-        // A refusal arrives as a non-2xx whose body is on the Response the error
-        // carries; without reading it the organiser is told only that the
-        // function returned a non-2xx status code.
-        if (error) {
-          const carried = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
-          const detail = await carried?.json?.().catch(() => null);
-          throw new Error(detail?.error ?? "Could not send it");
+        if (certificate === "sent") sent++;
+        else if (certificate !== "already_sent") {
+          failures.push(CERTIFICATE_OUTCOME[certificate](attendee.name));
         }
-        const refusal = data as { error?: string } | null;
-        if (refusal?.error) throw new Error(refusal.error);
-        sent++;
       } catch (e) {
         failures.push(`${attendee.name}: ${e instanceof Error ? e.message : "failed"}`);
       }
@@ -347,6 +345,16 @@ export function LiveDayCard({
             </AlertDescription>
           </Alert>
         )}
+        {/* Said when it is working too, so an organiser can see where a
+            trainee's reply will land before one of them replies. */}
+        {status?.email_configured && !status.email_sandbox && (
+          <p className="text-[11px] text-muted-foreground">
+            Sending as {status.email_from}
+            {status.email_reply_to.length
+              ? ` · replies go to ${status.email_reply_to.join(", ")}`
+              : " · no reply-to set, so replies bounce"}
+          </p>
+        )}
 
         {/* ------------------------------------------------------ on the day */}
         <div className="space-y-2">
@@ -397,6 +405,14 @@ export function LiveDayCard({
             </Button>
             <Button size="sm" variant="outline" onClick={onEditForm}>
               <Pencil className="mr-1.5 h-3.5 w-3.5" /> Design the form
+            </Button>
+            {/* Everything for afterwards behind one door, rather than scattered
+                across this card as well: who came, who has answered, who has
+                their certificate, and what the cohort said. */}
+            <Button asChild size="sm">
+              <Link to={`/registers/${registerSlug}/day?s=${encodeURIComponent(live.id)}`}>
+                <ClipboardList className="mr-1.5 h-3.5 w-3.5" /> Feedback &amp; certificates
+              </Link>
             </Button>
           </div>
 

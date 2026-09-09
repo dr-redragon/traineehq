@@ -19,6 +19,7 @@ import RequestAccess from "./pages/RequestAccess";
 import RegisterDirectory from "./pages/RegisterDirectory";
 import RegisterDetail from "./pages/RegisterDetail";
 import RegisterAccess from "./pages/RegisterAccess";
+import RegisterSessionConsole from "./pages/register/SessionConsole";
 import RegisterCheckIn from "./pages/register/CheckIn";
 import RegisterFeedback from "./pages/register/Feedback";
 import RegisterSignIn from "./pages/register/SignIn";
@@ -152,6 +153,11 @@ const App = () => (
               <Route index element={<RegisterDirectory />} />
               <Route path=":slug" element={<RegisterDetail />} />
               <Route path=":slug/access" element={<RegisterAccess />} />
+              {/* One teaching day after the fact: who came, who has answered,
+                  who has their certificate, and what they said. Its own page
+                  rather than another tab, because the Check-in tab is what is
+                  on screen while people are still arriving. */}
+              <Route path=":slug/day" element={<RegisterSessionConsole />} />
             </Route>
 
             {/* Admins only */}

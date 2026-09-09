@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
-  FeedbackForm, FeedbackResponse, LiveSession, PublicRoster, PublicSession,
-  SendOutcome, SessionStatus,
+  CertificateOutcome, FeedbackForm, FeedbackResponse, LiveSession, PublicRoster,
+  PublicSession, SendOutcome, SessionStatus,
 } from "./types";
 
 /**
@@ -86,7 +86,12 @@ export async function submitFeedback(args: {
   overallRating: number;
   answers: Record<string, unknown>;
   comments?: string;
-}): Promise<{ status: "recorded" | "already_submitted"; matched?: boolean }> {
+}): Promise<{
+  status: "recorded" | "already_submitted";
+  matched?: boolean;
+  /** What became of the certificate the feedback was exchanged for. */
+  certificate?: CertificateOutcome;
+}> {
   return callApi("submit-feedback", {
     session_id: args.sessionId,
     identifier: args.identifier,
@@ -208,6 +213,44 @@ export async function chaseAbsences(args: {
 
 export async function resetFeedback(sessionId: string, attendeeId: string): Promise<void> {
   await callApi("reset-feedback", { session_id: sessionId, attendee_id: attendeeId });
+}
+
+/**
+ * Delete every response for one teaching day and reopen the form.
+ *
+ * The only way to remove an individual answer, precisely because nothing links
+ * one to a person — so a test run, or a form that asked the wrong question, can
+ * only be undone wholesale. Certificates already issued are left alone.
+ */
+export async function deleteAllFeedback(sessionId: string): Promise<{ deleted: number }> {
+  return callApi("reset-feedback", { session_id: sessionId, confirm: true });
+}
+
+/**
+ * Issue one certificate now.
+ *
+ * `force` is the organiser overruling the feedback gate — somebody who gave
+ * their feedback on paper, or a certificate that has to be sent again.
+ */
+export async function sendCertificate(args: {
+  sessionId: string; attendeeId: string; force?: boolean;
+}): Promise<{ certificate: CertificateOutcome }> {
+  return callApi("send-certificate", {
+    session_id: args.sessionId,
+    attendee_id: args.attendeeId,
+    force: args.force === true,
+  });
+}
+
+/** Draw a certificate without sending it, so the design can be checked. */
+export async function previewCertificate(args: {
+  registerId: string; sessionId?: string | null; name?: string;
+}): Promise<{ pdf_base64: string }> {
+  return callApi("certificate-preview", {
+    register_id: args.registerId,
+    session_id: args.sessionId ?? null,
+    name: args.name ?? "",
+  });
 }
 
 // ------------------------------------------------------------------- read-back
