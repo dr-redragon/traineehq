@@ -228,6 +228,19 @@ reading and writing through `save_register()` with the version guard.
    adjusted percentages with the original's 80/60 colour bands, and the specific
    long-term status per trainee (`Mat leave`, `OOP`, `CCT`, `IDT in/out`) rather
    than one word for all of them.
+   **On a phone, a tap on a cell opens its details rather than changing it**
+   (`AttendanceCellPopover.tsx`, added 2026-09-09 from the standalone
+   register's own touch popover). There is no hover on a phone, so the marks
+   were unlabelled squares — which teaching day a column was, and what a square
+   meant, were both invisible — and the tap that would have shown a tooltip on
+   a desktop instead rewrote somebody's attendance on a 28px target, silently.
+   The popover names the day, the month, the trainee, the state and the grade,
+   and changing it takes a second press on a button that says what it will do.
+   A mouse click still toggles straight away, which is what marking a register
+   at a desk wants; `useTouchInput.ts` tells the two apart per interaction
+   rather than trying to classify the device. Hand-positioned rather than built
+   on the shared Radix popover: a year's grid is several hundred cells, and this
+   is one element, mounted only while it is open.
 2. ✅ Trainees and teaching days — `ManagePanel.tsx`, with `MonthInput.tsx`
    carrying `parseMonth`'s forgiving entry across, and the original's collapsed
    **Former trainees** list for anyone CCT'd or transferred out.
@@ -250,13 +263,26 @@ reading and writing through `save_register()` with the version guard.
   finished blobs, precisely so a rejected save can be replayed on top of
   whatever the other person wrote. Four attempts, then it fails loudly.
 
-4. ✅ Live session & QR check-in — `LiveSessionPanel.tsx`. Publish a teaching
-   day, show its QR and link, watch people arrive on a 30-second poll, and mark
-   anyone who cannot scan. The QR points at this app's own origin: a code on a
-   screen is scanned by people who will not check the host.
-5. ✅ Feedback reporting — `FeedbackPanel.tsx`. Per-question averages and the
-   comments, read off the session's *own* stored form so rewording a question
-   later cannot relabel answers given to the old one.
+4. ✅ Check-in / QR — `CheckInPanel.tsx`, rebuilt 2026-09-09 to the standalone
+   register's own Check-in tab: year tabs, the teaching-day picker, the QR and
+   its link, quick manual check-in with the grade held at that rotation, the
+   live day's own card (`LiveDayCard.tsx`) and the unexplained-absence chaser
+   (`ChaseAbsencesDialog.tsx`). The QR points at this app's own origin: a code
+   on a screen is scanned by people who will not check the host.
+   **The register and the live list now agree in both directions.** A QR sign-in
+   already wrote the grid through `register_record_checkin()`; a mark made in
+   the grid or by hand now reaches the live list through `mark-attended`
+   (`useLiveAttendanceSync.ts`), publishing a day pushes every mark it already
+   holds, and "Re-sync sign-ins" reconciles both ways (`liveSync.ts`, 17 tests).
+   Before this, making a past teaching day live to collect feedback produced an
+   empty sign-in list beside a grid full of ticks, and nobody who had actually
+   attended could be sent the form.
+5. ✅ Feedback reporting and form design — `FeedbackPanel.tsx` for per-question
+   averages, the rating distribution, the comments and a CSV export, read off
+   the session's *own* stored form so rewording a question later cannot relabel
+   answers given to the old one; `FeedbackFormEditor.tsx` for designing the form
+   itself, scoped either to one teaching day or to the register's template, with
+   a preview drawn by the same component that renders the real form.
 
 **Still to do:**
 6. ✅ Certificates — download works now; emailing waits on RESEND_API_KEY.
@@ -322,8 +348,13 @@ lands in its own chunk) and posted already drawn to `register-certificate`,
 which emails it — taking the address from the database rather than the request,
 so it cannot be used as an authenticated open relay.
 
-**Still not ported:** `email-feedback-link` and `chase-absences`. Both mail real
-trainees and both wait on `RESEND_API_KEY`.
+**`email-feedback-link` and `chase-absences`: ported 2026-09-09.** Both send
+through `supabase/functions/register-api/email.ts`, which throttles to the
+provider's rate limit, retries a 429 and classifies a failure into one sentence
+an organiser can act on. Neither takes a destination from the request: the
+feedback link is built from `APP_BASE_URL`, the feedback addresses come from the
+attendee rows, and every chaser address is checked against that register's own
+roster before anything is sent. Both still wait on `RESEND_API_KEY`.
 
 **Depends on.** Stage 1.
 

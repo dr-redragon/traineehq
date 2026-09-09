@@ -197,6 +197,32 @@ export interface RegisterAttendee {
   certificate_sent_at: string | null;
 }
 
+/**
+ * What `session-status` returns.
+ *
+ * The three `email_*` fields say whether mail can leave at all, before an
+ * organiser presses a button and is told a send "succeeded" to nobody.
+ */
+export interface SessionStatus {
+  session: LiveSession;
+  attendees: RegisterAttendee[];
+  feedback_count: number;
+  email_configured: boolean;
+  email_sandbox: boolean;
+  email_from: string;
+}
+
+/** The outcome of one bulk send: who got it, and by name who did not. */
+export interface SendOutcome {
+  sent: number;
+  considered: number;
+  failures: { name?: string; email?: string; why: string; batch?: number }[];
+  sandbox: boolean;
+  from: string;
+  /** Chaser only: addresses dropped because they are not on the roster. */
+  not_on_roster?: number;
+}
+
 export interface LiveSession {
   id: string;
   register_id: string;

@@ -1,14 +1,18 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { AttendanceCellPopover } from "@/components/register/AttendanceCellPopover";
+import { CELL, CELL_LABEL, CELL_LEGEND, CELL_MARK } from "@/components/register/attendanceCell";
 import { activeStatusType } from "@/lib/register/eligibility";
 import { STATUS_SHORT, statusRangeText } from "@/lib/register/statusText";
 import { computeRows, type SortKey } from "@/lib/register/report";
 import { formatMonth } from "@/lib/register/months";
+import { attendanceKey, gradeAt } from "@/lib/register/attendance";
 import { toggleAttendance } from "@/lib/register/blob";
+import { useTouchInput } from "@/hooks/useTouchInput";
 import type { RegisterBlob, RegisterSession } from "@/lib/register/types";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import { cn } from "@/lib/utils";
@@ -21,41 +25,55 @@ function pctClass(pct: number | null) {
   return "text-destructive";
 }
 
-/**
- * The original register's marks, kept: a filled moss square for a day attended,
- * clay for one excused, and an empty bordered cell for one missed. Missed is
- * deliberately the quiet one — a row of them reads as a gap in the grid, which
- * is the shape an organiser scans for, and it keeps a page of ordinary absence
- * from becoming a wall of red.
- */
-const CELL: Record<string, string> = {
-  present: "bg-primary text-primary-foreground hover:bg-primary/85",
-  excused: "bg-register-clay-soft text-register-clay-ink hover:brightness-95",
-  absent:  "border border-border bg-card text-muted-foreground/70 hover:border-primary",
-  na:      "bg-muted text-muted-foreground/50",
-};
-
-const CELL_MARK: Record<string, string> = {
-  present: "✓", excused: "E", absent: "·", na: "–",
-};
-
 export function AttendanceGrid({
-  blob, sessions, onEdit, canEdit,
+  blob, sessions, onEdit, canEdit, onToggle,
 }: {
   blob: RegisterBlob;
   sessions: RegisterSession[];
   onEdit: (edit: RegisterEdit) => void;
   canEdit: boolean;
+  /**
+   * Told about every mark changed here, so the same change can reach the
+   * published teaching day. A tick in this grid is a check-in; without this the
+   * live sign-in list and the grid drift apart the moment anybody uses either.
+   */
+  onToggle?: (traineeId: string, sessionId: string, nowPresent: boolean) => void;
 }) {
   const [search, setSearch] = useState("");
   const [hideNotInProgramme, setHideNotInProgramme] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<1 | -1>(1);
 
+  // The one cell showing its details, and the button it belongs to — the
+  // popover is positioned against that. At most one is open, so the grid
+  // carries a single popover rather than one per cell: a register of thirty
+  // trainees over a year is several hundred cells.
+  const [openCell, setOpenCell] = useState<{ key: string; anchor: HTMLElement } | null>(null);
+  const lastInputWasTouch = useTouchInput();
+  // The cell whose popover was just dismissed, and when. See the click handler.
+  const dismissed = useRef<{ key: string; at: number } | null>(null);
+
+  const closePopover = () => {
+    if (openCell) dismissed.current = { key: openCell.key, at: Date.now() };
+    setOpenCell(null);
+  };
+
   const { rows, hidden } = useMemo(
     () => computeRows(blob, sessions, { search, hideNotInProgramme, sortKey, sortDir }),
     [blob, sessions, search, hideNotInProgramme, sortKey, sortDir],
   );
+
+  /**
+   * Flip one cell, and tell the live teaching day about it.
+   *
+   * The edit is a function of the current blob rather than a finished one:
+   * `useRegisterStore` replays it against whatever a colleague saved in the
+   * meantime, and replaying a snapshot would undo their work.
+   */
+  const flip = (traineeId: string, sessionId: string, nowPresent: boolean) => {
+    onEdit((b) => toggleAttendance(b, traineeId, sessionId));
+    onToggle?.(traineeId, sessionId, nowPresent);
+  };
 
   const sortBy = (key: SortKey) => {
     if (key === sortKey) setSortDir((d) => (d === 1 ? -1 : 1));
@@ -150,27 +168,80 @@ export function AttendanceGrid({
                     )}
                   </td>
 
-                  {row.cells.map((cell) => (
-                    <td key={cell.session.id} className="px-1 py-1.5 text-center">
+                  {row.cells.map((cell) => {
+                    const key = attendanceKey(row.trainee.id, cell.session.id);
+                    const open = openCell?.key === key;
+                    const grade = gradeAt(blob, row.trainee.id, cell.session.id);
+                    // "Not eligible" is a derived fact, not a mark — it comes
+                    // from a status window, so it is changed there, not here.
+                    const editable = canEdit && cell.state !== "na";
+                    const described =
+                      `${row.trainee.name} — ${cell.session.title} ` +
+                      `(${formatMonth(cell.session.month, "en-GB")}) · ${CELL_LABEL[cell.state]}` +
+                      (grade ? ` · ${grade}` : "");
+
+                    const mark = (
                       <button
                         type="button"
-                        // "Not eligible" is a derived fact, not a mark — it comes
-                        // from a status window, so it is changed there, not here.
-                        disabled={!canEdit || cell.state === "na"}
-                        onClick={() =>
-                          onEdit((b) => toggleAttendance(b, row.trainee.id, cell.session.id))
-                        }
-                        title={`${row.trainee.name} — ${cell.session.title}`}
+                        /*
+                          Never `disabled`: a cell nobody may change is exactly
+                          the cell somebody on a phone most wants explained, and
+                          a disabled button receives no tap to explain it with.
+                          Inert to a mouse, reachable to a finger and a screen
+                          reader — which is what aria-disabled says.
+                        */
+                        aria-disabled={!editable}
+                        aria-expanded={open}
+                        onClick={(e) => {
+                          if (lastInputWasTouch()) {
+                            // The tap that dismissed this popover also lands on
+                            // the cell underneath. Without this, tapping an open
+                            // cell closes and immediately reopens it, which
+                            // looks like nothing happened at all.
+                            const just = dismissed.current;
+                            if (just && just.key === key && Date.now() - just.at < 300) {
+                              dismissed.current = null;
+                              return;
+                            }
+                            setOpenCell({ key, anchor: e.currentTarget });
+                            return;
+                          }
+                          if (!editable) return;
+                          flip(row.trainee.id, cell.session.id, cell.state !== "present");
+                        }}
+                        title={described}
+                        aria-label={described}
                         className={cn(
                           "h-7 w-7 rounded text-xs font-semibold transition-colors",
                           CELL[cell.state],
-                          (!canEdit || cell.state === "na") && "cursor-default",
+                          !editable && "cursor-default",
                         )}
                       >
                         {CELL_MARK[cell.state]}
                       </button>
-                    </td>
-                  ))}
+                    );
+
+                    return (
+                      <td key={cell.session.id} className="px-1 py-1.5 text-center">
+                        {mark}
+                        {open && openCell && (
+                          <AttendanceCellPopover
+                            anchor={openCell.anchor}
+                            trainee={row.trainee}
+                            session={cell.session}
+                            state={cell.state}
+                            grade={grade}
+                            canEdit={editable}
+                            onClose={closePopover}
+                            onToggle={() => {
+                              closePopover();
+                              flip(row.trainee.id, cell.session.id, cell.state !== "present");
+                            }}
+                          />
+                        )}
+                      </td>
+                    );
+                  })}
 
                   <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
                     {row.attended}/{row.adjDenom > 0 ? row.adjDenom : row.eligible}
@@ -199,12 +270,7 @@ export function AttendanceGrid({
       </div>
 
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-        {([
-          ["present", "Attended"],
-          ["excused", "Excused"],
-          ["absent", "Missed"],
-          ["na", "Not eligible (leave, pre-start or post-CCT)"],
-        ] as const).map(([state, label]) => (
+        {(["present", "excused", "absent", "na"] as const).map((state) => (
           <span key={state} className="inline-flex items-center gap-1.5">
             <span
               aria-hidden="true"
@@ -215,7 +281,7 @@ export function AttendanceGrid({
             >
               {CELL_MARK[state]}
             </span>
-            {label}
+            {CELL_LEGEND[state]}
           </span>
         ))}
       </div>

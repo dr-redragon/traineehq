@@ -1,10 +1,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MessageSquare } from "lucide-react";
+import { Download, MessageSquare, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { FeedbackFormEditor } from "@/components/register/FeedbackFormEditor";
+import { feedbackCsv } from "@/lib/register/feedbackCsv";
 import { fetchFeedback, fetchLiveSessions } from "@/lib/register/liveApi";
 import type { FeedbackQuestion } from "@/lib/register/types";
 
@@ -24,6 +28,7 @@ const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.l
  */
 export function FeedbackPanel({ registerId }: { registerId: string }) {
   const [sessionId, setSessionId] = useState("");
+  const [designing, setDesigning] = useState(false);
 
   const { data: sessions, isLoading } = useQuery({
     queryKey: ["register-live-sessions", registerId],
@@ -59,32 +64,92 @@ export function FeedbackPanel({ registerId }: { registerId: string }) {
     [responses],
   );
 
+  /**
+   * How the overall ratings fell, not just their average.
+   *
+   * A mean of 4.0 made of twenty fours and a mean of 4.0 made of ten fives and
+   * ten threes are different teaching days, and only the second is worth acting
+   * on. The shape is what says which one this was.
+   */
+  const distribution = useMemo(() => {
+    const counts = [0, 0, 0, 0, 0];
+    for (const r of responses ?? []) {
+      if (r.overall_rating && r.overall_rating >= 1 && r.overall_rating <= 5) {
+        counts[r.overall_rating - 1]++;
+      }
+    }
+    return counts;
+  }, [responses]);
+
+  const downloadCsv = () => {
+    if (!responses?.length || !selected) return;
+    const blob = new Blob([feedbackCsv(responses, selected.form)], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `feedback-${selected.session_date}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (isLoading) return <Skeleton className="h-40 w-full" />;
+
+  const designer = (
+    <Dialog open={designing} onOpenChange={setDesigning}>
+      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
+        <DialogHeader><DialogTitle>Feedback form</DialogTitle></DialogHeader>
+        <FeedbackFormEditor
+          registerId={registerId}
+          sessionId={sessionId || null}
+          sessionTitle={selected?.title}
+          onClose={() => setDesigning(false)}
+        />
+      </DialogContent>
+    </Dialog>
+  );
 
   if (!sessions?.length) {
     return (
-      <p className="text-sm text-muted-foreground">
-        No teaching day has been published for check-in yet, so there is no feedback to read.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-muted-foreground">
+          No teaching day has been published for check-in yet, so there is no feedback to read.
+          The form itself can still be designed — every day published from now on will start
+          from it.
+        </p>
+        <Button variant="outline" size="sm" onClick={() => setDesigning(true)}>
+          <Pencil className="mr-1.5 h-3.5 w-3.5" /> Design the feedback form
+        </Button>
+        {designer}
+      </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <div className="max-w-sm space-y-1.5">
-        <Select value={sessionId} onValueChange={setSessionId}>
-          <SelectTrigger><SelectValue placeholder="Choose a teaching day" /></SelectTrigger>
-          <SelectContent>
-            {sessions.map((s) => (
-              <SelectItem key={s.id} value={s.id}>
-                {new Date(s.session_date).toLocaleDateString("en-GB", {
-                  day: "numeric", month: "short", year: "numeric",
-                })} · {s.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="w-full sm:max-w-sm sm:flex-1">
+          <Select value={sessionId} onValueChange={setSessionId}>
+            <SelectTrigger><SelectValue placeholder="Choose a teaching day" /></SelectTrigger>
+            <SelectContent>
+              {sessions.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {new Date(s.session_date).toLocaleDateString("en-GB", {
+                    day: "numeric", month: "short", year: "numeric",
+                  })} · {s.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => setDesigning(true)}>
+          <Pencil className="mr-1.5 h-3.5 w-3.5" />
+          {sessionId ? "Design this day's form" : "Design the form template"}
+        </Button>
       </div>
+
+      {designer}
 
       {!sessionId ? null : loadingResponses ? (
         <Skeleton className="h-40 w-full" />
@@ -96,10 +161,38 @@ export function FeedbackPanel({ registerId }: { registerId: string }) {
             <Badge variant="secondary">
               {responses.length} {responses.length === 1 ? "response" : "responses"}
             </Badge>
-            <p className="text-xs text-muted-foreground">
+            <p className="min-w-0 flex-1 text-xs text-muted-foreground">
               Answers carry no name, and cannot be traced to one.
             </p>
+            <Button variant="outline" size="sm" onClick={downloadCsv}>
+              <Download className="mr-1.5 h-3.5 w-3.5" /> Download responses (CSV)
+            </Button>
           </div>
+
+          {distribution.some((n) => n > 0) && (
+            <section className="space-y-2">
+              <h3 className="text-sm font-semibold">Overall rating</h3>
+              <div className="space-y-1">
+                {[5, 4, 3, 2, 1].map((score) => {
+                  const count = distribution[score - 1];
+                  const share = responses.length ? (count / responses.length) * 100 : 0;
+                  return (
+                    <div key={score} className="flex items-center gap-2">
+                      <span className="w-4 text-right text-xs tabular-nums text-muted-foreground">
+                        {score}
+                      </span>
+                      <div className="h-3 flex-1 overflow-hidden rounded bg-muted">
+                        <div className="h-full rounded bg-primary" style={{ width: `${share}%` }} />
+                      </div>
+                      <span className="w-8 text-right text-xs tabular-nums text-muted-foreground">
+                        {count}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          )}
 
           {scored.length > 0 && (
             <section className="space-y-2">
