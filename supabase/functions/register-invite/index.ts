@@ -26,7 +26,14 @@ const corsHeaders = {
 };
 
 const RESEND_API = "https://api.resend.com/emails";
-const FROM_EMAIL = "HST Training Hub <onboarding@resend.dev>";
+// The address Resend sends from. Until a domain is verified at
+// resend.com/domains, onboarding@resend.dev only delivers to the Resend
+// account's own address and refuses every other recipient with a 403 — so set
+// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// <noreply@example.nhs.uk>") and every function picks it up with no code change.
+// Declared per function rather than shared, so each one deploys on its own.
+const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
+  "HST Training Hub <onboarding@resend.dev>";
 
 function joinedHtml(registerName: string, inviterName: string, link: string, needsPassword: boolean) {
   return `

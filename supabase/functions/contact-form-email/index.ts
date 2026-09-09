@@ -4,7 +4,14 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // Where enquiries land. Set CONTACT_FORWARD_TO in the function's environment so the
 // destination address isn't baked into the source.
 const FORWARD_TO = Deno.env.get("CONTACT_FORWARD_TO") ?? "mohammedabdelaziz12@gmail.com";
-const FROM_EMAIL = "onboarding@resend.dev";
+// The address Resend sends from. Until a domain is verified at
+// resend.com/domains, onboarding@resend.dev only delivers to the Resend
+// account's own address and refuses every other recipient with a 403 — so set
+// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// <noreply@example.nhs.uk>") and every function picks it up with no code change.
+// Declared per function rather than shared, so each one deploys on its own.
+const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
+  "HST Training Hub <onboarding@resend.dev>";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,7 +100,7 @@ serve(async (req) => {
 
     // Forward the enquiry to the inbox.
     await sendEmail(
-      `NW HST Hub <${FROM_EMAIL}>`,
+      FROM_EMAIL,
       FORWARD_TO,
       `Contact Form: ${name.slice(0, 60)}`,
       `
@@ -108,7 +115,7 @@ serve(async (req) => {
     // bounce here must not fail the request.
     try {
       await sendEmail(
-        `NW HST Training Hub <${FROM_EMAIL}>`,
+        FROM_EMAIL,
         email,
         "We've received your message",
         `

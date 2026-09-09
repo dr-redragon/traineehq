@@ -7,7 +7,14 @@ const corsHeaders = {
 };
 
 const RESEND_API = "https://api.resend.com/emails";
-const FROM_EMAIL = "HST Training Hub <onboarding@resend.dev>";
+// The address Resend sends from. Until a domain is verified at
+// resend.com/domains, onboarding@resend.dev only delivers to the Resend
+// account's own address and refuses every other recipient with a 403 — so set
+// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// <noreply@example.nhs.uk>") and every function picks it up with no code change.
+// Declared per function rather than shared, so each one deploys on its own.
+const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
+  "HST Training Hub <onboarding@resend.dev>";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const MAX_NAME = 200;
@@ -212,11 +219,16 @@ Deno.serve(async (req) => {
         submissionConfirmationHtml(name),
       );
 
-      // Notify admins + facilitators for the chosen specialty
+      // Notify admins + facilitators for the chosen specialty.
+      //
+      // Both roles that can review a request count here. Asking only for
+      // "admin" quietly excluded every super_admin, and on a site whose only
+      // reviewers are super_admins that meant a request reached nobody: the
+      // applicant got their confirmation and the queue sat unread.
       const { data: adminRoles } = await supabaseAdmin
         .from("user_roles")
         .select("user_id")
-        .eq("role", "admin");
+        .in("role", ["admin", "super_admin"]);
       const adminIds = (adminRoles ?? []).map((r: { user_id: string }) => r.user_id);
 
       let facilitatorIds: string[] = [];
@@ -249,10 +261,22 @@ Deno.serve(async (req) => {
         const alertHtml = newRequestAlertHtml(
           name, request.email, specialtyName, request.training_grade ?? undefined,
         );
+        if (emails.length === 0) {
+          console.warn(
+            `No reviewer could be emailed about ${request.email}: ` +
+            `${notifyIds.length} admin/facilitator account(s), none with an email address.`,
+          );
+        }
         for (const email of emails) {
           try { await sendEmail(email, `New Access Request: ${name}`, alertHtml); }
           catch (e) { console.error(`Failed to notify ${email}:`, e); }
         }
+      } else {
+        // Nothing to send means nobody is watching the queue — say so, rather
+        // than returning success on a request no human will ever see.
+        console.warn(
+          `No admin or facilitator to notify about the access request from ${request.email}.`,
+        );
       }
 
       return json({ success: true });
