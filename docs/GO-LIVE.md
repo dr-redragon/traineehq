@@ -46,7 +46,7 @@ None of these are technical; every one of them changes the steps below.
 | 0.2 | **Paid Supabase, or not.** | Free projects pause after ~7 days without traffic and cap uploads at 50 MB. A paused project is a dead site. See 1.5. |
 | 0.3 | **Does the ENT register go live with the real cohort**, or start empty and be filled by organisers? | Decides whether Phase 3 is a data import or a five-minute setup. |
 | 0.4 | **Who are the first admins**, by email. | Only three accounts exist today. |
-| 0.5 | **Netlify or GitHub Pages** — pick one. | `.github/workflows/deploy-pages.yml` still publishes on every push to `main`. Two deployments of the same app drift and confuse users. |
+| 0.5 | ~~**Netlify or GitHub Pages** — pick one.~~ **Settled 2026-09-09: GitHub Pages**, apex `traineehq.com`. | Requires the repo to be public — see 2.5 and the history gate in 3.5. Disconnect any Netlify site so the two do not both build `main`. |
 
 ---
 
@@ -226,14 +226,49 @@ larger than 50 MB uploads.
 
 ### 2.1 Point the domain at the site
 
-Netlify → Domain management → add the custom domain, follow the DNS records,
-wait for the certificate. `netlify.toml` already handles the rest: the
-SPA fallback (`/*` → `/index.html`, status 200) so deep links like
-`/registers/northwest-ent` resolve, plus `X-Robots-Tag: noindex` to keep a
-private tool out of search results.
+**Decided 2026-09-09: GitHub Pages, on the apex `traineehq.com`.** This
+reverses 2.5 below; the repo goes public to allow it (see the warning there).
 
-**Check:** load `https://<domain>/registers` directly in a fresh tab — not by
-clicking through — and get the app, not a 404.
+Committed here already: `.github/workflows/deploy-pages.yml` (build, SPA
+fallback, publish), `public/CNAME` holding `traineehq.com`, and the two
+security headers moved into `index.html` as meta tags.
+
+1. **Settings → Pages → Source: GitHub Actions.** Do this before the first run
+   or the workflow fails at the deploy step.
+2. **Cloudflare DNS** — four A records at the apex, all **grey-clouded
+   (DNS only)**:
+
+   ```
+   185.199.108.153   185.199.109.153   185.199.110.153   185.199.111.153
+   ```
+
+   Cloudflare proxies new records by default, and an orange cloud stops GitHub
+   from issuing the certificate. Same trap as the Resend records in 1.4b. Take
+   the canonical list from GitHub's own docs rather than this file if it is
+   ever in doubt.
+   - **Do not touch the iCloud MX records or the root SPF TXT.** A records and
+     MX records are independent; adding a website at the apex does not affect
+     mail.
+   - Optionally add `www` as a CNAME to `dr-redragon.github.io`, also grey.
+3. **Settings → Pages → Custom domain** → `traineehq.com`, then wait for the
+   certificate and tick **Enforce HTTPS**.
+4. **Verify the domain** under Settings → Pages (and account-level *Verified
+   domains*) so nobody else can claim it on Pages later.
+
+**Two things GitHub Pages cannot do that `netlify.toml` did**, both worked
+around above rather than lost:
+
+- **No rewrites.** The SPA fallback is `404.html`, a byte-copy of
+  `index.html`. Deep links work and keep their query string, but they are
+  served with HTTP 404 rather than 200. Browsers do not care; uptime checks
+  and link previewers do, so point any monitor at `/` and not at a deep link.
+- **No custom headers.** `X-Robots-Tag` and `Referrer-Policy` are now meta
+  tags in `index.html`. **`X-Content-Type-Options: nosniff` has no meta
+  equivalent and is genuinely gone** — a small, accepted loss, since every
+  asset is a same-origin static file emitted by Vite.
+
+**Check:** load `https://traineehq.com/registers` directly in a fresh tab —
+not by clicking through — and get the app, not GitHub's 404 page.
 
 ### 2.2 Tell Supabase Auth about that domain
 
@@ -271,13 +306,24 @@ the API. Those are the deliberate design — they *are* the register's API, and
 each one checks its caller (membership, or the session id for the two anonymous
 paths). No action, but read the list once so you know what is exposed.
 
-### 2.5 Settle the deployment story — DONE (2026-09-08)
+### 2.5 Settle the deployment story — REVERSED (2026-09-09)
 
-Done: `.github/workflows/deploy-pages.yml` is removed. Netlify is the
-deployment that actually serves this app — it runs the PR checks, and
-`netlify.toml` carries the SPA fallback and the `noindex` header — so the
-workflow was a second, drifting copy aimed at a branch that no longer exists.
-Git history keeps it if the decision is ever revisited.
+This section previously recorded the opposite decision: Pages removed, Netlify
+kept. **That has been reversed at your request** — the deployment is now
+GitHub Pages and `deploy-pages.yml` is back.
+
+The principle behind the original entry still stands, and now cuts the other
+way: **two deployments of the same app drift and confuse users.** If a Netlify
+site is still connected to this repo, disconnect it, or it will keep building
+every push to `main` alongside Pages. `netlify.toml` and `vercel.json` are
+left in the tree deliberately — they are the fallback if Pages does not work
+out, and they are inert with no site connected.
+
+**The cost of this choice, recorded plainly:** `OUTSTANDING.md` §1.4 chose
+Netlify precisely so the repo could stay private, because Pages on a private
+repo needs a paid plan. Going public exposes all 73 commits of history. See
+the note in §3.5 — that is a gate on making the repo public, not on any of
+the DNS work above.
 
 ---
 
@@ -327,6 +373,57 @@ been served from it.
 The old teaching register deployment (`register.traineehq.com`) should be frozen
 and redirected once organisers are on the new one, and the legacy
 `public.register_store` row dropped after its history is confirmed migrated.
+
+### 3.5 Before making the repository public — scrub the history
+
+**This is a gate on flipping visibility, and only on that.** Everything in 2.1
+can be set up first; the workflow simply will not publish until the repo is
+public (or on a paid plan).
+
+`OUTSTANDING.md` §1.4 chose Netlify so the repo could stay private, and §0.2
+records the sibling repo `ent-teaching-register` having its history rewritten
+with `git-filter-repo` after real cohort data was committed. **This repo has a
+smaller version of the same problem.**
+
+A scan of all 73 commits and 472 blobs found:
+
+- **No secrets.** The only tokens in history are Supabase `anon` JWTs
+  (`role":"anon"`, project `ecyhvubwcqqghumnyxuu`), which are publishable by
+  design. No service-role key, no Resend key.
+- **No cohort data.** The old `public/teaching-register.html` in history is the
+  app shell only — the roster lived in the database, not the file. The only
+  cohort names present are the deliberate placeholders ("Alice Abbott",
+  `@example.invalid`).
+- **One thing to resolve: a deleted `src/lib/contacts.ts`** (blob
+  `938db7a`), a hardcoded key-contacts list of twelve named individuals with
+  addresses at real NHS domains — `uhb.nhs.uk`, `ouh.nhs.uk`, `mft.nhs.uk`,
+  `hee.nhs.uk`, `rcseng.ac.uk`. It is **not in the current tree**; it is
+  reachable only through history.
+
+  Its shape says seed data — exactly one contact per category, tidy and
+  complete — and it sits alongside the same commit's other placeholders. But
+  it cannot be confirmed synthetic from the code alone, and unlike
+  `.invalid`, these addresses would deliver.
+
+**So, before flipping to public, one of:**
+
+1. **Confirm the twelve are fabricated.** If so, nothing needs doing — publish
+   as is.
+2. **If any is a real person**, treat it as §0.2 did: rewrite history with
+   `git-filter-repo` to drop that blob, force-push, and send GitHub Support
+   the purge request (§0.2b has the wording). Do it *before* the repo is
+   public, while the audience is still only you — a scrub after publication
+   cannot un-publish anything, and forks and caches make it irreversible.
+
+Under UK GDPR this is the same category of decision as the DPIA in Phase 6:
+NHS staff names and work addresses are personal data whether or not they are
+sensitive.
+
+**Check:** `git log --all --diff-filter=D -- src/lib/contacts.ts` returns
+nothing once scrubbed, verified from a fresh clone rather than this working
+copy.
+
+---
 
 ---
 

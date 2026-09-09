@@ -1,0 +1,71 @@
+name: Deploy to GitHub Pages
+
+# Builds the app and publishes it to GitHub Pages, served from the custom
+# domain traineehq.com (see public/CNAME).
+#
+# Before the first run, in Settings → Pages, set "Source" to "GitHub Actions".
+#
+# The built site is public. That is the sign-in page and the client bundle
+# only: every table is behind row-level security and the bundle carries just
+# the publishable (anon) key, which is designed to ship in a browser. No
+# service-role key is ever bundled.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+# Allow the workflow to publish, but nothing else.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; don't cancel a run that is mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # No VITE_BASE_PATH: a custom domain serves the site from the root, so
+      # vite.config.ts's default base of "/" is correct. Setting it to /<repo>/
+      # here (as a project site would need) breaks every asset URL.
+      - name: Build
+        run: npm run build
+
+      # GitHub Pages has no server-side routing, so a deep link like
+      # /registers/checkin?s=... has no file to match and 404s. Serving the same
+      # shell as 404.html lets the router take over and render the right page;
+      # the path and query string reach the client intact.
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

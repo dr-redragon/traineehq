@@ -7,6 +7,14 @@
     <meta name="description" content="A secure, centralised hub of curricula, exam preparation, operative videos and key contacts for NHS Higher Surgical and Medical Specialty Trainees." />
     <meta name="author" content="HST Training Hub" />
 
+    <!-- GitHub Pages cannot send custom response headers, so the two security
+         headers netlify.toml used to set are declared here instead. This is a
+         sign-in page for a private tool: keep it out of search results. The
+         crawler is deliberately still allowed in by robots.txt, because a
+         disallowed page is never fetched and so its noindex is never read. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
+
     <meta property="og:title" content="HST Training Hub | NHS Higher Specialty Training Resources" />
     <meta property="og:description" content="Curricula, exam preparation, operative videos and key contacts for NHS Higher Specialty Trainees — all in one secure platform." />
     <meta property="og:type" content="website" />
