@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -57,6 +57,23 @@ function AuthCacheSync() {
   return null;
 }
 
+/**
+ * Sends /register to /registers, keeping whatever follows.
+ *
+ * The register's routes are all plural, but the singular is the natural thing
+ * to type and to write on a handout, so it used to land on the 404 page. The
+ * path is rewritten rather than duplicated, so there is still exactly one real
+ * URL for any given page and no two copies to keep in step.
+ *
+ * The query string has to survive: a QR code's check-in link carries the
+ * session id in ?s=, and that id is the whole of an anonymous trainee's
+ * authority. Dropping it would turn a scanned code into a dead end.
+ */
+function RegisterAliasRedirect() {
+  const { pathname, search, hash } = useLocation();
+  return <Navigate to={pathname.replace(/^\/register(?=\/|$)/, "/registers") + search + hash} replace />;
+}
+
 const App = () => (
   // `attribute="class"` is what Tailwind's darkMode: ["class"] reads, and the
   // .dark palette in index.css has been sitting complete and unreachable since
@@ -102,6 +119,11 @@ const App = () => (
               from that session, so a link opens one teaching day and nothing
               else.
             */}
+            {/* Singular alias. Declared before the plural routes purely for
+                readability; the paths do not overlap. */}
+            <Route path="/register" element={<RegisterAliasRedirect />} />
+            <Route path="/register/*" element={<RegisterAliasRedirect />} />
+
             <Route path="/registers/checkin" element={<RegisterCheckIn />} />
             {/* The register's own front door. A static segment, so it outranks
                 the ":slug" route below rather than being read as a register. */}
