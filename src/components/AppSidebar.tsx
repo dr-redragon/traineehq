@@ -51,9 +51,19 @@ export function AppSidebar() {
   // separately and shown on its own terms: somebody may hold a register in one
   // system and none in the other, and while the two are being compared that is
   // the normal state rather than a mistake.
+  //
+  // Admins see the link even holding none, which the live register's rule does
+  // not allow. That rule works there because a seed migration created the first
+  // register and named its owner. The classic register starts genuinely empty,
+  // so "only holders see it" would mean nobody ever sees it: no register exists,
+  // therefore nobody holds one, therefore the link never appears and the only
+  // way in is to know the URL. Admins are exactly the people who can create the
+  // first one, so they are the ones who need the door.
   const { data: myClassicRegisters, isSuccess: classicLoaded } =
     useMyClassicRegisterMemberships();
-  const hasClassicRegisters = !classicLoaded || (myClassicRegisters?.length ?? 0) > 0;
+  const canStartClassicRegister = role === "admin" || role === "super_admin";
+  const hasClassicRegisters =
+    !classicLoaded || (myClassicRegisters?.length ?? 0) > 0 || canStartClassicRegister;
 
   const { data: specialties } = useQuery({
     queryKey: ["sidebar-specialties", activeDeanery?.id],
