@@ -96,5 +96,8 @@ apply classic "$SCHEMA/test/classic-grants-assertions.sql"
 apply classic "$SCHEMA/test/classic-api-functions-assertions.sql"
 apply classic "$SCHEMA/test/classic-per-deanery-assertions.sql"
 
+# Last, and most important on a live system: the copy left the original alone.
+apply classic "$SCHEMA/test/classic-isolation-assertions.sql"
+
 echo
 echo "PASS — classic register schema verified."

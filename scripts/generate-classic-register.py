@@ -20,6 +20,9 @@ Column names (register_id), RPC parameter names (_register_id) and policy names
 are scoped to their own table and are deliberately NOT renamed, so the two
 schemas diff cleanly line for line.
 
+The one exception is the four logo policies on storage.objects, which BOTH
+registers share. Those are renamed; see the note in convert().
+
 Regenerating overwrites both the migration and the assertion files. If the
 migration has already been applied to a real database, a regenerated file is a
 new statement of the same schema rather than an incremental change — check the
@@ -84,6 +87,20 @@ pattern = re.compile(r"\b(" + "|".join(sorted(MAP, key=len, reverse=True)) + r")
 def convert(text: str) -> str:
     text = pattern.sub(lambda m: MAP[m.group(1)], text)
     text = text.replace("register-logos", "classic-register-logos")
+    # Policy names on storage.objects.
+    #
+    # Policy names are scoped to their table, which is why every other policy
+    # here keeps the original's name — classic_register_members and
+    # register_members are different tables and cannot collide. storage.objects
+    # is the exception: BOTH registers put their logo policies on that one
+    # shared table. Left unrenamed, the copy's "drop policy if exists" would
+    # delete the live register's logo policies and replace them with ones
+    # pointing at the classic bucket, silently breaking logo upload on the
+    # register that is meant to be left untouched.
+    for policy in ("logos are readable", "owners upload logos",
+                   "owners replace logos", "owners remove logos"):
+        text = text.replace('"register ' + policy + '"',
+                            '"classic register ' + policy + '"')
     return text
 
 out = []

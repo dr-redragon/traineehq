@@ -1820,13 +1820,13 @@ on conflict (id) do update
 
 -- Paths are '<register_id>/<uuid>.<ext>', so the first folder segment is the
 -- register whose owners may write there.
-drop policy if exists "register logos are readable" on storage.objects;
-create policy "register logos are readable"
+drop policy if exists "classic register logos are readable" on storage.objects;
+create policy "classic register logos are readable"
   on storage.objects for select
   using (bucket_id = 'classic-register-logos');
 
-drop policy if exists "register owners upload logos" on storage.objects;
-create policy "register owners upload logos"
+drop policy if exists "classic register owners upload logos" on storage.objects;
+create policy "classic register owners upload logos"
   on storage.objects for insert
   to authenticated
   with check (
@@ -1834,8 +1834,8 @@ create policy "register owners upload logos"
     and public.is_classic_register_owner(auth.uid(), ((storage.foldername(name))[1])::uuid)
   );
 
-drop policy if exists "register owners replace logos" on storage.objects;
-create policy "register owners replace logos"
+drop policy if exists "classic register owners replace logos" on storage.objects;
+create policy "classic register owners replace logos"
   on storage.objects for update
   to authenticated
   using (
@@ -1843,8 +1843,8 @@ create policy "register owners replace logos"
     and public.is_classic_register_owner(auth.uid(), ((storage.foldername(name))[1])::uuid)
   );
 
-drop policy if exists "register owners remove logos" on storage.objects;
-create policy "register owners remove logos"
+drop policy if exists "classic register owners remove logos" on storage.objects;
+create policy "classic register owners remove logos"
   on storage.objects for delete
   to authenticated
   using (
