@@ -10,6 +10,9 @@ Standalone tooling, independent of the app — nothing imports any of it.
 - **`anonymise-register-import.sql`** — copy a register out of the standalone ENT
   project with every name, address and free-text reason replaced. Read-only
   against the source; returns the blob and a checksum to verify the copy.
+- **`seed-classic-register.sql`** — fill a classic teaching register with a
+  fictional cohort and three years of teaching days, so its features can be
+  tested against something the size of a real programme.
 
 ---
 
@@ -52,6 +55,44 @@ overwrites a register that has since been used.
 Requires the PostgreSQL 16 server binaries (`initdb`, `pg_ctl`) — on
 Debian/Ubuntu, `apt-get install postgresql-16`. Set `PGBIN` if they live
 somewhere other than `/usr/lib/postgresql/16/bin`.
+
+---
+
+## seed-classic-register.sql
+
+Demo data for one classic register: 14 fictional trainees, 19 teaching days
+across 2024/25, 2025/26 and 2026/27, and the attendance, excusals and long-term
+statuses that go with them.
+
+```sh
+psql "$DATABASE_URL" -f scripts/seed-classic-register.sql
+```
+
+or paste the file into the Supabase SQL editor. Set the slug on the line marked
+`<<<` first — with a slug that matches nothing the script aborts and lists the
+registers that do exist.
+
+Everything it writes carries an id beginning `seed-`, and it rebuilds only those
+rows. Trainees, days, marks, excusals and statuses you added yourself are read,
+kept and written back untouched, so a re-run replaces the demo data rather than
+doubling it. The commented block at the foot of the file removes the demo data
+again and leaves your own rows behind.
+
+The data is chosen to exercise the parts of the register that are easy to get
+wrong rather than to look tidy: a maternity leave that has since expired, one
+trainee out of programme now, an IDT in and an IDT out, a CCT, open-ended leave
+with no end month, grades that differ between academic years, a few marks in the
+bare `true` form the standalone register used before grade was captured, all ten
+excusal reasons including a free-text one, two trainees with no email address,
+and one day still in the future.
+
+Names are invented and every address is on `example.com`, which is reserved for
+documentation and accepts no mail — so a certificate run or a chaser sent from a
+seeded register cannot reach anybody. Don't replace them with real addresses.
+
+It writes the register's own document and nothing else. Publishing a day for
+check-in is the edge function's job — do that from the Check-in tab against any
+seeded day.
 
 ---
 
