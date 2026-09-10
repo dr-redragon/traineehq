@@ -32,11 +32,18 @@ as $$
 $$;
 
 create table if not exists storage.buckets (
-  id              text primary key,
-  name            text,
-  public          boolean,
-  file_size_limit bigint
+  id                 text primary key,
+  name               text,
+  public             boolean,
+  file_size_limit    bigint,
+  -- Carried by the real storage.buckets, and written by the certificate-logo
+  -- migrations of both registers. Added here so those migrations can be
+  -- verified rather than skipped.
+  allowed_mime_types text[]
 );
+
+-- A cluster created before the column existed still needs it.
+alter table storage.buckets add column if not exists allowed_mime_types text[];
 
 create table if not exists storage.objects (
   id        uuid primary key default gen_random_uuid(),
