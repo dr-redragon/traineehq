@@ -15,18 +15,24 @@ const AdminPanel = () => {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10">
-            <Shield className="h-6 w-6 text-primary" />
+        {/* The panel's layout is deliberately unchanged — same nine tabs in
+            the same order, same content in each. Only the design language
+            moves. */}
+        <div className="flex items-center gap-4 border-b-2 border-border pb-4">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-accent-100">
+            <Shield className="h-6 w-6 text-rule" />
           </div>
           <div>
-            <h1 className="text-2xl font-display font-bold">Admin Panel</h1>
-            <p className="text-sm text-muted-foreground">Manage users, permissions, content, contacts, and announcements</p>
+            <p className="ds-kicker mb-1">Administration</p>
+            <h1 className="font-display text-[32px] font-extrabold leading-tight tracking-tight">Admin Panel</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Manage users, permissions, content, contacts, and announcements
+            </p>
           </div>
         </div>
 
         <Tabs defaultValue="users" className="w-full">
-          <TabsList className="bg-secondary/50 p-1 flex flex-wrap h-auto gap-1">
+          <TabsList className="h-auto flex-wrap gap-0">
             <TabsTrigger value="users" className="gap-1.5 text-xs">
               <Users className="h-3.5 w-3.5" /> <span className="hidden sm:inline">Users &</span> Permissions
             </TabsTrigger>

@@ -119,7 +119,7 @@ const RequestAccess = () => {
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <Card className="max-w-md w-full">
           <CardContent className="flex flex-col items-center text-center p-8 space-y-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-100">
+            <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-accent-100">
               <CheckCircle className="h-8 w-8 text-rule" />
             </div>
             <h2 className="text-xl font-display font-bold">Request Submitted</h2>
@@ -159,16 +159,16 @@ const RequestAccess = () => {
         <p className="relative z-10 text-primary-foreground/40 text-sm">
           © 2026 HST Training Hub. All rights reserved.
         </p>
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-rule" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-rule" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent-100" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-sm border border-rule" />
+        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-sm border border-rule" />
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-sm bg-accent-100" />
       </div>
 
       {/* Right - form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md animate-fade-in">
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <img src={logoWhite} alt="HST Training Hub" className="h-9 w-9 rounded-lg bg-primary p-1" />
+            <img src={logoWhite} alt="HST Training Hub" className="h-9 w-9 rounded-md bg-primary p-1" />
             <h1 className="text-lg font-display font-semibold tracking-tight">HST Training Hub</h1>
           </div>
 

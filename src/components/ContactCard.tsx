@@ -60,7 +60,7 @@ export function ContactCard({ contact }: ContactCardProps) {
     <Card className="hover:shadow-md transition-all duration-200 group">
       <CardContent className="p-5">
         <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-100 group-hover:bg-accent-100 transition-colors">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-accent-100 group-hover:bg-accent-100 transition-colors">
             <Icon className="h-5 w-5 text-rule" />
           </div>
           <div className="flex-1 min-w-0 space-y-1.5">
@@ -87,11 +87,11 @@ export function ContactCard({ contact }: ContactCardProps) {
               </div>
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent-100" />
+              <span className="inline-block h-1.5 w-1.5 bg-rule" />
               {contact.organisation}
             </p>
             <div className="flex items-center gap-4 pt-1">
-              <a href={`mailto:${contact.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1.5 transition-colors">
+              <a href={`mailto:${contact.email}`} className="text-xs text-muted-foreground hover:text-accent-700 flex items-center gap-1.5 transition-colors">
                 <Mail className="h-3 w-3" />
                 {contact.email}
               </a>

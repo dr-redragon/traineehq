@@ -254,7 +254,7 @@ export function AddResourceDialog({ subsectionId, specialtyId, existingSubheadin
             }}
             onDrop={(e) => { setDragItemCount(0); handleDrop(e); }}
             onClick={() => fileRef.current?.click()}
-            className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
+            className={`relative border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${
               dragOver ? "border-rule bg-accent-100" : file ? "border-rule bg-accent-100" : "border-border hover:border-rule"
             }`}
           >

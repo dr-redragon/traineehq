@@ -208,7 +208,7 @@ export function AdminContacts() {
                     </div>
                     <p className="text-xs text-muted-foreground">{c.role}</p>
                     <p className="text-xs text-muted-foreground">{c.organisation}</p>
-                    <a href={`mailto:${c.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors">
+                    <a href={`mailto:${c.email}`} className="text-xs text-muted-foreground hover:text-accent-700 flex items-center gap-1 transition-colors">
                       <Mail className="h-3 w-3" /> {c.email}
                     </a>
                   </div>

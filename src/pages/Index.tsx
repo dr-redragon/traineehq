@@ -50,7 +50,7 @@ function DroppableColumn({ id, children, label }: { id: string; children: React.
       <p className="ds-kicker mb-2">{label}</p>
       <div
         ref={setNodeRef}
-        className={`space-y-2 min-h-[80px] rounded-lg border-2 border-dashed p-2 transition-colors ${
+        className={`space-y-2 min-h-[80px] rounded-md border-2 border-dashed p-2 transition-colors ${
           isOver ? "border-rule bg-accent-100" : "border-border"
         }`}
       >

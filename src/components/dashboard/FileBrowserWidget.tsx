@@ -157,7 +157,7 @@ export function FileBrowserWidget({
                 onClick={() => { setSubsectionId(s.id); setFolderId(null); }}
                 className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50 transition-colors text-left"
               >
-                <Folder className="h-4 w-4 text-primary shrink-0" />
+                <Folder className="h-4 w-4 text-rule shrink-0" />
                 <span className="text-sm truncate flex-1">{s.name}</span>
                 <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
@@ -171,7 +171,7 @@ export function FileBrowserWidget({
                 onClick={() => setFolderId(f.id)}
                 className="w-full flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50 transition-colors text-left"
               >
-                <Folder className="h-4 w-4 text-primary shrink-0" />
+                <Folder className="h-4 w-4 text-rule shrink-0" />
                 <span className="text-sm truncate flex-1">{f.name}</span>
                 <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
               </button>

@@ -135,7 +135,7 @@ export function FileRow({
                   : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
               />
             )}
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-secondary">
               <Icon className="h-4 w-4 text-muted-foreground" />
             </div>
             <div className="min-w-0 flex-1">
@@ -286,7 +286,7 @@ export function FolderRow({
                 : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
             />
           )}
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-100">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent-100">
             {active
               ? <FolderOpen className="h-4 w-4 text-rule" />
               : <FolderClosed className="h-4 w-4 text-rule" />}

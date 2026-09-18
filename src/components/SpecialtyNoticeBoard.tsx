@@ -126,7 +126,7 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
               <Megaphone className="h-4 w-4 text-rule" />
               <span className="text-sm font-semibold">Notice Board</span>
               {notices?.length ? (
-                <span className="text-[10px] text-muted-foreground bg-accent-100 rounded-full px-2 py-0.5">
+                <span className="text-[10px] text-muted-foreground bg-accent-100 rounded-sm px-2 py-0.5">
                   {notices.length}
                 </span>
               ) : null}

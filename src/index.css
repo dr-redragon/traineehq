@@ -289,16 +289,22 @@
 
   /* The modular grid, with its structure left visible. Cells are separated
      by the rule itself rather than by a gap, so the grid reads as drawn
-     rather than as floating boxes. The negative margin hides the outer
-     edges, leaving only the rules between cells. */
+     rather than as floating boxes.
+
+     The rules are drawn on the cells, not by showing a coloured container
+     through 1px gaps. That trick is the usual one and it breaks on the last
+     row: a grid of three cells in four columns leaves a whole empty column
+     with nothing in front of it, so the container's colour shows through as
+     a solid block. Here a cell that does not exist simply draws nothing. */
   .ds-grid {
     display: grid;
-    gap: 1px;
-    background: hsl(var(--border));
-    border: 1px solid hsl(var(--border));
+    gap: 0;
+    border-top: 1px solid hsl(var(--border));
+    border-left: 1px solid hsl(var(--border));
   }
   .ds-grid > * {
-    background: hsl(var(--background));
+    border-right: 1px solid hsl(var(--border));
+    border-bottom: 1px solid hsl(var(--border));
   }
 
   /* Modernist button labels are flush left — "a button wider than its label

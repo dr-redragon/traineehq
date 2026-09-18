@@ -123,7 +123,7 @@ export function AdminAnnouncements() {
               <CardContent className="p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-accent-100">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-accent-100">
                       <Megaphone className="h-5 w-5 text-rule" />
                     </div>
                     <div className="space-y-1 flex-1">

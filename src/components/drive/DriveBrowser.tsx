@@ -802,7 +802,7 @@ export function DriveBrowser({
   /* ---------- Render ---------- */
   return (
     <div
-      className="relative space-y-3 rounded-lg border bg-card/30 p-3"
+      className="relative space-y-3 rounded-md border bg-card/30 p-3"
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
@@ -975,7 +975,7 @@ export function DriveBrowser({
 
       {/* Bulk action bar */}
       {selectedCount > 0 && (
-        <div className="sticky bottom-3 z-30 flex items-center gap-2 rounded-xl border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
+        <div className="sticky bottom-3 z-30 flex items-center gap-2 rounded-md border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
           <CheckSquare className="h-4 w-4 text-rule" />
           <span className="text-sm font-medium">{selectedCount} selected</span>
           <div className="ml-auto flex items-center gap-1.5">
@@ -1198,7 +1198,7 @@ function Breadcrumb({
 function DragPreview({ count, label, kind }: { count: number; label: string; kind: "file" | "folder" }) {
   return (
     <div className="pointer-events-none">
-      <div className="flex items-center gap-2 rounded-lg border-2 border-rule bg-card px-3 py-2 shadow-2xl ring-4 ring-rule max-w-xs">
+      <div className="flex items-center gap-2 rounded-md border-2 border-rule bg-card px-3 py-2 shadow-2xl ring-4 ring-rule max-w-xs">
         {kind === "folder" ? <FolderClosed className="h-4 w-4 text-rule" /> : <FileText className="h-4 w-4 text-rule" />}
         <span className="truncate text-sm font-medium">{label}</span>
         {count > 1 && (

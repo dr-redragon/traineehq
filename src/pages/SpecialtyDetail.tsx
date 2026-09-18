@@ -20,7 +20,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, MessageSquare, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Users, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import { toast } from "sonner";
 import { useCanManageSpecialty } from "@/hooks/useUserRole";
@@ -475,11 +475,11 @@ const SpecialtyDetail = () => {
           </TabsContent>
         </Tabs>
 
+        {/* The board draws its own head — a kicker and a display-grade title —
+            so the page does not repeat it here. It used to, and with the
+            board's new head that read as "Discussion" followed immediately by
+            "DISCUSSION / Discussion Board". */}
         <div ref={discussionRef} className="border-t-2 border-border pt-6">
-          <div className="mb-4 flex items-center gap-2">
-            <MessageSquare className="h-5 w-5 text-rule" />
-            <h2 className="font-display text-lg font-extrabold tracking-tight">Discussion</h2>
-          </div>
           <DiscussionBoard specialtyId={id!} />
         </div>
       </div>
