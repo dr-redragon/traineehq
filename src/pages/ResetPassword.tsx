@@ -66,9 +66,9 @@ const ResetPassword = () => {
         <p className="relative z-10 text-primary-foreground/40 text-sm">
           © 2026 North West HST Training Hub. All rights reserved.
         </p>
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-accent/10" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-accent/10" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent/5" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-rule" />
+        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-rule" />
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent-100" />
       </div>
 
       {/* Right form */}

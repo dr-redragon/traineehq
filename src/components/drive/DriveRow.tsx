@@ -122,7 +122,7 @@ export function FileRow({
             onClick={onClick}
             onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) setViewerOpen(true); }}
             className={`group flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer select-none transition-colors
-              ${selected ? "bg-accent/10 border-accent/40" : "border-transparent hover:bg-secondary/60 hover:border-border"}
+              ${selected ? "bg-accent-100 border-rule" : "border-transparent hover:bg-secondary/60 hover:border-border"}
             `}
           >
             {(canManage || selectMode) && (
@@ -154,7 +154,7 @@ export function FileRow({
               <Button variant="ghost" size="icon" className="h-7 w-7"
                 onClick={(e) => { e.stopPropagation(); toggleBookmark.mutate(); }}
                 title={isBookmarked ? "Remove bookmark" : "Bookmark"}>
-                <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? "fill-current text-accent" : ""}`} />
+                <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? "fill-current text-rule" : ""}`} />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7"
                 onClick={(e) => { e.stopPropagation(); setViewerOpen(true); }} title="Open">
@@ -273,7 +273,7 @@ export function FolderRow({
           onClick={onClick}
           onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) onOpen(); }}
           className={`group flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer select-none transition-colors
-            ${active ? "ring-2 ring-accent bg-accent/10 border-accent" : selected ? "bg-accent/10 border-accent/40" : "border-transparent hover:bg-secondary/60 hover:border-border"}
+            ${active ? "ring-2 ring-rule bg-accent-100 border-rule" : selected ? "bg-accent-100 border-rule" : "border-transparent hover:bg-secondary/60 hover:border-border"}
           `}
         >
           {(canManage || selectMode) && (
@@ -286,10 +286,10 @@ export function FolderRow({
                 : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
             />
           )}
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-100">
             {active
-              ? <FolderOpen className="h-4 w-4 text-accent" />
-              : <FolderClosed className="h-4 w-4 text-accent" />}
+              ? <FolderOpen className="h-4 w-4 text-rule" />
+              : <FolderClosed className="h-4 w-4 text-rule" />}
           </div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium">{folder.name}</p>

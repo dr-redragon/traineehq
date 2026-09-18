@@ -67,9 +67,9 @@ const Login = () => {
           © 2026 North West HST Training Hub. All rights reserved.
         </p>
         {/* Decorative circles */}
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-accent/10" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-accent/10" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent/5" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-rule" />
+        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-rule" />
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent-100" />
       </div>
 
       {/* Right - login form */}
@@ -103,7 +103,7 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-xs text-accent hover:underline">
+                <Link to="/forgot-password" className="text-xs text-accent-700 hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -129,14 +129,14 @@ const Login = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{" "}
-            <Link to="/request-access" className="text-accent hover:underline font-medium">Request Access</Link>
+            <Link to="/request-access" className="text-accent-700 hover:underline font-medium">Request Access</Link>
           </p>
 
           <p className="text-center text-xs text-muted-foreground mt-4">
             By signing in, you agree to our{" "}
-            <PolicyLink kind="privacy" className="text-accent hover:underline" />{" "}
+            <PolicyLink kind="privacy" className="text-accent-700 hover:underline" />{" "}
             and{" "}
-            <PolicyLink kind="terms" className="text-accent hover:underline" />.
+            <PolicyLink kind="terms" className="text-accent-700 hover:underline" />.
           </p>
           <div className="mt-8 pt-6 border-t">
             <ContactForm compact />

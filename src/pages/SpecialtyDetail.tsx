@@ -339,7 +339,7 @@ const SpecialtyDetail = () => {
               />
               <Label
                 htmlFor="edit-mode"
-                className={cn("text-xs cursor-pointer", editMode ? "text-accent" : "text-muted-foreground")}
+                className={cn("text-xs cursor-pointer", editMode ? "text-accent-700" : "text-muted-foreground")}
               >
                 {editMode ? "✏️ Editing enabled" : "Editing off"}
               </Label>

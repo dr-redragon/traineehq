@@ -48,9 +48,9 @@ const ForgotPassword = () => {
         <p className="relative z-10 text-primary-foreground/40 text-sm">
           © 2026 North West HST Training Hub. All rights reserved.
         </p>
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-accent/10" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-accent/10" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent/5" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-rule" />
+        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-rule" />
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent-100" />
       </div>
 
       {/* Right form */}
@@ -63,14 +63,14 @@ const ForgotPassword = () => {
 
           {sent ? (
             <div className="text-center space-y-4">
-              <div className="h-16 w-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                <Mail className="h-8 w-8 text-accent" />
+              <div className="h-16 w-16 rounded-full bg-accent-100 flex items-center justify-center mx-auto mb-4">
+                <Mail className="h-8 w-8 text-rule" />
               </div>
               <h2 className="text-2xl font-display font-bold">Check your email</h2>
               <p className="text-muted-foreground">
                 We've sent a password reset link to <strong>{email}</strong>. Click the link in the email to set a new password.
               </p>
-              <Link to="/" className="inline-flex items-center gap-2 text-sm text-accent hover:underline font-medium mt-4">
+              <Link to="/" className="inline-flex items-center gap-2 text-sm text-accent-700 hover:underline font-medium mt-4">
                 <ArrowLeft className="h-4 w-4" /> Back to sign in
               </Link>
             </div>
@@ -105,14 +105,14 @@ const ForgotPassword = () => {
               </form>
 
               <p className="text-center text-sm text-muted-foreground mt-6">
-                <Link to="/" className="inline-flex items-center gap-1 text-accent hover:underline font-medium">
+                <Link to="/" className="inline-flex items-center gap-1 text-accent-700 hover:underline font-medium">
                   <ArrowLeft className="h-3 w-3" /> Back to sign in
                 </Link>
               </p>
 
               <p className="text-center text-sm text-muted-foreground mt-3">
                 Don't have an account?{" "}
-                <Link to="/request-access" className="text-accent hover:underline font-medium">Request Access</Link>
+                <Link to="/request-access" className="text-accent-700 hover:underline font-medium">Request Access</Link>
               </p>
             </>
           )}

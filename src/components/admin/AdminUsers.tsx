@@ -445,7 +445,7 @@ export function AdminUsers() {
                     {selectedRole === "facilitator" ? "Can manage resources in:" : "Can access resources in:"}
                   </Label>
                   <div className="flex gap-2">
-                    <button className="text-[10px] text-accent hover:underline" onClick={selectAllSpecialties}>Select all</button>
+                    <button className="text-[10px] text-accent-700 hover:underline" onClick={selectAllSpecialties}>Select all</button>
                     <button className="text-[10px] text-muted-foreground hover:underline" onClick={clearAllSpecialties}>Clear</button>
                   </div>
                 </div>

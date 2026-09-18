@@ -76,10 +76,10 @@ function DropZone({
   const active = isOver || activeId === id;
   return (
     <div ref={setNodeRef}
-      className={`relative rounded-md transition-colors ${active ? "bg-accent/10 ring-1 ring-accent/40" : ""} ${className}`}>
+      className={`relative rounded-md transition-colors ${active ? "bg-accent-100 ring-1 ring-rule" : ""} ${className}`}>
       {children}
       {active && !children && (
-        <div className="flex items-center justify-center py-6 text-xs text-accent">
+        <div className="flex items-center justify-center py-6 text-xs text-accent-700">
           {fallbackLabel ?? "Drop to move here"}
         </div>
       )}
@@ -976,7 +976,7 @@ export function DriveBrowser({
       {/* Bulk action bar */}
       {selectedCount > 0 && (
         <div className="sticky bottom-3 z-30 flex items-center gap-2 rounded-xl border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
-          <CheckSquare className="h-4 w-4 text-accent" />
+          <CheckSquare className="h-4 w-4 text-rule" />
           <span className="text-sm font-medium">{selectedCount} selected</span>
           <div className="ml-auto flex items-center gap-1.5">
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
@@ -1124,7 +1124,7 @@ export function DriveBrowser({
                   moveItemsToTarget({ fileIds, folderIds: [] }, { folderId: f.id, subheading: (f as any).subheading ?? null })
                     .then(() => { toast.success("Moved"); setMoveDialogOpen(false); setMoveTargetIds([]); clearSelection(); });
                 }}>
-                <FolderClosed className="h-4 w-4 text-accent" /> {f.name}
+                <FolderClosed className="h-4 w-4 text-rule" /> {f.name}
               </button>
             ))}
           </div>
@@ -1151,10 +1151,10 @@ function Section({
   return (
     <div
       ref={setNodeRef}
-      className={`relative rounded-md p-1 min-h-[40px] transition-colors ${active ? "bg-accent/5 ring-1 ring-accent/30" : ""}`}
+      className={`relative rounded-md p-1 min-h-[40px] transition-colors ${active ? "bg-accent-100 ring-1 ring-rule" : ""}`}
     >
       {empty ? (
-        <div className={`flex items-center justify-center py-8 text-xs border border-dashed rounded-md ${active ? "border-accent text-accent bg-accent/5" : "border-border text-muted-foreground"}`}>
+        <div className={`flex items-center justify-center py-8 text-xs border border-dashed rounded-md ${active ? "border-rule text-accent-700 bg-accent-100" : "border-border text-muted-foreground"}`}>
           {active ? `Drop to move here` : "Nothing here yet — drop files or use \"New\""}
         </div>
       ) : (
@@ -1181,7 +1181,7 @@ function Breadcrumb({
         ref={currentFolderName ? setNodeRef : undefined}
         onClick={onClickRoot}
         className={`px-2 py-1 rounded-md font-medium transition-colors
-          ${active ? "bg-accent/10 ring-1 ring-accent text-accent" : currentFolderName ? "text-muted-foreground hover:bg-secondary hover:text-foreground" : "text-foreground"}`}
+          ${active ? "bg-accent-100 ring-1 ring-rule text-accent-700" : currentFolderName ? "text-muted-foreground hover:bg-secondary hover:text-foreground" : "text-foreground"}`}
       >
         {subsectionName}
       </button>
@@ -1198,8 +1198,8 @@ function Breadcrumb({
 function DragPreview({ count, label, kind }: { count: number; label: string; kind: "file" | "folder" }) {
   return (
     <div className="pointer-events-none">
-      <div className="flex items-center gap-2 rounded-lg border-2 border-accent/50 bg-card px-3 py-2 shadow-2xl ring-4 ring-accent/10 max-w-xs">
-        {kind === "folder" ? <FolderClosed className="h-4 w-4 text-accent" /> : <FileText className="h-4 w-4 text-accent" />}
+      <div className="flex items-center gap-2 rounded-lg border-2 border-rule bg-card px-3 py-2 shadow-2xl ring-4 ring-rule max-w-xs">
+        {kind === "folder" ? <FolderClosed className="h-4 w-4 text-rule" /> : <FileText className="h-4 w-4 text-rule" />}
         <span className="truncate text-sm font-medium">{label}</span>
         {count > 1 && (
           <Badge className="ml-auto shrink-0 bg-accent text-accent-foreground">{count}</Badge>

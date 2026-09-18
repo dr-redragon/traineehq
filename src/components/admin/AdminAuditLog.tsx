@@ -141,7 +141,7 @@ export function AdminAuditLog() {
       <Card>
         <CardContent className="p-4 text-sm text-muted-foreground">
           <p className="flex items-start gap-2">
-            <ScrollText className="h-4 w-4 mt-0.5 shrink-0 text-accent" />
+            <ScrollText className="h-4 w-4 mt-0.5 shrink-0 text-rule" />
             <span>
               Every change to who can see whose data: role grants, register membership,
               and decisions on access requests. Entries are written by the database

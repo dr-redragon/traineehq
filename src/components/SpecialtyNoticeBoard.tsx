@@ -119,14 +119,14 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="border-accent/20 bg-accent/5">
+      <Card className="border-rule bg-accent-100">
         <CollapsibleTrigger asChild>
-          <button className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-accent/10 transition-colors rounded-t-lg">
+          <button className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-accent-100 transition-colors rounded-t-lg">
             <div className="flex items-center gap-2">
-              <Megaphone className="h-4 w-4 text-accent" />
+              <Megaphone className="h-4 w-4 text-rule" />
               <span className="text-sm font-semibold">Notice Board</span>
               {notices?.length ? (
-                <span className="text-[10px] text-muted-foreground bg-accent/10 rounded-full px-2 py-0.5">
+                <span className="text-[10px] text-muted-foreground bg-accent-100 rounded-full px-2 py-0.5">
                   {notices.length}
                 </span>
               ) : null}

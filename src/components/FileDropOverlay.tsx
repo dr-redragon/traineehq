@@ -47,21 +47,21 @@ export function FileDropOverlay({
       className={`${
         absolute ? "absolute inset-0" : ""
       } z-20 flex items-center justify-center pointer-events-none rounded-lg
-        bg-accent/10 backdrop-blur-[2px]
-        border-2 border-dashed border-accent
+        bg-accent-100 backdrop-blur-[2px]
+        border-2 border-dashed border-rule
         animate-fade-in`}
       aria-hidden="true"
     >
-      <div className="flex flex-col items-center gap-2 text-accent animate-scale-in">
+      <div className="flex flex-col items-center gap-2 text-accent-700 animate-scale-in">
         <div className="relative">
-          <div className="absolute inset-0 rounded-full bg-accent/20 animate-ping" />
+          <div className="absolute inset-0 rounded-full bg-accent-100 animate-ping" />
           <div
-            className={`relative rounded-full bg-accent/15 ring-2 ring-accent/40 ${
+            className={`relative rounded-full bg-accent-100 ring-2 ring-rule ${
               compact ? "p-2" : "p-3"
             }`}
           >
             <Icon
-              className={`${compact ? "h-5 w-5" : "h-7 w-7"} text-accent ${
+              className={`${compact ? "h-5 w-5" : "h-7 w-7"} text-rule ${
                 isMove ? "" : "animate-bounce"
               }`}
               strokeWidth={2.25}
@@ -71,7 +71,7 @@ export function FileDropOverlay({
         <div className="text-center">
           <p className={`font-semibold ${compact ? "text-xs" : "text-sm"}`}>{finalLabel}</p>
           <p
-            className={`text-accent/80 ${
+            className={`text-accent-700 ${
               compact ? "text-[10px]" : "text-xs"
             } mt-0.5`}
           >

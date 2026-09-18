@@ -214,7 +214,7 @@ const MyProfile = () => {
         <Card>
           <CardContent className="p-5 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <RoleIcon className="h-4 w-4 text-accent" />
+              <RoleIcon className="h-4 w-4 text-rule" />
               <Badge variant={userRole === "admin" || userRole === "super_admin" ? "destructive" : userRole === "facilitator" ? "default" : "secondary"} className="text-xs capitalize">
                 {userRole}
               </Badge>
@@ -237,7 +237,7 @@ const MyProfile = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5 text-accent" /> Personal Details
+              <User className="h-5 w-5 text-rule" /> Personal Details
             </CardTitle>
             <CardDescription>Update your name, email address, and training grade</CardDescription>
           </CardHeader>
@@ -289,7 +289,7 @@ const MyProfile = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Lock className="h-5 w-5 text-accent" /> Change Password
+              <Lock className="h-5 w-5 text-rule" /> Change Password
             </CardTitle>
             <CardDescription>Update your password to keep your account secure</CardDescription>
           </CardHeader>
