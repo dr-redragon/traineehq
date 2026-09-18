@@ -182,7 +182,7 @@ export function FileBrowserWidget({
                 <Link
                   key={r.id}
                   to={`/specialty/${effectiveSpecialty}`}
-                  className="group flex items-center gap-3 px-1 py-2 transition-colors hover:bg-foreground/[0.04]"
+                  className="group flex items-center gap-3 px-1 py-2 transition-colors hover:bg-accent"
                 >
                   <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
                   <span className="text-sm truncate flex-1 transition-colors group-hover:text-rule">{r.title}</span>

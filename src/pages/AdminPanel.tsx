@@ -14,7 +14,7 @@ import { Shield, Users, BookOpen, Phone, Megaphone, UserPlus, Building2, Stethos
 const AdminPanel = () => {
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto space-y-6 animate-fade-in">
+      <div className="animate-fade-in space-y-8 p-9">
         {/* The panel's layout is deliberately unchanged — same nine tabs in
             the same order, same content in each. Only the design language
             moves. */}

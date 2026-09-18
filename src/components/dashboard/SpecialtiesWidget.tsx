@@ -39,7 +39,7 @@ export function SpecialtiesWidget() {
               <div key={s.id}>
                 <Link
                   to={`/specialty/${s.id}`}
-                  className="group mb-3 flex items-center gap-4 border-l-2 border-transparent bg-card p-4 transition-colors hover:border-rule hover:bg-foreground/[0.04]"
+                  className="group mb-3 flex items-center gap-4 border-l-2 border-transparent bg-card p-4 transition-colors hover:border-rule hover:bg-accent"
                 >
                   <div
                     className="flex h-10 w-10 shrink-0 items-center justify-center"
@@ -65,7 +65,7 @@ export function SpecialtiesWidget() {
                         <Link
                           key={child.id}
                           to={`/specialty/${child.id}`}
-                          className="group h-full p-3 transition-colors hover:bg-foreground/[0.04]"
+                          className="group h-full p-3 transition-colors hover:bg-accent"
                         >
                           <div
                             className="mb-2 flex h-8 w-8 items-center justify-center"

@@ -2,7 +2,7 @@
    heading and the body role, at 800 for headings. Manrope stays loaded because
    the teaching register keeps its own body face (see `.register-theme`); it is
    not used anywhere else. */
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=Manrope:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -123,17 +123,23 @@
        run red: the active rail marker, a section's leading rule, a kicker. */
     --rule-accent: 8 85% 50%;        /* accent    #ec3013 */
 
-    /* The ink rail. Modernist's navigation is a flat ruled bar; here it is
-       the vertical one, set in ink so the rail reads as the page's spine
-       and the light grid sits beside it. Foreground steps are chosen off
-       the neutral ramp for contrast on ink: neutral-300 at 11.2:1,
-       neutral-500 at 5.8:1. The rail's red is accent-500, because the base
-       accent only reaches 3.95:1 on ink — the design system prescribes
-       exactly this step for a dark ground. */
+    /* The ink rail, as 1B draws it: the nav set in ink so it reads as the
+       page's spine, its rows tinted off white, and the open one taking a
+       SOLID accent fill rather than an edge marker — the edge marker is 1A's
+       move, on a light rail.
+
+       The fill is accent-600 rather than the base accent, for the same
+       reason `--primary` is: white on the base is 4.20:1, and a 14px nav
+       label at weight 700 is text. accent-600 carries it at 4.74:1 and is
+       indistinguishable at a glance.
+
+       The unselected rows are the design's own `#f3f2f2` at 75% and 50%
+       over ink, which land on the neutral ramp at 400 (8.3:1) and 500
+       (5.8:1). */
     --sidebar-background: 20 5% 12%;        /* ink        #201e1d */
-    --sidebar-foreground: 0 5% 84%;         /* neutral-300 #d7d3d3 */
-    --sidebar-primary: 8 100% 62%;          /* accent-500  #ff563c */
-    --sidebar-primary-foreground: 20 5% 12%;
+    --sidebar-foreground: 0 3% 72%;         /* neutral-400 #bab6b6 */
+    --sidebar-primary: 8 87% 46%;           /* accent-600  #dd2b0f */
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 2% 17%;             /* neutral-900 #2d2b2b */
     --sidebar-accent-foreground: 0 22% 96%; /* neutral-100 #f8f4f4 */
     --sidebar-border: 0 2% 26%;             /* neutral-800 #444141 */
@@ -219,9 +225,9 @@
     /* The rail stays a rail: on a dark ground it separates by taking the
        surface step rather than the ground's own ink. */
     --sidebar-background: 0 2% 17%;         /* neutral-900 #2d2b2b */
-    --sidebar-foreground: 0 5% 84%;
-    --sidebar-primary: 8 100% 62%;
-    --sidebar-primary-foreground: 20 5% 12%;
+    --sidebar-foreground: 0 3% 72%;
+    --sidebar-primary: 8 87% 46%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 2% 24%;
     --sidebar-accent-foreground: 0 22% 96%;
     --sidebar-border: 0 2% 30%;
@@ -289,6 +295,18 @@
    tokens above without needing a class here.
    ===================================================================== */
 @layer components {
+  /* The row hover the design uses throughout — every table row, list row and
+     grid cell in it tints to the accent's lightest step rather than to ink.
+     It follows the theme, so inside the register it is the register's own
+     palest accent and not TraineeHQ's pink. */
+  .ds-row {
+    transition: background-color 150ms;
+    cursor: pointer;
+  }
+  .ds-row:hover {
+    background: hsl(var(--accent));
+  }
+
   /* The system's signature: a 2px rule, never a hairline. */
   .ds-rule {
     border-top: 2px solid hsl(var(--border));
@@ -338,6 +356,44 @@
   .ds-grid > * {
     border-right: 1px solid hsl(var(--border));
     border-bottom: 1px solid hsl(var(--border));
+  }
+
+  /* The category sub-rail, which is how 1B navigates a specialty.
+
+     The same Radix tabs stood on end: the strip becomes a column down the
+     left of the content, and the marker turns with it — a 3px accent edge on
+     the open category instead of an accent rule under it. The count sits at
+     the far end of each row.
+
+     It is a class on the list rather than classes on each trigger because the
+     triggers are not all written in one place: the reorderable ones come from
+     SortableTabTrigger, which renders its own. */
+  .ds-subrail [data-slot="tabs-trigger"] {
+    display: flex;
+    width: 100%;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 0;
+    border-bottom: 0;
+    border-left: 3px solid transparent;
+    padding: 10px 20px;
+    font-family: var(--font-body);
+    font-size: 13.5px;
+    font-weight: 400;
+    line-height: 1.3;
+    text-align: left;
+    color: hsl(var(--muted-foreground));
+  }
+  .ds-subrail [data-slot="tabs-trigger"]:hover {
+    background: hsl(var(--accent));
+    color: hsl(var(--foreground));
+  }
+  .ds-subrail [data-slot="tabs-trigger"][data-state="active"] {
+    border-left-color: hsl(var(--rule-accent));
+    background: transparent;
+    font-weight: 700;
+    color: hsl(var(--foreground));
   }
 
   /* Modernist button labels are flush left — "a button wider than its label

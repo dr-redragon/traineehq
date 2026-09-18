@@ -63,7 +63,7 @@ export function RegistersWidget() {
           <Link
             key={entry.id}
             to={`/registers/${entry.slug}`}
-            className="group flex items-center gap-3 px-1 py-2 transition-colors hover:bg-foreground/[0.04]"
+            className="group flex items-center gap-3 px-1 py-2 transition-colors hover:bg-accent"
           >
             <ClipboardList className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
             <div className="min-w-0 flex-1">

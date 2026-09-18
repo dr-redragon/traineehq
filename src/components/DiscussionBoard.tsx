@@ -398,7 +398,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
               <div
                 key={post.id}
                 className={`border-l-2 transition-colors ${
-                  isExpanded ? "border-rule bg-card" : "border-transparent hover:bg-foreground/[0.03]"
+                  isExpanded ? "border-rule bg-card" : "border-transparent hover:bg-accent"
                 } ${post.is_pinned ? "border-rule bg-accent-100" : ""}`}
               >
                 <div>

@@ -45,7 +45,7 @@ const KeyContacts = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
+      <div className="animate-fade-in space-y-6 p-9">
         <div>
           <h1 className="text-2xl font-display font-bold mb-1">Key Contacts</h1>
           <p className="text-sm text-muted-foreground">

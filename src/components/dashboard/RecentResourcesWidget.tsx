@@ -35,7 +35,7 @@ export function RecentResourcesWidget() {
             return (
               <div
                 key={r.id}
-                className="flex cursor-pointer items-center gap-4 px-1 py-2.5 transition-colors hover:bg-foreground/[0.04]"
+                className="flex cursor-pointer items-center gap-4 px-1 py-2.5 transition-colors hover:bg-accent"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-secondary">
                   <Icon className="h-4 w-4 text-muted-foreground" />

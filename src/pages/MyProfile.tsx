@@ -204,7 +204,7 @@ const MyProfile = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+      <div className="animate-fade-in max-w-2xl space-y-6 p-9">
         <div>
           <h1 className="text-2xl font-display font-bold">My Profile</h1>
           <p className="text-sm text-muted-foreground">View and manage your account details</p>

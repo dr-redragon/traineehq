@@ -30,7 +30,7 @@ import {
   DndContext, closestCenter,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { SortableTabTrigger } from "@/components/SortableTabTrigger";
 import { useDragSensors } from "@/hooks/useDragSensors";
 
@@ -315,12 +315,18 @@ const SpecialtyDetail = () => {
   const color = specialty.color ?? "174 60% 40%";
   const defaultTab = subsections?.[0]?.name ?? "Key Contacts";
 
+  // What the sub-rail shows at the end of each category row. The design puts a
+  // count there, and on a rail of eight it is the only way to tell a category
+  // worth opening from an empty one without opening it.
+  const countOf = (subsectionId: string) =>
+    (resources ?? []).filter((r) => r.subsection_id === subsectionId).length;
+
   return (
-    <DashboardLayout>
-      <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
-        {/* The page opens on its own rule, with the specialty set display-grade
-            and flush left rather than as a caption beside a rounded tile. */}
-        <div className="flex items-center gap-4 border-b-2 border-border pb-4">
+    <DashboardLayout breadcrumb={`Specialties / ${specialty.short_name}`}>
+      <div className="animate-fade-in">
+        {/* "Specialty library" over the name at display scale, on the page's
+            own rule — 1B's specialty opening. */}
+        <div className="flex flex-wrap items-end gap-4 border-b-2 border-border px-9 py-8">
           <div
             className="flex h-14 w-14 shrink-0 items-center justify-center"
             style={{ backgroundColor: `hsl(${color} / 0.12)` }}
@@ -328,11 +334,11 @@ const SpecialtyDetail = () => {
             <Icon className="h-7 w-7" style={{ color: `hsl(${color})` }} />
           </div>
           <div className="min-w-0">
-            <p className="ds-kicker mb-1">Specialty</p>
-            <h1 className="font-display text-[42px] font-extrabold leading-[1.05] tracking-tight">
+            <p className="ds-kicker mb-1">Specialty library</p>
+            <h1 className="font-display text-[clamp(32px,4vw,46px)] font-extrabold leading-none tracking-[-0.03em]">
               {specialty.short_name}
             </h1>
-            <p className="mt-1 text-muted-foreground">{specialty.name}</p>
+            <p className="mt-2 text-muted-foreground">{specialty.name}</p>
           </div>
           {hasEditRights && (
             <div className="ml-auto flex shrink-0 items-center gap-2 border border-border px-3 py-1.5">
@@ -352,23 +358,52 @@ const SpecialtyDetail = () => {
           )}
         </div>
 
-        <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
+        {/* The categories move off the top of the page and down its left side.
 
-        <Tabs value={activeTab ?? defaultTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 overflow-hidden">
-              <TabsList
-                ref={tabsListRef}
-                className={cn(
-                  "tabs-scrollbar h-auto w-full justify-start",
-                  tabsScroll.canScrollLeft ? "tabs-fade-both" : "tabs-fade-right"
+            They used to be a horizontal strip, which is what forced the
+            scrolling, the fade masks and the pair of arrow buttons: eight
+            category names never fit across a column. Standing them up removes
+            the problem rather than decorating it — the rail is as long as it
+            needs to be, every name is readable in full at its natural length,
+            and the count sits at the end of each row. Reordering by dragging
+            survives; the sort strategy turns with the axis.
+
+            Below `lg` the rail lies back down as a scrolling strip, because a
+            244px column beside content does not fit on a phone. */}
+        <Tabs
+          value={activeTab ?? defaultTab}
+          onValueChange={setActiveTab}
+          orientation="vertical"
+          className="w-full"
+        >
+          <div className="grid lg:grid-cols-[244px_minmax(0,1fr)]">
+            <div className="border-b-2 border-border py-5 lg:border-b-0 lg:border-r-2">
+              <div className="flex items-baseline justify-between gap-2 px-5 pb-2.5">
+                <p className="ds-kicker">Categories</p>
+                {canManage && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-mr-1 h-6 gap-1 px-1.5 text-[11px]"
+                    onClick={() => setAddSubOpen(true)}
+                  >
+                    <Plus className="h-3 w-3" /> Section
+                  </Button>
                 )}
-              >
+              </div>
+              <TabsList className="ds-subrail tabs-scrollbar flex h-auto w-full flex-row items-stretch gap-0 overflow-x-auto border-b-0 p-0 lg:flex-col lg:overflow-visible">
                 {canManage && subsections?.length ? (
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubsectionDragEnd}>
-                    <SortableContext items={subsections.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
+                    <SortableContext items={subsections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                       {subsections.map((sub) => (
-                        <SortableTabTrigger key={sub.id} id={sub.id} value={sub.name} canDrag>
+                        <SortableTabTrigger
+                          key={sub.id}
+                          id={sub.id}
+                          value={sub.name}
+                          canDrag
+                          className="w-full"
+                          meta={<span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>}
+                        >
                           {sub.name}
                         </SortableTabTrigger>
                       ))}
@@ -376,35 +411,24 @@ const SpecialtyDetail = () => {
                   </DndContext>
                 ) : (
                   subsections?.map((sub) => (
-                    <TabsTrigger key={sub.id} value={sub.name} className="text-xs whitespace-nowrap">
-                      {sub.name}
+                    <TabsTrigger key={sub.id} value={sub.name}>
+                      <span className="min-w-0">{sub.name}</span>
+                      <span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>
                     </TabsTrigger>
                   ))
                 )}
-                <TabsTrigger value="Key Contacts" className="whitespace-nowrap text-xs">
-                  <Users className="h-3 w-3 mr-1" />
-                  Key Contacts
+                <TabsTrigger value="Key Contacts">
+                  <span className="flex min-w-0 items-baseline gap-1.5">
+                    <Users className="h-3 w-3 shrink-0 self-center" />
+                    Key Contacts
+                  </span>
+                  <span className="shrink-0 text-[12px] font-normal text-muted-foreground">{contacts?.length ?? 0}</span>
                 </TabsTrigger>
               </TabsList>
-
-              {/* The scroll arrows and their fade masks are gone with the pill
-                  track they belonged to: a round button floating over a
-                  gradient is exactly the decoration this system drops, and the
-                  always-visible scrollbar underneath already says the strip
-                  runs on. The fade mask is kept — it is a mask, not a painted
-                  gradient, so it works over the page's own ground. */}
             </div>
-            {canManage && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-1 text-xs h-8"
-                onClick={() => setAddSubOpen(true)}
-              >
-                <Plus className="h-3.5 w-3.5" /> Section
-              </Button>
-            )}
-          </div>
+
+            <div className="flex min-w-0 flex-col gap-8 px-9 pb-12 pt-7">
+              <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
 
           {subsections?.map((sub) => {
             const subResources = (resources ?? [])
@@ -473,15 +497,15 @@ const SpecialtyDetail = () => {
               </div>
             )}
           </TabsContent>
+              {/* The board draws its own head, so the page does not repeat
+                  it. It sits in the content column beside the rail, where 1B
+                  puts it — under the files for the category you are in. */}
+              <div ref={discussionRef}>
+                <DiscussionBoard specialtyId={id!} />
+              </div>
+            </div>
+          </div>
         </Tabs>
-
-        {/* The board draws its own head — a kicker and a display-grade title —
-            so the page does not repeat it here. It used to, and with the
-            board's new head that read as "Discussion" followed immediately by
-            "DISCUSSION / Discussion Board". */}
-        <div ref={discussionRef} className="border-t-2 border-border pt-6">
-          <DiscussionBoard specialtyId={id!} />
-        </div>
       </div>
 
       {/* Add Section Dialog */}

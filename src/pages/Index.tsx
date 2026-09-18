@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Clock, Megaphone, FileText, Video, LinkIcon, BookOpen, CheckSquare,
+  Clock, FileText, Video, LinkIcon, BookOpen, CheckSquare,
   FolderOpen, ChevronRight, Settings2, Eye, EyeOff, X, Columns2, Rows3,
   ArrowLeftRight, Cog,
 } from "lucide-react";
@@ -306,31 +306,60 @@ const Index = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* The page opens the way the design system opens one: a kicker, a
-            display-grade line set flush left, and a 2px rule closing the head
-            off from the sections below it. */}
-        <div className="animate-fade-in border-b-2 border-border pb-4">
-          <p className="ds-kicker mb-2">Dashboard</p>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <h1 className="font-display text-[42px] font-extrabold leading-[1.05] tracking-tight">
-                Welcome back, {firstName}
-              </h1>
-              <p className="mt-1 text-muted-foreground">Access your training resources and stay up to date.</p>
-            </div>
-            <Button
-              variant={isEditing ? "default" : "outline"}
-              size="sm"
-              onClick={() => setIsEditing(!isEditing)}
-              className="shrink-0 gap-2"
-            >
-              <Settings2 className="h-4 w-4" />
-              {isEditing ? "Done Editing" : "Customise Dashboard"}
-            </Button>
+      <div className="animate-fade-in">
+        {/* The poster. 1B opens the dashboard on a full-bleed accent field
+            with the line set as large as the column will carry, and that
+            field is the one place the design runs the accent at full
+            strength. The greeting is the app's own — the design's line is
+            marketing copy for a product page, and this is somebody's
+            dashboard — but it is set at the poster's scale. */}
+        <div className="flex flex-wrap items-end justify-between gap-8 bg-primary px-9 py-11 text-primary-foreground">
+          <div className="min-w-0 max-w-3xl">
+            <p className="text-[12px] font-bold uppercase tracking-[0.16em]">
+              {activeDeanery?.name ?? ""} HST Training Hub
+            </p>
+            <h1 className="mt-3 font-display text-[clamp(34px,5.2vw,62px)] font-extrabold leading-[0.95] tracking-[-0.035em]">
+              Welcome back, {firstName}
+            </h1>
           </div>
+          {/* Outlined in the field's own foreground: an ordinary secondary
+              button draws itself in the page's divider colour, which on red
+              is barely there. */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditing(!isEditing)}
+            className="shrink-0 gap-2 border-primary-foreground/70 text-primary-foreground hover:bg-primary-foreground/15 active:bg-primary-foreground/25"
+          >
+            <Settings2 className="h-4 w-4" />
+            {isEditing ? "Done Editing" : "Customise Dashboard"}
+          </Button>
         </div>
 
+      {/* Pinned Announcements — always at top */}
+      {announcements?.length ? (
+        <div className="divide-y divide-background/20">
+          {/* The notice runs in ink directly under the poster. Two accent
+              fields stacked would be two posters and neither would lead;
+              the design answers that by inverting the second one. */}
+          {announcements.map((a) => (
+            <div
+              key={a.id}
+              className="flex flex-wrap items-baseline gap-x-5 gap-y-1 bg-foreground px-9 py-4 text-background"
+            >
+              <span className="shrink-0 text-[11px] font-extrabold uppercase tracking-[0.14em]">Notice</span>
+              <p className="min-w-0 flex-1 text-sm">
+                <span className="font-bold">{a.title}</span>
+                {a.content ? <span className="opacity-90"> — {a.content}</span> : null}
+              </p>
+              <span className="shrink-0 text-[13px] opacity-60">
+                {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+        <div className="space-y-8 p-9">
         {/* Widget visibility toggles when editing */}
         {isEditing && (
           <Card className="animate-fade-in border-l-2 border-rule bg-accent-100">
@@ -381,28 +410,6 @@ const Index = () => {
           </Card>
         )}
 
-        {/* Pinned Announcements — always at top */}
-        {announcements?.length ? (
-          <div className="space-y-3">
-            {/* The poster statement. The design system runs the accent as a
-                field in exactly one place — the thing on the page that has to
-                carry it — and on a dashboard that is the announcement. The
-                field is accent-600 rather than the base accent so the white
-                copy on it clears AA; at a glance the two are the same red. */}
-            {announcements.map((a) => (
-              <div key={a.id} className="flex items-start gap-4 bg-primary p-5 text-primary-foreground">
-                <Megaphone className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
-                <div className="min-w-0">
-                  <h3 className="font-display text-lg font-extrabold leading-tight tracking-tight">{a.title}</h3>
-                  <p className="mt-1 text-sm">{a.content}</p>
-                  <p className="mt-2 text-[10px] uppercase tracking-[0.1em] opacity-80">
-                    {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
 
         {/* Sortable widgets */}
         <DndContext
@@ -435,6 +442,7 @@ const Index = () => {
           value={widgetSettings.file_browser}
           onSave={(v) => savePrefs.mutate({ widget_settings: { ...widgetSettings, file_browser: v } })}
         />
+        </div>
       </div>
     </DashboardLayout>
   );

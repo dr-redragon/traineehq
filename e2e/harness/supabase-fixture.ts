@@ -162,7 +162,12 @@ const USER = { id: "u-1", email: PROFILES[0].email, user_metadata: {}, app_metad
 
 export const supabase = {
   from: (table: string) => builder(table),
-  rpc: () => Promise.resolve({ data: null, error: null }),
+  rpc: (name: string) =>
+    Promise.resolve(
+      name === "get_profile_display_names"
+        ? { data: PROFILES.map(({ user_id, first_name, last_name }) => ({ user_id, first_name, last_name })), error: null }
+        : { data: null, error: null },
+    ),
   auth: {
     getUser: () => Promise.resolve({ data: { user: USER }, error: null }),
     getSession: () => Promise.resolve({ data: { session: { user: USER } }, error: null }),
