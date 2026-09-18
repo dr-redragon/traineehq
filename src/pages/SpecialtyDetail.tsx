@@ -20,7 +20,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, MessageSquare, Plus, MoreVertical, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, MessageSquare, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import { toast } from "sonner";
 import { useCanManageSpecialty } from "@/hooks/useUserRole";
@@ -318,19 +318,24 @@ const SpecialtyDetail = () => {
   return (
     <DashboardLayout>
       <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
-        <div className="flex items-center gap-4">
+        {/* The page opens on its own rule, with the specialty set display-grade
+            and flush left rather than as a caption beside a rounded tile. */}
+        <div className="flex items-center gap-4 border-b-2 border-border pb-4">
           <div
-            className="flex h-12 w-12 items-center justify-center rounded-xl"
+            className="flex h-14 w-14 shrink-0 items-center justify-center"
             style={{ backgroundColor: `hsl(${color} / 0.12)` }}
           >
-            <Icon className="h-6 w-6" style={{ color: `hsl(${color})` }} />
+            <Icon className="h-7 w-7" style={{ color: `hsl(${color})` }} />
           </div>
-          <div>
-            <h1 className="text-2xl font-display font-bold">{specialty.short_name}</h1>
-            <p className="text-sm text-muted-foreground">{specialty.name}</p>
+          <div className="min-w-0">
+            <p className="ds-kicker mb-1">Specialty</p>
+            <h1 className="font-display text-[42px] font-extrabold leading-[1.05] tracking-tight">
+              {specialty.short_name}
+            </h1>
+            <p className="mt-1 text-muted-foreground">{specialty.name}</p>
           </div>
           {hasEditRights && (
-            <div className="ml-auto flex items-center gap-2 rounded-md border px-3 py-1.5">
+            <div className="ml-auto flex shrink-0 items-center gap-2 border border-border px-3 py-1.5">
               <Switch
                 id="edit-mode"
                 checked={editMode}
@@ -351,11 +356,11 @@ const SpecialtyDetail = () => {
 
         <Tabs value={activeTab ?? defaultTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex items-center gap-2">
-            <div className="flex-1 relative overflow-hidden rounded-md">
+            <div className="relative flex-1 overflow-hidden">
               <TabsList
                 ref={tabsListRef}
                 className={cn(
-                  "w-full justify-start h-auto bg-secondary/50 p-1 tabs-scrollbar",
+                  "tabs-scrollbar h-auto w-full justify-start",
                   tabsScroll.canScrollLeft ? "tabs-fade-both" : "tabs-fade-right"
                 )}
               >
@@ -376,53 +381,18 @@ const SpecialtyDetail = () => {
                     </TabsTrigger>
                   ))
                 )}
-                <TabsTrigger value="Key Contacts" className="text-xs whitespace-nowrap">
+                <TabsTrigger value="Key Contacts" className="whitespace-nowrap text-xs">
                   <Users className="h-3 w-3 mr-1" />
                   Key Contacts
                 </TabsTrigger>
               </TabsList>
 
-              {/* Overflow hint gradients */}
-              <div
-                className={cn(
-                  "pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-secondary/90 to-transparent transition-opacity duration-200",
-                  tabsScroll.canScrollRight ? "opacity-100" : "opacity-0"
-                )}
-                aria-hidden="true"
-              />
-              <div
-                className={cn(
-                  "pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-secondary/90 to-transparent transition-opacity duration-200",
-                  tabsScroll.canScrollLeft ? "opacity-100" : "opacity-0"
-                )}
-                aria-hidden="true"
-              />
-
-              {/* Scroll hint buttons */}
-              <button
-                type="button"
-                onClick={() => tabsListRef.current?.scrollBy({ left: -160, behavior: "smooth" })}
-                className={cn(
-                  "absolute left-1 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 shadow-sm border border-border text-muted-foreground transition-opacity duration-200 hover:text-foreground",
-                  tabsScroll.canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}
-                aria-hidden={!tabsScroll.canScrollLeft}
-                tabIndex={-1}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => tabsListRef.current?.scrollBy({ left: 160, behavior: "smooth" })}
-                className={cn(
-                  "absolute right-1 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 shadow-sm border border-border text-muted-foreground transition-opacity duration-200 hover:text-foreground",
-                  tabsScroll.canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}
-                aria-hidden={!tabsScroll.canScrollRight}
-                tabIndex={-1}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
+              {/* The scroll arrows and their fade masks are gone with the pill
+                  track they belonged to: a round button floating over a
+                  gradient is exactly the decoration this system drops, and the
+                  always-visible scrollbar underneath already says the strip
+                  runs on. The fade mask is kept — it is a mask, not a painted
+                  gradient, so it works over the page's own ground. */}
             </div>
             {canManage && (
               <Button
@@ -447,7 +417,7 @@ const SpecialtyDetail = () => {
             return (
               <TabsContent key={sub.id} value={sub.name} className="mt-4 space-y-3">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-sm">{sub.name}</h3>
+                  <h3 className="font-display text-lg font-extrabold tracking-tight">{sub.name}</h3>
                   {canManage && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -492,9 +462,9 @@ const SpecialtyDetail = () => {
 
 
           <TabsContent value="Key Contacts" className="mt-4 space-y-4">
-            <h3 className="font-semibold text-sm">Key Contacts — {specialty.short_name}</h3>
+            <h3 className="font-display text-lg font-extrabold tracking-tight">Key Contacts — {specialty.short_name}</h3>
             {!contacts?.length ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No contacts added yet.</p>
+              <p className="py-6 text-sm text-muted-foreground">No contacts added yet.</p>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {contacts.map((c) => (
@@ -505,10 +475,10 @@ const SpecialtyDetail = () => {
           </TabsContent>
         </Tabs>
 
-        <div ref={discussionRef} className="pt-6 border-t">
-          <div className="flex items-center gap-2 mb-4">
-            <MessageSquare className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold font-display">Discussion</h2>
+        <div ref={discussionRef} className="border-t-2 border-border pt-6">
+          <div className="mb-4 flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-rule" />
+            <h2 className="font-display text-lg font-extrabold tracking-tight">Discussion</h2>
           </div>
           <DiscussionBoard specialtyId={id!} />
         </div>

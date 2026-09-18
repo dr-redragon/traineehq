@@ -23,8 +23,8 @@ export function SortableTabTrigger({ id, value, children, canDrag }: SortableTab
 
   return (
     <div ref={setNodeRef} style={style} className="flex items-center" {...(canDrag ? { ...attributes, ...listeners } : {})}>
-      <TabsTrigger value={value} className="text-xs whitespace-nowrap gap-1">
-        {canDrag && <GripVertical className="h-3 w-3 text-muted-foreground/50 shrink-0" />}
+      <TabsTrigger value={value} className="gap-1 whitespace-nowrap text-xs">
+        {canDrag && <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground" />}
         {children}
       </TabsTrigger>
     </div>
