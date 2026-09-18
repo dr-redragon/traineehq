@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/RichText";
 import { RichTextArea } from "@/components/RichTextArea";
@@ -119,29 +118,27 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="border-rule bg-accent-100">
+      <div>
         <CollapsibleTrigger asChild>
-          <button className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-accent-100 transition-colors rounded-t-lg">
-            <div className="flex items-center gap-2">
-              <Megaphone className="h-4 w-4 text-rule" />
-              <span className="text-sm font-semibold">Notice Board</span>
+          <button className="flex w-full items-center justify-between gap-3 py-1.5 text-left">
+            <span className="flex items-center gap-2">
+              <Megaphone className="h-3.5 w-3.5 shrink-0 text-rule" />
+              <span className="ds-kicker">Notice board</span>
               {notices?.length ? (
-                <span className="text-[10px] text-muted-foreground bg-accent-100 rounded-sm px-2 py-0.5">
-                  {notices.length}
-                </span>
+                <span className="text-[11px] text-muted-foreground">{notices.length}</span>
               ) : null}
-            </div>
-            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${open ? "rotate-0" : "-rotate-90"}`} />
+            </span>
+            <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-0" : "-rotate-90"}`} />
           </button>
         </CollapsibleTrigger>
         <CollapsibleContent>
-          <CardContent className="pt-0 pb-4 px-4 space-y-3">
+          <div className="space-y-2 pb-1 pt-1">
             {notices?.length === 0 && !adding && (
-              <p className="text-xs text-muted-foreground text-center py-2">No notices yet.</p>
+              <p className="py-1 text-[13px] text-muted-foreground">No notices yet.</p>
             )}
 
             {notices?.map((notice: any) => (
-              <div key={notice.id} className="flex items-start gap-3 rounded-md bg-background/60 p-3 border">
+              <div key={notice.id} className="flex items-start gap-3 border-t border-border py-2.5 first:border-t-0 first:pt-0">
                 <div className="flex-1 min-w-0">
                   {editingId === notice.id ? (
                     <div className="space-y-2">
@@ -215,13 +212,13 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
             )}
 
             {canManage && !adding && (
-              <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs" onClick={() => setAdding(true)}>
+              <Button variant="ghost" size="sm" className="-ml-1.5 gap-1.5 text-xs" onClick={() => setAdding(true)}>
                 <Plus className="h-3.5 w-3.5" /> Add Notice
               </Button>
             )}
-          </CardContent>
+          </div>
         </CollapsibleContent>
-      </Card>
+      </div>
     </Collapsible>
   );
 }

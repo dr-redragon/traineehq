@@ -171,7 +171,7 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
             onDrop={(e) => { setDragItemCount(0); handleDrop(e); }}
             onClick={() => fileRef.current?.click()}
             className={`relative border-2 border-dashed rounded-md p-4 text-center cursor-pointer transition-colors ${
-              dragOver ? "border-rule bg-accent-100" : currentFile ? "border-rule bg-accent-100" : "border-border hover:border-rule"
+              dragOver ? "border-rule bg-accent" : currentFile ? "border-rule bg-accent" : "border-border hover:border-rule"
             }`}
           >
             <input ref={fileRef} type="file" className="hidden" onChange={handleFileChange} />

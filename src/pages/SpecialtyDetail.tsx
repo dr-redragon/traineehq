@@ -326,7 +326,8 @@ const SpecialtyDetail = () => {
       <div className="animate-fade-in">
         {/* "Specialty library" over the name at display scale, on the page's
             own rule — 1B's specialty opening. */}
-        <div className="flex flex-wrap items-end gap-4 border-b-2 border-border px-9 py-8">
+        <div className="border-b-2 border-border px-9 py-8">
+          <div className="flex flex-wrap items-end gap-4">
           <div
             className="flex h-14 w-14 shrink-0 items-center justify-center"
             style={{ backgroundColor: `hsl(${color} / 0.12)` }}
@@ -350,12 +351,22 @@ const SpecialtyDetail = () => {
               />
               <Label
                 htmlFor="edit-mode"
-                className={cn("text-xs cursor-pointer", editMode ? "text-accent-700" : "text-muted-foreground")}
+                className={cn("text-xs cursor-pointer", editMode ? "text-accent-deep" : "text-muted-foreground")}
               >
                 {editMode ? "✏️ Editing enabled" : "Editing off"}
               </Label>
             </div>
           )}
+          </div>
+
+          {/* The notice board belongs to the specialty, not to its files, so
+              it sits in the banner rather than on top of the file list where
+              it used to push the files down the page. It draws no border of
+              its own — inside a banner that already has one, a second box
+              would just be a box in a box. */}
+          <div className="mt-6">
+            <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
+          </div>
         </div>
 
         {/* The categories move off the top of the page and down its left side.
@@ -428,7 +439,6 @@ const SpecialtyDetail = () => {
             </div>
 
             <div className="flex min-w-0 flex-col gap-8 px-9 pb-12 pt-7">
-              <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
 
           {subsections?.map((sub) => {
             const subResources = (resources ?? [])
@@ -439,9 +449,13 @@ const SpecialtyDetail = () => {
             const subSubheadings = (resourceSubheadings ?? []).filter((h) => h.subsection_id === sub.id);
 
             return (
-              <TabsContent key={sub.id} value={sub.name} className="mt-4 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-display text-lg font-extrabold tracking-tight">{sub.name}</h3>
+              <TabsContent key={sub.id} value={sub.name} className="mt-0 space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-display text-xl font-extrabold tracking-tight">{sub.name}</h3>
+                  <span className="ml-auto text-[13px] text-muted-foreground">
+                    {subResources.length + subFolders.length} item
+                    {subResources.length + subFolders.length === 1 ? "" : "s"}
+                  </span>
                   {canManage && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

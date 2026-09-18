@@ -91,7 +91,7 @@ export function GdprConsentNotice() {
                   href={PRIVACY_POLICY_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-accent-700 underline underline-offset-4"
+                  className="text-accent-deep underline underline-offset-4"
                 >
                   Read the full privacy policy
                 </a>

@@ -47,16 +47,16 @@ export function FileDropOverlay({
       className={`${
         absolute ? "absolute inset-0" : ""
       } z-20 flex items-center justify-center pointer-events-none rounded-md
-        bg-accent-100 backdrop-blur-[2px]
+        bg-accent backdrop-blur-[2px]
         border-2 border-dashed border-rule
         animate-fade-in`}
       aria-hidden="true"
     >
-      <div className="flex flex-col items-center gap-2 text-accent-700 animate-scale-in">
+      <div className="flex flex-col items-center gap-2 text-accent-deep animate-scale-in">
         <div className="relative">
-          <div className="absolute inset-0 rounded-sm bg-accent-100 animate-ping" />
+          <div className="absolute inset-0 rounded-sm bg-accent animate-ping" />
           <div
-            className={`relative rounded-sm bg-accent-100 ring-2 ring-rule ${
+            className={`relative rounded-sm bg-accent ring-2 ring-rule ${
               compact ? "p-2" : "p-3"
             }`}
           >
@@ -71,7 +71,7 @@ export function FileDropOverlay({
         <div className="text-center">
           <p className={`font-semibold ${compact ? "text-xs" : "text-sm"}`}>{finalLabel}</p>
           <p
-            className={`text-accent-700 ${
+            className={`text-accent-deep ${
               compact ? "text-[10px]" : "text-xs"
             } mt-0.5`}
           >

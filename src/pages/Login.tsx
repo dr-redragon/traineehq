@@ -99,7 +99,7 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-xs text-accent-700 hover:underline">
+                <Link to="/forgot-password" className="text-xs text-accent-deep hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -125,14 +125,14 @@ const Login = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{" "}
-            <Link to="/request-access" className="text-accent-700 hover:underline font-medium">Request Access</Link>
+            <Link to="/request-access" className="text-accent-deep hover:underline font-medium">Request Access</Link>
           </p>
 
           <p className="text-center text-xs text-muted-foreground mt-4">
             By signing in, you agree to our{" "}
-            <PolicyLink kind="privacy" className="text-accent-700 hover:underline" />{" "}
+            <PolicyLink kind="privacy" className="text-accent-deep hover:underline" />{" "}
             and{" "}
-            <PolicyLink kind="terms" className="text-accent-700 hover:underline" />.
+            <PolicyLink kind="terms" className="text-accent-deep hover:underline" />.
           </p>
           <div className="mt-8 pt-6 border-t">
             <ContactForm compact />

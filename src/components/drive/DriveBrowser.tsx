@@ -76,10 +76,10 @@ function DropZone({
   const active = isOver || activeId === id;
   return (
     <div ref={setNodeRef}
-      className={`relative rounded-md transition-colors ${active ? "bg-accent-100 ring-1 ring-rule" : ""} ${className}`}>
+      className={`relative rounded-md transition-colors ${active ? "bg-accent ring-1 ring-rule" : ""} ${className}`}>
       {children}
       {active && !children && (
-        <div className="flex items-center justify-center py-6 text-xs text-accent-700">
+        <div className="flex items-center justify-center py-6 text-xs text-accent-deep">
           {fallbackLabel ?? "Drop to move here"}
         </div>
       )}
@@ -802,7 +802,7 @@ export function DriveBrowser({
   /* ---------- Render ---------- */
   return (
     <div
-      className="relative space-y-3 rounded-md border bg-card/30 p-3"
+      className="relative space-y-2"
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
@@ -938,12 +938,11 @@ export function DriveBrowser({
       )}
 
       {/* List header */}
-      <div className="hidden md:flex items-center gap-3 px-3 text-[11px] uppercase tracking-wide text-muted-foreground/70 border-b pb-1.5">
-        <div className="w-8" />
-        <div className="flex-1">Name</div>
-        <div className="hidden sm:block w-14" />
-        <div className="w-20 text-right">Size</div>
-        <div className="w-32" />
+      <div className="flex items-center gap-4 border-b border-foreground/30 border-t-2 border-t-border px-1 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="min-w-0 flex-1">Name</div>
+        <div className="hidden w-[110px] shrink-0 sm:block">Type</div>
+        <div className="hidden w-[120px] shrink-0 md:block">Size</div>
+        <div className="hidden w-[110px] shrink-0 text-right lg:block">Updated</div>
       </div>
 
       {/* Body */}
@@ -1151,10 +1150,10 @@ function Section({
   return (
     <div
       ref={setNodeRef}
-      className={`relative rounded-md p-1 min-h-[40px] transition-colors ${active ? "bg-accent-100 ring-1 ring-rule" : ""}`}
+      className={`relative rounded-md p-1 min-h-[40px] transition-colors ${active ? "bg-accent ring-1 ring-rule" : ""}`}
     >
       {empty ? (
-        <div className={`flex items-center justify-center py-8 text-xs border border-dashed rounded-md ${active ? "border-rule text-accent-700 bg-accent-100" : "border-border text-muted-foreground"}`}>
+        <div className={`flex items-center justify-center py-8 text-xs border border-dashed rounded-md ${active ? "border-rule text-accent-deep bg-accent" : "border-border text-muted-foreground"}`}>
           {active ? `Drop to move here` : "Nothing here yet — drop files or use \"New\""}
         </div>
       ) : (
@@ -1175,13 +1174,19 @@ function Breadcrumb({
   const { setNodeRef, isOver } = useDroppable({ id: "breadcrumb-root" });
   const active = currentFolderName && (isOver || activeDropId === "breadcrumb-root");
 
+  // At the root there is nothing to trace: the crumb would just repeat the
+  // section heading directly above it, which is the duplicate line the design
+  // does not have. It earns its place once you are inside a folder — and its
+  // drop target was only ever attached then anyway, so nothing is lost.
+  if (!currentFolderName) return null;
+
   return (
     <div className="flex items-center gap-1 text-sm">
       <button
         ref={currentFolderName ? setNodeRef : undefined}
         onClick={onClickRoot}
         className={`px-2 py-1 rounded-md font-medium transition-colors
-          ${active ? "bg-accent-100 ring-1 ring-rule text-accent-700" : currentFolderName ? "text-muted-foreground hover:bg-secondary hover:text-foreground" : "text-foreground"}`}
+          ${active ? "bg-accent ring-1 ring-rule text-accent-deep" : currentFolderName ? "text-muted-foreground hover:bg-secondary hover:text-foreground" : "text-foreground"}`}
       >
         {subsectionName}
       </button>

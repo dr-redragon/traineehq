@@ -119,7 +119,7 @@ const RequestAccess = () => {
       <div className="min-h-screen flex items-center justify-center bg-background p-6">
         <Card className="max-w-md w-full">
           <CardContent className="flex flex-col items-center text-center p-8 space-y-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-accent-100">
+            <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-accent">
               <CheckCircle className="h-8 w-8 text-rule" />
             </div>
             <h2 className="text-xl font-display font-bold">Request Submitted</h2>
@@ -161,7 +161,7 @@ const RequestAccess = () => {
         </p>
         <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-sm border border-rule" />
         <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-sm border border-rule" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-sm bg-accent-100" />
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-sm bg-accent" />
       </div>
 
       {/* Right - form */}
@@ -275,7 +275,7 @@ const RequestAccess = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{" "}
-            <Link to="/login" className="text-accent-700 hover:underline font-medium">Sign in</Link>
+            <Link to="/login" className="text-accent-deep hover:underline font-medium">Sign in</Link>
           </p>
         </div>
       </div>

@@ -51,7 +51,7 @@ function DroppableColumn({ id, children, label }: { id: string; children: React.
       <div
         ref={setNodeRef}
         className={`space-y-2 min-h-[80px] rounded-md border-2 border-dashed p-2 transition-colors ${
-          isOver ? "border-rule bg-accent-100" : "border-border"
+          isOver ? "border-rule bg-accent" : "border-border"
         }`}
       >
         {children}
@@ -233,7 +233,7 @@ const Index = () => {
             {widgetId === "file_browser" && (
               <button
                 onClick={() => setSettingsWidget("file_browser")}
-                className="flex h-5 w-5 items-center justify-center bg-muted text-muted-foreground transition-colors hover:bg-accent-200 hover:text-accent-800"
+                className="flex h-5 w-5 items-center justify-center bg-muted text-muted-foreground transition-colors hover:bg-accent-strong hover:text-accent-foreground"
                 title="Choose default folder"
               >
                 <Cog className="h-3 w-3" />
@@ -242,7 +242,7 @@ const Index = () => {
             {columns === 2 && (
               <button
                 onClick={() => moveToOtherColumn(widgetId)}
-                className="flex h-5 w-5 items-center justify-center bg-muted text-muted-foreground transition-colors hover:bg-accent-200 hover:text-accent-800"
+                className="flex h-5 w-5 items-center justify-center bg-muted text-muted-foreground transition-colors hover:bg-accent-strong hover:text-accent-foreground"
                 title={rightColumnWidgets.includes(widgetId) ? "Move to left column" : "Move to right column"}
               >
                 <ArrowLeftRight className="h-3 w-3" />
@@ -250,7 +250,7 @@ const Index = () => {
             )}
             <button
               onClick={() => toggleWidget(widgetId)}
-              className="flex h-5 w-5 items-center justify-center bg-destructive text-destructive-foreground transition-colors hover:bg-accent-900"
+              className="flex h-5 w-5 items-center justify-center bg-destructive text-destructive-foreground transition-colors hover:bg-destructive-hover"
             >
               <X className="h-3 w-3" />
             </button>
@@ -362,7 +362,7 @@ const Index = () => {
         <div className="space-y-8 p-9">
         {/* Widget visibility toggles when editing */}
         {isEditing && (
-          <Card className="animate-fade-in border-l-2 border-rule bg-accent-100">
+          <Card className="animate-fade-in border-l-2 border-rule bg-accent">
             <CardContent className="p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">

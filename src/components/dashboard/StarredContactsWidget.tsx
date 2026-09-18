@@ -56,7 +56,7 @@ export function StarredContactsWidget() {
                   <Building2 className="h-2.5 w-2.5" />
                   {c.organisation}
                 </p>
-                <a href={`mailto:${c.email}`} className="text-xs text-muted-foreground hover:text-accent-700 flex items-center gap-1 transition-colors">
+                <a href={`mailto:${c.email}`} className="text-xs text-muted-foreground hover:text-accent-deep flex items-center gap-1 transition-colors">
                   <Mail className="h-2.5 w-2.5" />
                   {c.email}
                 </a>

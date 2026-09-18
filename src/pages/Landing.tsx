@@ -60,7 +60,7 @@ const Landing = () => {
             <span className="font-display text-lg font-extrabold tracking-tight">HST Training Hub</span>
           </div>
           <div className="flex items-center gap-4">
-            <Link to="/request-access" className="text-sm font-medium text-foreground underline underline-offset-[3px] transition-colors hover:text-accent-700">
+            <Link to="/request-access" className="text-sm font-medium text-foreground underline underline-offset-[3px] transition-colors hover:text-accent-deep">
               Request Access
             </Link>
           </div>
@@ -123,7 +123,7 @@ const Landing = () => {
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between">
                         <Label htmlFor="password">Password</Label>
-                        <Link to="/forgot-password" className="text-xs text-accent-700 underline underline-offset-4">
+                        <Link to="/forgot-password" className="text-xs text-accent-deep underline underline-offset-4">
                           Forgot password?
                         </Link>
                       </div>
@@ -149,9 +149,9 @@ const Landing = () => {
 
                   <p className="mt-6 text-[10px] text-muted-foreground">
                     By signing in you agree to our{" "}
-                    <PolicyLink kind="privacy" className="text-accent-700 underline underline-offset-4" />
+                    <PolicyLink kind="privacy" className="text-accent-deep underline underline-offset-4" />
                     {" "}and{" "}
-                    <PolicyLink kind="terms" className="text-accent-700 underline underline-offset-4" />.
+                    <PolicyLink kind="terms" className="text-accent-deep underline underline-offset-4" />.
                     <br />Essential cookies only — no tracking.
                   </p>
                 </CardContent>
@@ -198,9 +198,9 @@ const Landing = () => {
             <span className="text-sm text-muted-foreground">© 2026 HST Training Hub</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
-            <PolicyLink kind="privacy" className="underline underline-offset-4 hover:text-accent-700 transition-colors" />
-            <PolicyLink kind="terms" className="underline underline-offset-4 hover:text-accent-700 transition-colors" />
-            <PolicyLink kind="cookies" className="underline underline-offset-4 hover:text-accent-700 transition-colors" />
+            <PolicyLink kind="privacy" className="underline underline-offset-4 hover:text-accent-deep transition-colors" />
+            <PolicyLink kind="terms" className="underline underline-offset-4 hover:text-accent-deep transition-colors" />
+            <PolicyLink kind="cookies" className="underline underline-offset-4 hover:text-accent-deep transition-colors" />
           </div>
         </div>
       </footer>

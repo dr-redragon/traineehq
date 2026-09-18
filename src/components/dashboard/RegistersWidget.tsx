@@ -48,7 +48,7 @@ export function RegistersWidget() {
         </p>
         <Link
           to="/registers"
-          className="inline-flex items-center gap-1 text-sm font-medium text-accent-700 underline underline-offset-[3px] hover:text-accent-800"
+          className="inline-flex items-center gap-1 text-sm font-medium text-accent-deep underline underline-offset-[3px] hover:text-accent-foreground"
         >
           Open the register directory <ArrowRight className="h-3.5 w-3.5" />
         </Link>
@@ -80,7 +80,7 @@ export function RegistersWidget() {
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t-2 border-border pt-2">
         <Link
           to="/registers"
-          className="text-xs font-medium text-accent-700 underline underline-offset-[3px] hover:text-accent-800"
+          className="text-xs font-medium text-accent-deep underline underline-offset-[3px] hover:text-accent-foreground"
         >
           All registers
         </Link>

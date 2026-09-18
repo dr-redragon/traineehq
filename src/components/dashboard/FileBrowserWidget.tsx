@@ -114,7 +114,7 @@ export function FileBrowserWidget({
           {effectiveSpecialty && (
             <Link
               to={`/specialty/${effectiveSpecialty}`}
-              className="text-xs text-accent-700 underline underline-offset-[3px] hover:text-accent-800"
+              className="text-xs text-accent-deep underline underline-offset-[3px] hover:text-accent-foreground"
             >
               Open full view
             </Link>

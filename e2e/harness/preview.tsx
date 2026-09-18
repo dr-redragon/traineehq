@@ -15,7 +15,10 @@
  * supplies the fixture alias. `vite build` builds index.html and nothing else,
  * so none of this reaches a bundle.
  */
-// An entry point rather than a module: it mounts and exports nothing.
+// An entry point rather than a module: it mounts and exports nothing. The
+// switcher below is a component in a file with no exports, which is exactly
+// what react-refresh warns about and exactly what an entry point is.
+/* eslint-disable react-refresh/only-export-components */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";

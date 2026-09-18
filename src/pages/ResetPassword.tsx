@@ -68,7 +68,7 @@ const ResetPassword = () => {
         </p>
         <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-sm border border-rule" />
         <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-sm border border-rule" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-sm bg-accent-100" />
+        <div className="absolute top-20 right-20 w-32 h-32 rounded-sm bg-accent" />
       </div>
 
       {/* Right form */}

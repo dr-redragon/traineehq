@@ -19,7 +19,7 @@ const AdminPanel = () => {
             the same order, same content in each. Only the design language
             moves. */}
         <div className="flex items-center gap-4 border-b-2 border-border pb-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-accent-100">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-accent">
             <Shield className="h-6 w-6 text-rule" />
           </div>
           <div>

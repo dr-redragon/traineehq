@@ -40,11 +40,11 @@ const SUBSECTIONS = [
 const specOf = (id: string) => SPECIALTIES.find((s) => s.id === id);
 
 const RESOURCES = [
-  { id: "r-1", title: "JCST Curriculum 2026 — ENT", resource_type: "pdf", subsection_id: "sub-1", created_at: "2026-09-02T09:00:00Z", description: "The current curriculum, with the 2026 amendments marked up.", url: null, file_path: null, folder_id: null },
-  { id: "r-2", title: "Grommet insertion — step by step", resource_type: "video", subsection_id: "sub-2", created_at: "2026-08-28T09:00:00Z", description: "Recorded at a regional teaching day.", url: null, file_path: null, folder_id: null },
-  { id: "r-3", title: "Section 1 question bank", resource_type: "link", subsection_id: "sub-3", created_at: "2026-08-21T09:00:00Z", description: null, url: "https://example.invalid/bank", file_path: null, folder_id: null },
-  { id: "r-4", title: "ENT UK tonsillectomy guideline", resource_type: "document", subsection_id: "sub-4", created_at: "2026-08-14T09:00:00Z", description: null, url: null, file_path: null, folder_id: null },
-  { id: "r-5", title: "Regional audit template", resource_type: "checklist", subsection_id: "sub-5", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: null },
+  { id: "r-1", title: "JCST Curriculum 2026 — ENT", resource_type: "pdf", subsection_id: "sub-1", created_at: "2026-09-02T09:00:00Z", description: "The current curriculum, with the 2026 amendments marked up.", url: null, file_path: null, folder_id: null, file_size: 2517000, updated_at: "2026-09-14T09:00:00Z" },
+  { id: "r-2", title: "Grommet insertion — step by step", resource_type: "video", subsection_id: "sub-2", created_at: "2026-08-28T09:00:00Z", description: "Recorded at a regional teaching day.", url: null, file_path: null, folder_id: null, file_size: 88000, updated_at: "2026-09-10T09:00:00Z" },
+  { id: "r-3", title: "Section 1 question bank", resource_type: "link", subsection_id: "sub-3", created_at: "2026-08-21T09:00:00Z", description: null, url: "https://example.invalid/bank", file_path: null, folder_id: null, file_size: null, updated_at: "2026-09-16T09:00:00Z" },
+  { id: "r-4", title: "ENT UK tonsillectomy guideline", resource_type: "document", subsection_id: "sub-4", created_at: "2026-08-14T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 317000, updated_at: "2026-09-05T09:00:00Z" },
+  { id: "r-5", title: "Regional audit template", resource_type: "checklist", subsection_id: "sub-5", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 47000, updated_at: "2026-08-20T09:00:00Z" },
 ];
 
 const withSub = (r: (typeof RESOURCES)[number]) => {

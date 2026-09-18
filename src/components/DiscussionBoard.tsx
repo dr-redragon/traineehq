@@ -399,7 +399,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                 key={post.id}
                 className={`border-l-2 transition-colors ${
                   isExpanded ? "border-rule bg-card" : "border-transparent hover:bg-accent"
-                } ${post.is_pinned ? "border-rule bg-accent-100" : ""}`}
+                } ${post.is_pinned ? "border-rule bg-accent-strong" : ""}`}
               >
                 <div>
                   <div className="flex">
@@ -407,16 +407,16 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                     <div className="flex flex-col items-center gap-0.5 border-r border-border px-3 py-4">
                       <button
                         onClick={() => castVote.mutate({ discussionId: post.id, voteType: 1 })}
-                        className={`p-0.5 transition-colors hover:bg-accent-100 ${userVote === 1 ? "text-accent-700" : "text-muted-foreground"}`}
+                        className={`p-0.5 transition-colors hover:bg-accent ${userVote === 1 ? "text-accent-deep" : "text-muted-foreground"}`}
                       >
                         <ArrowBigUp className="h-5 w-5" />
                       </button>
-                      <span className={`text-xs font-semibold ${voteCount > 0 ? "text-accent-700" : voteCount < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                      <span className={`text-xs font-semibold ${voteCount > 0 ? "text-accent-deep" : voteCount < 0 ? "text-destructive" : "text-muted-foreground"}`}>
                         {voteCount}
                       </span>
                       <button
                         onClick={() => castVote.mutate({ discussionId: post.id, voteType: -1 })}
-                        className={`p-0.5 transition-colors hover:bg-accent-200 ${userVote === -1 ? "text-destructive" : "text-muted-foreground"}`}
+                        className={`p-0.5 transition-colors hover:bg-accent-strong ${userVote === -1 ? "text-destructive" : "text-muted-foreground"}`}
                       >
                         <ArrowBigDown className="h-5 w-5" />
                       </button>
@@ -472,7 +472,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                         <span className="flex items-center gap-1"><User className="h-3 w-3" /> {getAuthorName(post.author_id)}</span>
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {timeAgo(post.created_at)}</span>
                         <button
-                          className="flex items-center gap-1 hover:text-accent-700 transition-colors"
+                          className="flex items-center gap-1 hover:text-accent-deep transition-colors"
                           onClick={() => setExpandedPost(isExpanded ? null : post.id)}
                         >
                           <MessageSquare className="h-3 w-3" />
@@ -573,7 +573,7 @@ function CommentThread({
     <div className="space-y-2">
       <div className="flex gap-2">
         <div className="flex flex-col items-center gap-0.5 pt-1">
-          <button onClick={() => onVote(comment.id, 1)} className={`${userVote === 1 ? "text-accent-700" : "text-muted-foreground"} hover:text-accent-700`}>
+          <button onClick={() => onVote(comment.id, 1)} className={`${userVote === 1 ? "text-accent-deep" : "text-muted-foreground"} hover:text-accent-deep`}>
             <ArrowBigUp className="h-4 w-4" />
           </button>
           <span className="text-[10px] font-semibold text-muted-foreground">{voteCount}</span>
@@ -586,7 +586,7 @@ function CommentThread({
           <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
             <span>{getAuthorName(comment.author_id)}</span>
             <span>{timeAgo(comment.created_at)}</span>
-            <button className="hover:text-accent-700 transition-colors" onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}>
+            <button className="hover:text-accent-deep transition-colors" onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}>
               Reply
             </button>
             {(currentUserId === comment.author_id || isAdmin) && (
@@ -611,7 +611,7 @@ function CommentThread({
           {replies.map((r) => (
             <div key={r.id} className="flex gap-2">
               <div className="flex flex-col items-center gap-0.5 pt-1">
-                <button onClick={() => onVote(r.id, 1)} className={`${getUserVote(r.id) === 1 ? "text-accent-700" : "text-muted-foreground"} hover:text-accent-700`}>
+                <button onClick={() => onVote(r.id, 1)} className={`${getUserVote(r.id) === 1 ? "text-accent-deep" : "text-muted-foreground"} hover:text-accent-deep`}>
                   <ArrowBigUp className="h-3.5 w-3.5" />
                 </button>
                 <span className="text-[10px] font-semibold text-muted-foreground">{getVoteCount(r.id)}</span>
