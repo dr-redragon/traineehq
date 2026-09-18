@@ -91,7 +91,7 @@ export function RequireAuth({ children, roles, signInPath = "/login" }: RequireA
       return (
         <div className="flex min-h-screen items-center justify-center bg-background p-6">
           <div className="max-w-sm text-center space-y-4">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-sm bg-destructive/10">
               <ShieldAlert className="h-6 w-6 text-destructive" />
             </div>
             <div className="space-y-1.5">

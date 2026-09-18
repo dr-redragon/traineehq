@@ -5,14 +5,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  FileText, Video, Link as LinkIcon, BookOpen, CheckSquare, FolderClosed, FolderOpen,
+  FolderClosed, FolderOpen,
   MoreVertical, Trash2, Eye, Pencil, Bookmark, Download, FolderInput,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -21,6 +20,19 @@ import { EditResourceDialog } from "@/components/EditResourceDialog";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
+/** The design's Updated column: relative for anything recent, a month for the rest. */
+function formatWhen(date?: string | null): string {
+  if (!date) return "—";
+  const d = new Date(date);
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  if (days < 1) return "Today";
+  if (days === 1) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  if (days < 14) return "1 week ago";
+  if (days < 31) return `${Math.floor(days / 7)} weeks ago`;
+  return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}
+
 function formatFileSize(bytes?: number | null): string {
   if (!bytes) return "—";
   if (bytes < 1024) return `${bytes} B`;
@@ -28,15 +40,6 @@ function formatFileSize(bytes?: number | null): string {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
-
-const typeIcons: Record<string, typeof FileText> = {
-  pdf: FileText,
-  video: Video,
-  link: LinkIcon,
-  document: BookOpen,
-  checklist: CheckSquare,
-  presentation: BookOpen,
-};
 
 interface BaseRowProps {
   selected: boolean;
@@ -79,7 +82,6 @@ export function FileRow({
     opacity: isDragging ? 0.4 : 1,
   };
 
-  const Icon = typeIcons[resource.resource_type] || FileText;
 
   const { data: isBookmarked } = useQuery({
     queryKey: ["bookmark-status", resource.id, user?.id],
@@ -121,8 +123,8 @@ export function FileRow({
             {...listeners}
             onClick={onClick}
             onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) setViewerOpen(true); }}
-            className={`group flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer select-none transition-colors
-              ${selected ? "bg-accent/10 border-accent/40" : "border-transparent hover:bg-secondary/60 hover:border-border"}
+            className={`group relative flex cursor-pointer select-none items-center gap-4 border-b border-border px-1 py-3 transition-colors
+              ${selected ? "bg-accent-strong" : "hover:bg-accent"}
             `}
           >
             {(canManage || selectMode) && (
@@ -135,26 +137,33 @@ export function FileRow({
                   : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
               />
             )}
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-secondary">
-              <Icon className="h-4 w-4 text-muted-foreground" />
-            </div>
+            {/* No icon tile and no type badge: the design's table is four
+                columns of text, and the TYPE column already says what a row
+                is. A tinted square and a pill on every row is the enclosure
+                this was asked to lose. */}
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium">{resource.title}</p>
+              <p className="truncate text-[15px] font-semibold">{resource.title}</p>
               {resource.description && (
-                <p className="truncate text-xs text-muted-foreground">{resource.description}</p>
+                <p className="truncate text-[13px] text-muted-foreground">{resource.description}</p>
               )}
             </div>
-            <Badge variant="secondary" className="hidden sm:inline-flex text-[10px] shrink-0">
-              {resource.resource_type.toUpperCase()}
-            </Badge>
-            <span className="hidden md:inline text-[11px] text-muted-foreground/70 w-20 text-right shrink-0">
+            <span className="hidden w-[110px] shrink-0 text-[12.5px] uppercase tracking-[0.08em] text-muted-foreground sm:block">
+              {resource.resource_type}
+            </span>
+            <span className="hidden w-[120px] shrink-0 text-[13px] text-muted-foreground md:block">
               {formatFileSize((resource as any).file_size)}
             </span>
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <span className="hidden w-[110px] shrink-0 text-right text-[13px] text-muted-foreground lg:block">
+              {formatWhen(resource.updated_at)}
+            </span>
+            {/* The row's controls sit over the last columns on hover rather
+                than taking a column of their own, so the four columns stay
+                aligned with the header across every row. */}
+            <div className="absolute right-1 flex items-center gap-0.5 bg-accent pl-3 opacity-0 shadow-[-12px_0_12px_-6px_hsl(var(--accent))] transition-opacity group-hover:opacity-100 focus-within:opacity-100">
               <Button variant="ghost" size="icon" className="h-7 w-7"
                 onClick={(e) => { e.stopPropagation(); toggleBookmark.mutate(); }}
                 title={isBookmarked ? "Remove bookmark" : "Bookmark"}>
-                <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? "fill-current text-accent" : ""}`} />
+                <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? "fill-current text-rule" : ""}`} />
               </Button>
               <Button variant="ghost" size="icon" className="h-7 w-7"
                 onClick={(e) => { e.stopPropagation(); setViewerOpen(true); }} title="Open">
@@ -272,8 +281,8 @@ export function FolderRow({
           {...listeners}
           onClick={onClick}
           onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) onOpen(); }}
-          className={`group flex items-center gap-3 rounded-md border px-3 py-2 cursor-pointer select-none transition-colors
-            ${active ? "ring-2 ring-accent bg-accent/10 border-accent" : selected ? "bg-accent/10 border-accent/40" : "border-transparent hover:bg-secondary/60 hover:border-border"}
+          className={`group relative flex cursor-pointer select-none items-center gap-4 border-b border-border px-1 py-3 transition-colors
+            ${active ? "bg-accent-strong ring-2 ring-inset ring-rule" : selected ? "bg-accent-strong" : "hover:bg-accent"}
           `}
         >
           {(canManage || selectMode) && (
@@ -286,18 +295,26 @@ export function FolderRow({
                 : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
             />
           )}
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent/10">
+            {/* A folder keeps its icon where a file does not — it is the one
+                thing in the list you can go *into*, and the TYPE column alone
+                does not make that obvious enough to click. It is drawn plain,
+                without the tinted tile. */}
             {active
-              ? <FolderOpen className="h-4 w-4 text-accent" />
-              : <FolderClosed className="h-4 w-4 text-accent" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{folder.name}</p>
-            <p className="text-xs text-muted-foreground">{count} item{count === 1 ? "" : "s"}</p>
-          </div>
-          <Badge variant="outline" className="hidden sm:inline-flex text-[10px] shrink-0">FOLDER</Badge>
-          <span className="hidden md:inline w-20 text-right text-[11px] text-muted-foreground/70 shrink-0">—</span>
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              ? <FolderOpen className="h-4 w-4 shrink-0 text-rule" />
+              : <FolderClosed className="h-4 w-4 shrink-0 text-rule" />}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[15px] font-semibold">{folder.name}</p>
+            </div>
+            <span className="hidden w-[110px] shrink-0 text-[12.5px] uppercase tracking-[0.08em] text-muted-foreground sm:block">
+              folder
+            </span>
+            <span className="hidden w-[120px] shrink-0 text-[13px] text-muted-foreground md:block">
+              {count} item{count === 1 ? "" : "s"}
+            </span>
+            <span className="hidden w-[110px] shrink-0 text-right text-[13px] text-muted-foreground lg:block">
+              {formatWhen(folder.updated_at)}
+            </span>
+            <div className="absolute right-1 flex items-center gap-0.5 bg-accent pl-3 opacity-0 shadow-[-12px_0_12px_-6px_hsl(var(--accent))] transition-opacity group-hover:opacity-100 focus-within:opacity-100">
             <Button variant="ghost" size="icon" className="h-7 w-7"
               onClick={(e) => { e.stopPropagation(); onOpen(); }} title="Open">
               <Eye className="h-3.5 w-3.5" />

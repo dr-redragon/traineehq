@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ContactCard } from "@/components/ContactCard";
-import { DiscussionBoard } from "@/components/DiscussionBoard";
+import { SpecialtyDiscussionPreview } from "@/components/SpecialtyDiscussionPreview";
 import { SpecialtyNoticeBoard } from "@/components/SpecialtyNoticeBoard";
 import { DriveBrowser } from "@/components/drive/DriveBrowser";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -20,7 +20,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, MessageSquare, Plus, MoreVertical, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Users, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import { toast } from "sonner";
 import { useCanManageSpecialty } from "@/hooks/useUserRole";
@@ -30,7 +30,7 @@ import {
   DndContext, closestCenter,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, horizontalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
 import { SortableTabTrigger } from "@/components/SortableTabTrigger";
 import { useDragSensors } from "@/hooks/useDragSensors";
 
@@ -315,22 +315,34 @@ const SpecialtyDetail = () => {
   const color = specialty.color ?? "174 60% 40%";
   const defaultTab = subsections?.[0]?.name ?? "Key Contacts";
 
+  // What the sub-rail shows at the end of each category row. The design puts a
+  // count there, and on a rail of eight it is the only way to tell a category
+  // worth opening from an empty one without opening it.
+  const countOf = (subsectionId: string) =>
+    (resources ?? []).filter((r) => r.subsection_id === subsectionId).length;
+
   return (
-    <DashboardLayout>
-      <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
-        <div className="flex items-center gap-4">
+    <DashboardLayout breadcrumb={`Specialties / ${specialty.short_name}`}>
+      <div className="animate-fade-in">
+        {/* "Specialty library" over the name at display scale, on the page's
+            own rule — 1B's specialty opening. */}
+        <div className="border-b-2 border-border px-9 py-8">
+          <div className="flex flex-wrap items-end gap-4">
           <div
-            className="flex h-12 w-12 items-center justify-center rounded-xl"
+            className="flex h-14 w-14 shrink-0 items-center justify-center"
             style={{ backgroundColor: `hsl(${color} / 0.12)` }}
           >
-            <Icon className="h-6 w-6" style={{ color: `hsl(${color})` }} />
+            <Icon className="h-7 w-7" style={{ color: `hsl(${color})` }} />
           </div>
-          <div>
-            <h1 className="text-2xl font-display font-bold">{specialty.short_name}</h1>
-            <p className="text-sm text-muted-foreground">{specialty.name}</p>
+          <div className="min-w-0">
+            <p className="ds-kicker mb-1">Specialty library</p>
+            <h1 className="font-display text-[clamp(32px,4vw,46px)] font-extrabold leading-none tracking-[-0.03em]">
+              {specialty.short_name}
+            </h1>
+            <p className="mt-2 text-muted-foreground">{specialty.name}</p>
           </div>
           {hasEditRights && (
-            <div className="ml-auto flex items-center gap-2 rounded-md border px-3 py-1.5">
+            <div className="ml-auto flex shrink-0 items-center gap-2 border border-border px-3 py-1.5">
               <Switch
                 id="edit-mode"
                 checked={editMode}
@@ -339,31 +351,70 @@ const SpecialtyDetail = () => {
               />
               <Label
                 htmlFor="edit-mode"
-                className={cn("text-xs cursor-pointer", editMode ? "text-accent" : "text-muted-foreground")}
+                className={cn("text-xs cursor-pointer", editMode ? "text-accent-deep" : "text-muted-foreground")}
               >
                 {editMode ? "✏️ Editing enabled" : "Editing off"}
               </Label>
             </div>
           )}
+          </div>
+
+          {/* The notice board belongs to the specialty, not to its files, so
+              it sits in the banner rather than on top of the file list where
+              it used to push the files down the page. It draws no border of
+              its own — inside a banner that already has one, a second box
+              would just be a box in a box. */}
+          <div className="mt-6">
+            <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
+          </div>
         </div>
 
-        <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
+        {/* The categories move off the top of the page and down its left side.
 
-        <Tabs value={activeTab ?? defaultTab} onValueChange={setActiveTab} className="w-full">
-          <div className="flex items-center gap-2">
-            <div className="flex-1 relative overflow-hidden rounded-md">
-              <TabsList
-                ref={tabsListRef}
-                className={cn(
-                  "w-full justify-start h-auto bg-secondary/50 p-1 tabs-scrollbar",
-                  tabsScroll.canScrollLeft ? "tabs-fade-both" : "tabs-fade-right"
+            They used to be a horizontal strip, which is what forced the
+            scrolling, the fade masks and the pair of arrow buttons: eight
+            category names never fit across a column. Standing them up removes
+            the problem rather than decorating it — the rail is as long as it
+            needs to be, every name is readable in full at its natural length,
+            and the count sits at the end of each row. Reordering by dragging
+            survives; the sort strategy turns with the axis.
+
+            Below `lg` the rail lies back down as a scrolling strip, because a
+            244px column beside content does not fit on a phone. */}
+        <Tabs
+          value={activeTab ?? defaultTab}
+          onValueChange={setActiveTab}
+          orientation="vertical"
+          className="w-full"
+        >
+          <div className="grid lg:grid-cols-[244px_minmax(0,1fr)]">
+            <div className="border-b-2 border-border py-5 lg:border-b-0 lg:border-r-2">
+              <div className="flex items-baseline justify-between gap-2 px-5 pb-2.5">
+                <p className="ds-kicker">Categories</p>
+                {canManage && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="-mr-1 h-6 gap-1 px-1.5 text-[11px]"
+                    onClick={() => setAddSubOpen(true)}
+                  >
+                    <Plus className="h-3 w-3" /> Section
+                  </Button>
                 )}
-              >
+              </div>
+              <TabsList className="ds-subrail tabs-scrollbar flex h-auto w-full flex-row items-stretch gap-0 overflow-x-auto border-b-0 p-0 lg:flex-col lg:overflow-visible">
                 {canManage && subsections?.length ? (
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubsectionDragEnd}>
-                    <SortableContext items={subsections.map((s) => s.id)} strategy={horizontalListSortingStrategy}>
+                    <SortableContext items={subsections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
                       {subsections.map((sub) => (
-                        <SortableTabTrigger key={sub.id} id={sub.id} value={sub.name} canDrag>
+                        <SortableTabTrigger
+                          key={sub.id}
+                          id={sub.id}
+                          value={sub.name}
+                          canDrag
+                          className="w-full"
+                          meta={<span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>}
+                        >
                           {sub.name}
                         </SortableTabTrigger>
                       ))}
@@ -371,70 +422,23 @@ const SpecialtyDetail = () => {
                   </DndContext>
                 ) : (
                   subsections?.map((sub) => (
-                    <TabsTrigger key={sub.id} value={sub.name} className="text-xs whitespace-nowrap">
-                      {sub.name}
+                    <TabsTrigger key={sub.id} value={sub.name}>
+                      <span className="min-w-0">{sub.name}</span>
+                      <span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>
                     </TabsTrigger>
                   ))
                 )}
-                <TabsTrigger value="Key Contacts" className="text-xs whitespace-nowrap">
-                  <Users className="h-3 w-3 mr-1" />
-                  Key Contacts
+                <TabsTrigger value="Key Contacts">
+                  <span className="flex min-w-0 items-baseline gap-1.5">
+                    <Users className="h-3 w-3 shrink-0 self-center" />
+                    Key Contacts
+                  </span>
+                  <span className="shrink-0 text-[12px] font-normal text-muted-foreground">{contacts?.length ?? 0}</span>
                 </TabsTrigger>
               </TabsList>
-
-              {/* Overflow hint gradients */}
-              <div
-                className={cn(
-                  "pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-secondary/90 to-transparent transition-opacity duration-200",
-                  tabsScroll.canScrollRight ? "opacity-100" : "opacity-0"
-                )}
-                aria-hidden="true"
-              />
-              <div
-                className={cn(
-                  "pointer-events-none absolute inset-y-0 left-0 w-10 bg-gradient-to-r from-secondary/90 to-transparent transition-opacity duration-200",
-                  tabsScroll.canScrollLeft ? "opacity-100" : "opacity-0"
-                )}
-                aria-hidden="true"
-              />
-
-              {/* Scroll hint buttons */}
-              <button
-                type="button"
-                onClick={() => tabsListRef.current?.scrollBy({ left: -160, behavior: "smooth" })}
-                className={cn(
-                  "absolute left-1 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 shadow-sm border border-border text-muted-foreground transition-opacity duration-200 hover:text-foreground",
-                  tabsScroll.canScrollLeft ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}
-                aria-hidden={!tabsScroll.canScrollLeft}
-                tabIndex={-1}
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => tabsListRef.current?.scrollBy({ left: 160, behavior: "smooth" })}
-                className={cn(
-                  "absolute right-1 top-1/2 -translate-y-1/2 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-background/90 shadow-sm border border-border text-muted-foreground transition-opacity duration-200 hover:text-foreground",
-                  tabsScroll.canScrollRight ? "opacity-100" : "opacity-0 pointer-events-none"
-                )}
-                aria-hidden={!tabsScroll.canScrollRight}
-                tabIndex={-1}
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </button>
             </div>
-            {canManage && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="shrink-0 gap-1 text-xs h-8"
-                onClick={() => setAddSubOpen(true)}
-              >
-                <Plus className="h-3.5 w-3.5" /> Section
-              </Button>
-            )}
-          </div>
+
+            <div className="flex min-w-0 flex-col gap-8 px-9 pb-12 pt-7">
 
           {subsections?.map((sub) => {
             const subResources = (resources ?? [])
@@ -445,9 +449,13 @@ const SpecialtyDetail = () => {
             const subSubheadings = (resourceSubheadings ?? []).filter((h) => h.subsection_id === sub.id);
 
             return (
-              <TabsContent key={sub.id} value={sub.name} className="mt-4 space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-sm">{sub.name}</h3>
+              <TabsContent key={sub.id} value={sub.name} className="mt-0 space-y-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-display text-xl font-extrabold tracking-tight">{sub.name}</h3>
+                  <span className="ml-auto text-[13px] text-muted-foreground">
+                    {subResources.length + subFolders.length} item
+                    {subResources.length + subFolders.length === 1 ? "" : "s"}
+                  </span>
                   {canManage && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -492,9 +500,9 @@ const SpecialtyDetail = () => {
 
 
           <TabsContent value="Key Contacts" className="mt-4 space-y-4">
-            <h3 className="font-semibold text-sm">Key Contacts — {specialty.short_name}</h3>
+            <h3 className="font-display text-lg font-extrabold tracking-tight">Key Contacts — {specialty.short_name}</h3>
             {!contacts?.length ? (
-              <p className="text-sm text-muted-foreground text-center py-8">No contacts added yet.</p>
+              <p className="py-6 text-sm text-muted-foreground">No contacts added yet.</p>
             ) : (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {contacts.map((c) => (
@@ -503,15 +511,17 @@ const SpecialtyDetail = () => {
               </div>
             )}
           </TabsContent>
-        </Tabs>
-
-        <div ref={discussionRef} className="pt-6 border-t">
-          <div className="flex items-center gap-2 mb-4">
-            <MessageSquare className="h-5 w-5 text-muted-foreground" />
-            <h2 className="text-lg font-semibold font-display">Discussion</h2>
+              {/* Only the latest few threads. The whole board — composer,
+                  voting, comment trees — now lives at /community/:id, because
+                  a second long list under the file browser made the discussion
+                  something you could only reach by scrolling past the files,
+                  and gave it no address of its own to link anyone to. */}
+              <div ref={discussionRef}>
+                <SpecialtyDiscussionPreview specialtyId={id!} specialtyName={specialty.short_name} />
+              </div>
+            </div>
           </div>
-          <DiscussionBoard specialtyId={id!} />
-        </div>
+        </Tabs>
       </div>
 
       {/* Add Section Dialog */}

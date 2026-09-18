@@ -166,7 +166,7 @@ export function ResourceViewer({ resource, open, onOpenChange }: ResourceViewerP
             />
           ) : video && rawUrl ? (
             <div className="flex items-center justify-center h-full p-4">
-              <video controls className="max-w-full max-h-full rounded-lg shadow-lg" src={rawUrl}>
+              <video controls className="max-w-full max-h-full rounded-md shadow-lg" src={rawUrl}>
                 Your browser does not support the video tag.
               </video>
             </div>

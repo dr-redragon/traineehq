@@ -254,14 +254,14 @@ export function AddResourceDialog({ subsectionId, specialtyId, existingSubheadin
             }}
             onDrop={(e) => { setDragItemCount(0); handleDrop(e); }}
             onClick={() => fileRef.current?.click()}
-            className={`relative border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-              dragOver ? "border-accent bg-accent/5" : file ? "border-accent/40 bg-accent/5" : "border-border hover:border-accent/40"
+            className={`relative border-2 border-dashed rounded-md p-6 text-center cursor-pointer transition-colors ${
+              dragOver ? "border-rule bg-accent" : file ? "border-rule bg-accent" : "border-border hover:border-rule"
             }`}
           >
             <input ref={fileRef} type="file" multiple className="hidden" onChange={handleFileChange} />
             {file ? (
               <div className="flex items-center justify-center gap-2">
-                <FileUp className="h-5 w-5 text-accent" />
+                <FileUp className="h-5 w-5 text-rule" />
                 <span className="text-sm font-medium truncate max-w-[200px]">{file.name}</span>
                 <button className="text-xs text-destructive hover:underline" onClick={(e) => { e.stopPropagation(); setFile(null); }}>Remove</button>
               </div>

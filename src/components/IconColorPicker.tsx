@@ -43,7 +43,7 @@ export function IconColorPicker({ iconName, color, onChangeIcon, onChangeColor }
       <PopoverTrigger asChild>
         <button
           type="button"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md cursor-pointer hover:ring-2 hover:ring-primary/30 transition-all"
           style={{ backgroundColor: `hsl(${color} / 0.12)` }}
           title="Change icon & color"
         >
@@ -61,7 +61,7 @@ export function IconColorPicker({ iconName, color, onChangeIcon, onChangeColor }
                   key={c.value}
                   type="button"
                   title={c.label}
-                  className={`h-7 w-7 rounded-full transition-all hover:scale-110 ${
+                  className={`h-7 w-7 rounded-sm transition-all hover:scale-110 ${
                     color === c.value ? "ring-2 ring-offset-2 ring-primary" : ""
                   }`}
                   style={{ backgroundColor: `hsl(${c.value})` }}

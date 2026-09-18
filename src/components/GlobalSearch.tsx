@@ -191,7 +191,7 @@ export function GlobalSearch({ open, onOpenChange }: GlobalSearchProps) {
               <CommandItem
                 key={d.id}
                 value={`discussion-${d.title}`}
-                onSelect={() => go(`/specialty/${d.specialty_id}#discussion`)}
+                onSelect={() => go(`/community/${d.specialty_id}`)}
                 className="cursor-pointer"
               >
                 <MessageSquare className="h-4 w-4 mr-2 shrink-0 text-muted-foreground" />

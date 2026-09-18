@@ -14,6 +14,7 @@ import KeyContacts from "./pages/KeyContacts";
 import AdminPanel from "./pages/AdminPanel";
 import MyProfile from "./pages/MyProfile";
 import CommunityHub from "./pages/CommunityHub";
+import SpecialtyDiscussion from "./pages/SpecialtyDiscussion";
 import NotFound from "./pages/NotFound";
 import RequestAccess from "./pages/RequestAccess";
 import RegisterDirectory from "./pages/RegisterDirectory";
@@ -114,6 +115,9 @@ const App = () => (
             <Route path="/specialty/:id" element={<RequireAuth><SpecialtyDetail /></RequireAuth>} />
             <Route path="/contacts" element={<RequireAuth><KeyContacts /></RequireAuth>} />
             <Route path="/community" element={<RequireAuth><CommunityHub /></RequireAuth>} />
+            {/* A specialty's board, on its own address so it can be linked and
+                bookmarked rather than reached by scrolling past the files. */}
+            <Route path="/community/:id" element={<RequireAuth><SpecialtyDiscussion /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><MyProfile /></RequireAuth>} />
 
             {/*

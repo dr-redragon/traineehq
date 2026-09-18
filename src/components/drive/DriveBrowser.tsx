@@ -76,10 +76,10 @@ function DropZone({
   const active = isOver || activeId === id;
   return (
     <div ref={setNodeRef}
-      className={`relative rounded-md transition-colors ${active ? "bg-accent/10 ring-1 ring-accent/40" : ""} ${className}`}>
+      className={`relative rounded-md transition-colors ${active ? "bg-accent ring-1 ring-rule" : ""} ${className}`}>
       {children}
       {active && !children && (
-        <div className="flex items-center justify-center py-6 text-xs text-accent">
+        <div className="flex items-center justify-center py-6 text-xs text-accent-deep">
           {fallbackLabel ?? "Drop to move here"}
         </div>
       )}
@@ -802,7 +802,7 @@ export function DriveBrowser({
   /* ---------- Render ---------- */
   return (
     <div
-      className="relative space-y-3 rounded-lg border bg-card/30 p-3"
+      className="relative space-y-2"
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes("Files")) return;
         e.preventDefault();
@@ -938,12 +938,11 @@ export function DriveBrowser({
       )}
 
       {/* List header */}
-      <div className="hidden md:flex items-center gap-3 px-3 text-[11px] uppercase tracking-wide text-muted-foreground/70 border-b pb-1.5">
-        <div className="w-8" />
-        <div className="flex-1">Name</div>
-        <div className="hidden sm:block w-14" />
-        <div className="w-20 text-right">Size</div>
-        <div className="w-32" />
+      <div className="flex items-center gap-4 border-b border-foreground/30 border-t-2 border-t-border px-1 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
+        <div className="min-w-0 flex-1">Name</div>
+        <div className="hidden w-[110px] shrink-0 sm:block">Type</div>
+        <div className="hidden w-[120px] shrink-0 md:block">Size</div>
+        <div className="hidden w-[110px] shrink-0 text-right lg:block">Updated</div>
       </div>
 
       {/* Body */}
@@ -975,8 +974,8 @@ export function DriveBrowser({
 
       {/* Bulk action bar */}
       {selectedCount > 0 && (
-        <div className="sticky bottom-3 z-30 flex items-center gap-2 rounded-xl border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
-          <CheckSquare className="h-4 w-4 text-accent" />
+        <div className="sticky bottom-3 z-30 flex items-center gap-2 rounded-md border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
+          <CheckSquare className="h-4 w-4 text-rule" />
           <span className="text-sm font-medium">{selectedCount} selected</span>
           <div className="ml-auto flex items-center gap-1.5">
             <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
@@ -1124,7 +1123,7 @@ export function DriveBrowser({
                   moveItemsToTarget({ fileIds, folderIds: [] }, { folderId: f.id, subheading: (f as any).subheading ?? null })
                     .then(() => { toast.success("Moved"); setMoveDialogOpen(false); setMoveTargetIds([]); clearSelection(); });
                 }}>
-                <FolderClosed className="h-4 w-4 text-accent" /> {f.name}
+                <FolderClosed className="h-4 w-4 text-rule" /> {f.name}
               </button>
             ))}
           </div>
@@ -1151,10 +1150,10 @@ function Section({
   return (
     <div
       ref={setNodeRef}
-      className={`relative rounded-md p-1 min-h-[40px] transition-colors ${active ? "bg-accent/5 ring-1 ring-accent/30" : ""}`}
+      className={`relative rounded-md p-1 min-h-[40px] transition-colors ${active ? "bg-accent ring-1 ring-rule" : ""}`}
     >
       {empty ? (
-        <div className={`flex items-center justify-center py-8 text-xs border border-dashed rounded-md ${active ? "border-accent text-accent bg-accent/5" : "border-border text-muted-foreground"}`}>
+        <div className={`flex items-center justify-center py-8 text-xs border border-dashed rounded-md ${active ? "border-rule text-accent-deep bg-accent" : "border-border text-muted-foreground"}`}>
           {active ? `Drop to move here` : "Nothing here yet — drop files or use \"New\""}
         </div>
       ) : (
@@ -1175,13 +1174,19 @@ function Breadcrumb({
   const { setNodeRef, isOver } = useDroppable({ id: "breadcrumb-root" });
   const active = currentFolderName && (isOver || activeDropId === "breadcrumb-root");
 
+  // At the root there is nothing to trace: the crumb would just repeat the
+  // section heading directly above it, which is the duplicate line the design
+  // does not have. It earns its place once you are inside a folder — and its
+  // drop target was only ever attached then anyway, so nothing is lost.
+  if (!currentFolderName) return null;
+
   return (
     <div className="flex items-center gap-1 text-sm">
       <button
         ref={currentFolderName ? setNodeRef : undefined}
         onClick={onClickRoot}
         className={`px-2 py-1 rounded-md font-medium transition-colors
-          ${active ? "bg-accent/10 ring-1 ring-accent text-accent" : currentFolderName ? "text-muted-foreground hover:bg-secondary hover:text-foreground" : "text-foreground"}`}
+          ${active ? "bg-accent ring-1 ring-rule text-accent-deep" : currentFolderName ? "text-muted-foreground hover:bg-secondary hover:text-foreground" : "text-foreground"}`}
       >
         {subsectionName}
       </button>
@@ -1198,8 +1203,8 @@ function Breadcrumb({
 function DragPreview({ count, label, kind }: { count: number; label: string; kind: "file" | "folder" }) {
   return (
     <div className="pointer-events-none">
-      <div className="flex items-center gap-2 rounded-lg border-2 border-accent/50 bg-card px-3 py-2 shadow-2xl ring-4 ring-accent/10 max-w-xs">
-        {kind === "folder" ? <FolderClosed className="h-4 w-4 text-accent" /> : <FileText className="h-4 w-4 text-accent" />}
+      <div className="flex items-center gap-2 rounded-md border-2 border-rule bg-card px-3 py-2 shadow-2xl ring-4 ring-rule max-w-xs">
+        {kind === "folder" ? <FolderClosed className="h-4 w-4 text-rule" /> : <FileText className="h-4 w-4 text-rule" />}
         <span className="truncate text-sm font-medium">{label}</span>
         {count > 1 && (
           <Badge className="ml-auto shrink-0 bg-accent text-accent-foreground">{count}</Badge>

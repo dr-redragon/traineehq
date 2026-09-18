@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
 import { Bookmark, ExternalLink } from "lucide-react";
 
 export function BookmarksWidget() {
@@ -27,32 +27,17 @@ export function BookmarksWidget() {
 
   if (!bookmarks?.length) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Bookmark className="h-4 w-4 text-primary" />
-            Bookmarked Resources
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No bookmarks yet. Star resources to save them here.
-          </p>
-        </CardContent>
-      </Card>
+      <WidgetSection icon={Bookmark} title="Bookmarked Resources">
+        <WidgetEmpty>
+          No bookmarks yet. Star resources to save them here.
+        </WidgetEmpty>
+      </WidgetSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Bookmark className="h-4 w-4 text-primary" />
-          Bookmarked Resources
-          <Badge variant="secondary" className="text-[10px] ml-auto">{bookmarks.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
+    <WidgetSection icon={Bookmark} title="Bookmarked Resources" count={bookmarks.length}>
+      <div className="divide-y divide-border">
         {bookmarks.map((b: any) => {
           const r = b.resources;
           if (!r) return null;
@@ -62,10 +47,10 @@ export function BookmarksWidget() {
             <Link
               key={b.id}
               to={specId ? `/specialty/${specId}` : "#"}
-              className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50 transition-colors group"
+              className="group flex items-center gap-3 px-1 py-2 transition-colors hover:bg-accent"
             >
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">{r.title}</p>
+                <p className="text-sm font-medium truncate transition-colors group-hover:text-rule">{r.title}</p>
                 <p className="text-xs text-muted-foreground">{specName}</p>
               </div>
               <Badge variant="outline" className="text-[9px] shrink-0">{r.resource_type}</Badge>
@@ -73,7 +58,7 @@ export function BookmarksWidget() {
             </Link>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </WidgetSection>
   );
 }

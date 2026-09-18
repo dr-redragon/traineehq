@@ -18,9 +18,11 @@ export type Navigation = "PUSH" | "REPLACE" | "POP";
  *
  * Two cases say no, and both are somebody's intent rather than an edge case:
  *
- * - A `#hash` is a request for a *place* on the page. `/specialty/:id#discussion`
- *   is a link straight to the thread somebody is watching; scrolling to the top
- *   would be undoing what they clicked.
+ * - A `#hash` is a request for a *place* on the page — a link straight to the
+ *   section somebody meant to reach; scrolling to the top would be undoing
+ *   what they clicked. (The example this was written for,
+ *   `/specialty/:id#discussion`, is gone: the board has its own page now. The
+ *   rule is general and still holds.)
  * - Back and forward are a return to something already read. The browser
  *   restores the position it left, and taking that away loses the reader's
  *   place in a long resource list they were part-way down.
