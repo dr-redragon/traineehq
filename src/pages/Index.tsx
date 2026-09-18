@@ -47,11 +47,11 @@ function DroppableColumn({ id, children, label }: { id: string; children: React.
   const { setNodeRef, isOver } = useDroppable({ id });
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">{label}</p>
+      <p className="ds-kicker mb-2">{label}</p>
       <div
         ref={setNodeRef}
         className={`space-y-2 min-h-[80px] rounded-lg border-2 border-dashed p-2 transition-colors ${
-          isOver ? "border-accent bg-accent/5" : "border-muted"
+          isOver ? "border-rule bg-accent-100" : "border-border"
         }`}
       >
         {children}
@@ -226,14 +226,14 @@ const Index = () => {
 
   const renderEditCard = (widgetId: WidgetId) => (
     <SortableWidget key={widgetId} id={widgetId} label={WIDGET_LABELS[widgetId]} isEditing>
-      <Card className="border-dashed">
+      <Card className="border border-dashed border-border">
         <CardContent className="flex items-center justify-between p-3">
           <span className="text-sm font-medium">{WIDGET_LABELS[widgetId]}</span>
           <div className="flex items-center gap-1.5">
             {widgetId === "file_browser" && (
               <button
                 onClick={() => setSettingsWidget("file_browser")}
-                className="h-5 w-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center hover:scale-110 hover:bg-primary/20 hover:text-primary transition-all"
+                className="flex h-5 w-5 items-center justify-center bg-muted text-muted-foreground transition-colors hover:bg-accent-200 hover:text-accent-800"
                 title="Choose default folder"
               >
                 <Cog className="h-3 w-3" />
@@ -242,7 +242,7 @@ const Index = () => {
             {columns === 2 && (
               <button
                 onClick={() => moveToOtherColumn(widgetId)}
-                className="h-5 w-5 rounded-full bg-muted text-muted-foreground flex items-center justify-center hover:scale-110 hover:bg-accent/20 hover:text-accent transition-all"
+                className="flex h-5 w-5 items-center justify-center bg-muted text-muted-foreground transition-colors hover:bg-accent-200 hover:text-accent-800"
                 title={rightColumnWidgets.includes(widgetId) ? "Move to left column" : "Move to right column"}
               >
                 <ArrowLeftRight className="h-3 w-3" />
@@ -250,7 +250,7 @@ const Index = () => {
             )}
             <button
               onClick={() => toggleWidget(widgetId)}
-              className="h-5 w-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:scale-110 transition-transform"
+              className="flex h-5 w-5 items-center justify-center bg-destructive text-destructive-foreground transition-colors hover:bg-accent-900"
             >
               <X className="h-3 w-3" />
             </button>
@@ -274,13 +274,13 @@ const Index = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       <DroppableColumn id="col-left" label="Left Column">
         {leftColumn.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-4">Drag widgets here</p>
+          <p className="py-4 text-xs text-muted-foreground">Drag widgets here</p>
         )}
         {leftColumn.map((wId) => renderEditCard(wId))}
       </DroppableColumn>
       <DroppableColumn id="col-right" label="Right Column">
         {rightColumn.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-4">Drag widgets here</p>
+          <p className="py-4 text-xs text-muted-foreground">Drag widgets here</p>
         )}
         {rightColumn.map((wId) => renderEditCard(wId))}
       </DroppableColumn>
@@ -307,26 +307,33 @@ const Index = () => {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-8">
-        {/* Welcome + Edit toggle */}
-        <div className="flex items-start justify-between animate-fade-in">
-          <div>
-            <h1 className="text-3xl font-display font-bold mb-1">Welcome back, {firstName}</h1>
-            <p className="text-muted-foreground">Access your training resources and stay up to date.</p>
+        {/* The page opens the way the design system opens one: a kicker, a
+            display-grade line set flush left, and a 2px rule closing the head
+            off from the sections below it. */}
+        <div className="animate-fade-in border-b-2 border-border pb-4">
+          <p className="ds-kicker mb-2">Dashboard</p>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h1 className="font-display text-[42px] font-extrabold leading-[1.05] tracking-tight">
+                Welcome back, {firstName}
+              </h1>
+              <p className="mt-1 text-muted-foreground">Access your training resources and stay up to date.</p>
+            </div>
+            <Button
+              variant={isEditing ? "default" : "outline"}
+              size="sm"
+              onClick={() => setIsEditing(!isEditing)}
+              className="shrink-0 gap-2"
+            >
+              <Settings2 className="h-4 w-4" />
+              {isEditing ? "Done Editing" : "Customise Dashboard"}
+            </Button>
           </div>
-          <Button
-            variant={isEditing ? "default" : "outline"}
-            size="sm"
-            onClick={() => setIsEditing(!isEditing)}
-            className="gap-2 shrink-0"
-          >
-            <Settings2 className="h-4 w-4" />
-            {isEditing ? "Done Editing" : "Customise Dashboard"}
-          </Button>
         </div>
 
         {/* Widget visibility toggles when editing */}
         {isEditing && (
-          <Card className="border-primary/20 bg-primary/5 animate-fade-in">
+          <Card className="animate-fade-in border-l-2 border-rule bg-accent-100">
             <CardContent className="p-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-medium">
@@ -334,7 +341,7 @@ const Index = () => {
                   {columns === 2 ? " between columns" : ""}. On a touch screen,
                   press and hold the handle first.
                 </p>
-                <div className="flex items-center gap-1 border rounded-md p-0.5">
+                <div className="flex items-center gap-1 border border-border p-0.5">
                   <Button
                     variant={columns === 1 ? "secondary" : "ghost"}
                     size="sm"
@@ -377,21 +384,22 @@ const Index = () => {
         {/* Pinned Announcements — always at top */}
         {announcements?.length ? (
           <div className="space-y-3">
+            {/* The poster statement. The design system runs the accent as a
+                field in exactly one place — the thing on the page that has to
+                carry it — and on a dashboard that is the announcement. The
+                field is accent-600 rather than the base accent so the white
+                copy on it clears AA; at a glance the two are the same red. */}
             {announcements.map((a) => (
-              <Card key={a.id} className="border-accent/30 bg-accent/5">
-                <CardContent className="flex items-start gap-4 p-5">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/10">
-                    <Megaphone className="h-5 w-5 text-accent" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm">{a.title}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">{a.content}</p>
-                    <p className="text-[10px] text-muted-foreground/60 mt-2">
-                      {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={a.id} className="flex items-start gap-4 bg-primary p-5 text-primary-foreground">
+                <Megaphone className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+                <div className="min-w-0">
+                  <h3 className="font-display text-lg font-extrabold leading-tight tracking-tight">{a.title}</h3>
+                  <p className="mt-1 text-sm">{a.content}</p>
+                  <p className="mt-2 text-[10px] uppercase tracking-[0.1em] opacity-80">
+                    {new Date(a.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                  </p>
+                </div>
+              </div>
             ))}
           </div>
         ) : null}
@@ -412,7 +420,7 @@ const Index = () => {
           </SortableContext>
           <DragOverlay>
             {activeId && isEditing ? (
-              <Card className="border-dashed border-primary shadow-lg">
+              <Card className="border-l-2 border-rule shadow-lg">
                 <CardContent className="flex items-center justify-between p-3">
                   <span className="text-sm font-medium">{WIDGET_LABELS[activeId]}</span>
                 </CardContent>

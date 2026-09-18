@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { WidgetSection } from "@/components/dashboard/WidgetSection";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useDeanery } from "@/contexts/DeaneryContext";
@@ -106,36 +106,35 @@ export function FileBrowserWidget({
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <HardDrive className="h-4 w-4 text-primary" />
-          Quick Files
-          <div className="ml-auto flex items-center gap-1">
-            {effectiveSpecialty && (
-              <Link
-                to={`/specialty/${effectiveSpecialty}`}
-                className="text-xs font-normal text-muted-foreground hover:text-primary"
-              >
-                Open full view
-              </Link>
-            )}
-            {onOpenSettings && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6 text-muted-foreground hover:text-primary"
-                onClick={onOpenSettings}
-                aria-label="Quick Files settings"
-                title="Quick Files settings"
-              >
-                <Settings2 className="h-3.5 w-3.5" />
-              </Button>
-            )}
-          </div>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
+    <WidgetSection
+      icon={HardDrive}
+      title="Quick Files"
+      action={
+        <div className="flex items-center gap-2">
+          {effectiveSpecialty && (
+            <Link
+              to={`/specialty/${effectiveSpecialty}`}
+              className="text-xs text-accent-700 underline underline-offset-[3px] hover:text-accent-800"
+            >
+              Open full view
+            </Link>
+          )}
+          {onOpenSettings && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={onOpenSettings}
+              aria-label="Quick Files settings"
+              title="Quick Files settings"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+            </Button>
+          )}
+        </div>
+      }
+    >
+      <div className="space-y-2">
         {/* Breadcrumb */}
         <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
           {(subsectionId || folderId) && (
@@ -149,7 +148,7 @@ export function FileBrowserWidget({
         </div>
 
         {!effectiveSpecialty ? (
-          <p className="text-sm text-muted-foreground py-4 text-center">No specialties available.</p>
+          <p className="py-3 text-[13px] text-muted-foreground">No specialties available.</p>
         ) : !subsectionId ? (
           <div className="space-y-1">
             {subsections?.length ? subsections.map((s) => (
@@ -162,7 +161,7 @@ export function FileBrowserWidget({
                 <span className="text-sm truncate flex-1">{s.name}</span>
                 <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
-            )) : <p className="text-sm text-muted-foreground py-4 text-center">No sections yet.</p>}
+            )) : <p className="py-3 text-[13px] text-muted-foreground">No sections yet.</p>}
           </div>
         ) : (
           <div className="space-y-1">
@@ -183,20 +182,20 @@ export function FileBrowserWidget({
                 <Link
                   key={r.id}
                   to={`/specialty/${effectiveSpecialty}`}
-                  className="flex items-center gap-3 p-2 rounded-md hover:bg-secondary/50 transition-colors group"
+                  className="group flex items-center gap-3 px-1 py-2 transition-colors hover:bg-foreground/[0.04]"
                 >
                   <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="text-sm truncate flex-1 group-hover:text-primary transition-colors">{r.title}</span>
+                  <span className="text-sm truncate flex-1 transition-colors group-hover:text-rule">{r.title}</span>
                   <Badge variant="outline" className="text-[9px] shrink-0">{r.resource_type}</Badge>
                 </Link>
               );
             })}
             {!folders?.length && !resources?.length && (
-              <p className="text-sm text-muted-foreground py-4 text-center">This section is empty.</p>
+              <p className="py-3 text-[13px] text-muted-foreground">This section is empty.</p>
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </WidgetSection>
   );
 }
