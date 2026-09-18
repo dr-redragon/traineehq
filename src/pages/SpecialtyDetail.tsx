@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { ContactCard } from "@/components/ContactCard";
-import { DiscussionBoard } from "@/components/DiscussionBoard";
+import { SpecialtyDiscussionPreview } from "@/components/SpecialtyDiscussionPreview";
 import { SpecialtyNoticeBoard } from "@/components/SpecialtyNoticeBoard";
 import { DriveBrowser } from "@/components/drive/DriveBrowser";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -511,11 +511,13 @@ const SpecialtyDetail = () => {
               </div>
             )}
           </TabsContent>
-              {/* The board draws its own head, so the page does not repeat
-                  it. It sits in the content column beside the rail, where 1B
-                  puts it — under the files for the category you are in. */}
+              {/* Only the latest few threads. The whole board — composer,
+                  voting, comment trees — now lives at /community/:id, because
+                  a second long list under the file browser made the discussion
+                  something you could only reach by scrolling past the files,
+                  and gave it no address of its own to link anyone to. */}
               <div ref={discussionRef}>
-                <DiscussionBoard specialtyId={id!} />
+                <SpecialtyDiscussionPreview specialtyId={id!} specialtyName={specialty.short_name} />
               </div>
             </div>
           </div>

@@ -28,6 +28,7 @@ import { DeaneryProvider } from "@/contexts/DeaneryContext";
 import Index from "@/pages/Index";
 import SpecialtyDetail from "@/pages/SpecialtyDetail";
 import CommunityHub from "@/pages/CommunityHub";
+import SpecialtyDiscussion from "@/pages/SpecialtyDiscussion";
 import KeyContacts from "@/pages/KeyContacts";
 import AdminPanel from "@/pages/AdminPanel";
 import Landing from "@/pages/Landing";
@@ -50,6 +51,7 @@ const PATHS: Record<string, string> = {
   dashboard: "/dashboard",
   specialty: "/specialty/sp-1",
   community: "/community",
+  board: "/community/sp-1",
   contacts: "/contacts",
   admin: "/admin",
   landing: "/",
@@ -115,6 +117,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/dashboard" element={<Index />} />
               <Route path="/specialty/:id" element={<SpecialtyDetail />} />
               <Route path="/community" element={<CommunityHub />} />
+              <Route path="/community/:id" element={<SpecialtyDiscussion />} />
               <Route path="/contacts" element={<KeyContacts />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/" element={<Landing />} />

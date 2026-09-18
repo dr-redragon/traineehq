@@ -163,7 +163,7 @@ const CommunityHub = () => {
               return (
                 <Link
                   key={d.id}
-                  to={`/specialty/${d.specialty_id}#discussion`}
+                  to={`/community/${d.specialty_id}`}
                   className={cn(
                     "flex flex-col gap-2.5 bg-card p-4 transition-colors hover:bg-accent",
                     d.is_pinned && "border-l-2 border-rule",

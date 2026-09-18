@@ -326,14 +326,14 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col justify-between gap-3 border-b-2 border-border pb-3 sm:flex-row sm:items-end">
-        <div>
-          <p className="ds-kicker mb-1">Discussion</p>
-          <h3 className="font-display text-2xl font-extrabold leading-tight tracking-tight">Discussion Board</h3>
-          <p className="mt-0.5 text-[13px] text-muted-foreground">
-            Ask questions, share insights, and discuss with fellow trainees
-          </p>
-        </div>
+      {/* No heading of its own any more. The board has one home — the
+          specialty's discussion page — and that page already names it; drawing
+          a second title here read as "ENT discussion" followed immediately by
+          "DISCUSSION / Discussion Board". What is left is the controls. */}
+      <div className="flex flex-col justify-between gap-3 border-b-2 border-border pb-3 sm:flex-row sm:items-center">
+        <p className="text-[13px] text-muted-foreground">
+          Ask questions, share insights, and discuss with fellow trainees
+        </p>
         <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
           {/* The design system's segmented control: one outline around the set,
               the divider between each option, and the selection a solid accent

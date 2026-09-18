@@ -44,7 +44,7 @@ export function WatchedDiscussionsWidget() {
           return (
             <Link
               key={w.id}
-              to={`/specialty/${d.specialty_id}#discussion`}
+              to={`/community/${d.specialty_id}`}
               className="group flex items-center gap-3 px-1 py-2 transition-colors hover:bg-accent"
             >
               <MessageSquare className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
