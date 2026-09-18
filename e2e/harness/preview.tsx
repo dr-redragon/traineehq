@@ -54,6 +54,54 @@ const PATHS: Record<string, string> = {
 
 const start = PATHS[page] ?? PATHS.dashboard;
 
+/**
+ * A row of page links pinned to the bottom of the preview.
+ *
+ * The harness is driven by a `?page=` in the address bar, which is fine for a
+ * screenshot script and no use at all to somebody being asked to review the
+ * work. Pass `&chrome=0` to hide it.
+ */
+function Switcher() {
+  if (params.get("chrome") === "0") return null;
+  const theme = params.get("theme") === "dark" ? "dark" : "light";
+  const other = theme === "dark" ? "light" : "dark";
+  return (
+    <div
+      style={{
+        position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 9999,
+        display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4,
+        padding: "8px 12px", borderTop: "2px solid #9f9d9d",
+        background: "#201e1d", color: "#f3f2f2",
+        font: '600 12px/1 Archivo, system-ui, sans-serif', letterSpacing: "0.04em",
+      }}
+    >
+      <span style={{ opacity: 0.55, textTransform: "uppercase", marginRight: 4 }}>Preview</span>
+      {Object.keys(PATHS).map((name) => (
+        <a
+          key={name}
+          href={`?page=${name}${theme === "dark" ? "&theme=dark" : ""}`}
+          style={{
+            padding: "6px 10px", textDecoration: "none", textTransform: "capitalize",
+            background: name === page ? "#dd2b0f" : "transparent",
+            color: name === page ? "#fff" : "rgba(243,242,242,0.75)",
+          }}
+        >
+          {name}
+        </a>
+      ))}
+      <a
+        href={`?page=${page}${other === "dark" ? "&theme=dark" : ""}`}
+        style={{
+          marginLeft: "auto", padding: "6px 10px", textDecoration: "none",
+          border: "1px solid rgba(243,242,242,0.4)", color: "rgba(243,242,242,0.75)",
+        }}
+      >
+        {other === "dark" ? "Dark" : "Light"}
+      </a>
+    </div>
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
@@ -69,6 +117,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/" element={<Landing />} />
             </Routes>
           </MemoryRouter>
+          <Switcher />
         </DeaneryProvider>
       </TooltipProvider>
     </QueryClientProvider>
