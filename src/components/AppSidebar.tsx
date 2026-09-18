@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Users, Search, ChevronDown, ChevronRight,
   LogOut, User, Shield, MessageSquare, ClipboardCheck, ClipboardList
 } from "lucide-react";
-import logoDark from "@/assets/logo-dark.png";
+import logoWhite from "@/assets/logo-white.png";
 import { getIcon } from "@/lib/iconMap";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useMyRegisterMemberships } from "@/hooks/useRegisters";
@@ -24,6 +24,21 @@ import {
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { useDeanery } from "@/contexts/DeaneryContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+/**
+ * The rail's active marker.
+ *
+ * Modernist marks a selection with a rule in the accent rather than with a
+ * pill or a fill — the same move as the underline on a selected tab, stood on
+ * its end. The 2px red edge is the marker; the tonal fill behind it only
+ * separates the row from the ink.
+ *
+ * It is defined once because it is passed to eleven links by hand: the rail's
+ * links are NavLinks with an `activeClassName`, not shadcn's `data-active`, so
+ * there is no variant to hang it off.
+ */
+const RAIL_ACTIVE =
+  "border-l-2 border-sidebar-primary bg-sidebar-accent font-extrabold text-sidebar-accent-foreground";
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -84,12 +99,12 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r-0">
-      <SidebarHeader className="p-4 border-b border-sidebar-border">
+      <SidebarHeader className="border-b-2 border-sidebar-border p-4">
         <Link to="/dashboard" className="flex items-center gap-3">
-          <img src={logoDark} alt="HST Training Hub" className="h-11 w-11" />
+          <img src={logoWhite} alt="HST Training Hub" className="h-10 w-10 shrink-0" />
           {!collapsed && (
             <div>
-              <h1 className="text-sm font-semibold font-display text-sidebar-accent-foreground tracking-tight">
+              <h1 className="font-display text-sm font-extrabold uppercase leading-tight tracking-[0.04em] text-sidebar-accent-foreground">
                 {activeDeanery?.name ?? ""} HST Training Hub
               </h1>
             </div>
@@ -114,11 +129,11 @@ export function AppSidebar() {
           <div className="px-2 mb-3">
             <button
               onClick={() => setSearchOpen(true)}
-              className="flex items-center gap-2 rounded-md bg-sidebar-accent px-3 py-2 text-xs text-sidebar-muted w-full hover:text-sidebar-accent-foreground transition-colors"
+              className="flex w-full items-center gap-2 border border-sidebar-border bg-sidebar-accent px-3 py-2 text-xs text-sidebar-muted transition-colors hover:border-sidebar-primary hover:text-sidebar-accent-foreground"
             >
               <Search className="h-3.5 w-3.5" />
               <span className="flex-1 text-left">Search resources…</span>
-              <kbd className="hidden sm:inline-flex text-[10px] bg-sidebar-border rounded px-1.5 py-0.5">⌘K</kbd>
+              <kbd className="hidden bg-sidebar-border px-1.5 py-0.5 text-[10px] sm:inline-flex">⌘K</kbd>
             </button>
           </div>
         )}
@@ -129,7 +144,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/dashboard" end activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                  <NavLink to="/dashboard" end activeClassName={RAIL_ACTIVE}>
                     <LayoutDashboard className="h-4 w-4" />
                     {!collapsed && <span>Dashboard</span>}
                   </NavLink>
@@ -137,7 +152,7 @@ export function AppSidebar() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/contacts" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                  <NavLink to="/contacts" activeClassName={RAIL_ACTIVE}>
                     <Users className="h-4 w-4" />
                     {!collapsed && <span>Key Contacts</span>}
                   </NavLink>
@@ -170,7 +185,7 @@ export function AppSidebar() {
                           <SidebarMenuButton asChild>
                             <NavLink
                               to={`/specialty/${s.id}`}
-                              activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                              activeClassName={RAIL_ACTIVE}
                               className="text-xs"
                             >
                               <SIcon className="h-3.5 w-3.5" />
@@ -188,7 +203,7 @@ export function AppSidebar() {
                             <SidebarMenuButton asChild className="flex-1">
                               <NavLink
                                 to={`/specialty/${s.id}`}
-                                activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                                activeClassName={RAIL_ACTIVE}
                                 className="text-xs"
                               >
                                 <SIcon className="h-3.5 w-3.5" />
@@ -198,7 +213,7 @@ export function AppSidebar() {
                             {!collapsed && (
                               <button
                                 onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleParent(s.id); }}
-                                className="p-1 rounded hover:bg-sidebar-accent text-sidebar-muted hover:text-sidebar-accent-foreground transition-colors"
+                                className="p-1 text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                               >
                                 <ChevronRight className={`h-3 w-3 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
                               </button>
@@ -206,7 +221,7 @@ export function AppSidebar() {
                           </div>
                         </SidebarMenuItem>
                         {!collapsed && isExpanded && (
-                          <div className="ml-4 pl-2 border-l border-sidebar-border">
+                          <div className="ml-4 border-l-2 border-sidebar-border pl-2">
                             {children.map((child) => {
                               const CIcon = getIcon(child.icon_name);
                               return (
@@ -214,7 +229,7 @@ export function AppSidebar() {
                                   <SidebarMenuButton asChild>
                                     <NavLink
                                       to={`/specialty/${child.id}`}
-                                      activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
+                                      activeClassName={RAIL_ACTIVE}
                                       className="text-[11px]"
                                     >
                                       <CIcon className="h-3 w-3" />
@@ -241,7 +256,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/community" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                  <NavLink to="/community" activeClassName={RAIL_ACTIVE}>
                     <MessageSquare className="h-4 w-4" />
                     {!collapsed && <span>Discussion Boards</span>}
                   </NavLink>
@@ -257,7 +272,7 @@ export function AppSidebar() {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild>
-                  <NavLink to="/profile" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                  <NavLink to="/profile" activeClassName={RAIL_ACTIVE}>
                     <User className="h-4 w-4" />
                     {!collapsed && <span>My Profile</span>}
                   </NavLink>
@@ -266,7 +281,7 @@ export function AppSidebar() {
               {hasRegisters && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/registers" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                    <NavLink to="/registers" activeClassName={RAIL_ACTIVE}>
                       <ClipboardCheck className="h-4 w-4" />
                       {!collapsed && <span>Teaching Registers</span>}
                     </NavLink>
@@ -279,7 +294,7 @@ export function AppSidebar() {
               {hasClassicRegisters && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/classic-registers" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                    <NavLink to="/classic-registers" activeClassName={RAIL_ACTIVE}>
                       <ClipboardList className="h-4 w-4" />
                       {!collapsed && <span>Registers (Classic)</span>}
                     </NavLink>
@@ -289,7 +304,7 @@ export function AppSidebar() {
               {(role === "admin" || role === "super_admin") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/admin" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                    <NavLink to="/admin" activeClassName={RAIL_ACTIVE}>
                       <Shield className="h-4 w-4" />
                       {!collapsed && <span>Admin Panel</span>}
                     </NavLink>
@@ -301,7 +316,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 border-t border-sidebar-border">
+      <SidebarFooter className="border-t-2 border-sidebar-border p-3">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

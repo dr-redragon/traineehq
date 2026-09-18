@@ -1,60 +1,134 @@
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700&display=swap');
+/* Archivo is the Modernist design system's single family — it carries both the
+   heading and the body role, at 800 for headings. Manrope stays loaded because
+   the teaching register keeps its own body face (see `.register-theme`); it is
+   not used anywhere else. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&family=Manrope:wght@300;400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* =====================================================================
+   Modernist.
+
+   TraineeHQ's palette is the Modernist design system, expressed in the
+   HSL-triplet form tailwind.config.ts reads. Keeping the same variable
+   names means every shadcn component inherits the new look without being
+   touched, exactly as the register's own theme already does.
+
+   The system is flat, architectural and mono: a light ground, near-black
+   ink, one red accent, zero corner radius, and strong rules doing the
+   organising that shadow and roundness used to do. Its source of truth is
+   the design system's styles.css; the hex behind each value is kept in the
+   comment so the two can be checked against each other.
+
+   Two values are deliberately NOT the design system's own, both for
+   contrast, and both resolved by moving to a documented step of the
+   system's own ramp rather than by inventing a colour:
+
+   - `--primary` is accent-600 #dd2b0f, not the base accent #ec3013. The
+     base carries white at 4.20:1, which fails AA for a 14px button label;
+     accent-600 carries it at 4.74:1. The design system itself notes the
+     accent-to-ground pair is tuned to 3:1 — "enough for icons, large text
+     and interface chrome, not for body copy" — and prescribes a deeper
+     ramp step for text. A button label is text.
+   - `--muted-foreground` is neutral-700 #605d5d (5.83:1), not neutral-600
+     #7d7979 (3.85:1). Every secondary line on every page is set in it.
+
+   The base accent still runs at full strength where the system intends it
+   to — rules, focus rings, icons, the active rail marker and small
+   emphasis — through `--rule-accent` and `--ring`.
+   ===================================================================== */
+
 @layer base {
   :root {
-    --font-display: 'Sora', sans-serif;
-    --font-body: 'Manrope', sans-serif;
+    --font-display: 'Archivo', system-ui, sans-serif;
+    --font-body: 'Archivo', system-ui, sans-serif;
+    /* Modernist sets headings at 800. Named here so the `font-display`
+       utility and the heading rule below can share one value. */
+    --font-heading-weight: 800;
 
-    /* Gov.uk-plain, pastel and minimal */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 5%;
+    --background: 0 4% 95%;          /* ground    #f3f2f2 */
+    --foreground: 20 5% 12%;         /* ink       #201e1d */
 
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 5%;
+    /* Cards are surface-filled, not white and not outlined — in Modernist a
+       card is a tonal step off the ground, and the grid does the separating. */
+    --card: 0 2% 92%;                /* surface   #eae9e9 */
+    --card-foreground: 20 5% 12%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 5%;
+    --popover: 0 2% 92%;
+    --popover-foreground: 20 5% 12%;
 
-    --primary: 208 73% 42%;
+    --primary: 8 87% 46%;            /* accent-600 #dd2b0f — see note above */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 40 3% 95%;
-    --secondary-foreground: 0 0% 5%;
+    --secondary: 0 7% 91%;           /* neutral-200 #eae7e7 */
+    --secondary-foreground: 20 5% 12%;
 
-    --muted: 40 3% 95%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 0 7% 91%;               /* neutral-200 #eae7e7 */
+    --muted-foreground: 0 2% 37%;    /* neutral-700 #605d5d, 5.83:1 */
 
-    --accent: 208 73% 42%;
-    --accent-foreground: 0 0% 100%;
+    /* shadcn's `accent` is the hover fill for ghost buttons, menu rows and
+       command items — not the brand voice. Full red there would set every
+       hover in the app on fire, so it takes the accent's lightest ramp step,
+       which is also what the design system's own ghost hover mixes to. The
+       brand voice lives in `--rule-accent` and `--ring`. */
+    --accent: 11 100% 97%;           /* accent-100 #fff2ef */
+    --accent-foreground: 8 92% 25%;  /* accent-800 #7c1405 */
 
-    --destructive: 0 63% 42%;
+    /* Mono system, so danger cannot be a different hue — it is a deeper
+       step of the same red, which keeps a delete visibly graver than a
+       primary action without leaving the palette. */
+    --destructive: 8 92% 25%;        /* accent-800 #7c1405 */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 2% 87%;
-    --input: 0 0% 45%;
-    --ring: 48 100% 50%;
+    /* The divider, flattened. The design system writes it as 40% ink over
+       the ground; Tailwind composes `hsl(var(--border))` without an alpha,
+       so the blend is pre-computed here (#9f9d9d). It is a deliberately
+       strong rule — "do not soften the rules into hairlines". */
+    --border: 0 1% 62%;
+    --input: 0 1% 62%;
+    --ring: 8 85% 50%;               /* accent    #ec3013 */
 
-    --radius: 0.25rem;
+    /* Zero, everywhere. */
+    --radius: 0rem;
 
-    /* Light, quiet sidebar */
-    --sidebar-background: 40 3% 95%;
-    --sidebar-foreground: 0 0% 20%;
-    --sidebar-primary: 208 73% 42%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 205 40% 91%;
-    --sidebar-accent-foreground: 208 73% 28%;
-    --sidebar-border: 30 2% 87%;
-    --sidebar-ring: 48 100% 50%;
-    --sidebar-muted: 0 0% 45%;
+    /* The accent at full strength, for the things the design system does
+       run red: the active rail marker, a section's leading rule, a kicker. */
+    --rule-accent: 8 85% 50%;        /* accent    #ec3013 */
 
-    --success: 160 55% 30%;
+    /* The ink rail. Modernist's navigation is a flat ruled bar; here it is
+       the vertical one, set in ink so the rail reads as the page's spine
+       and the light grid sits beside it. Foreground steps are chosen off
+       the neutral ramp for contrast on ink: neutral-300 at 11.2:1,
+       neutral-500 at 5.8:1. The rail's red is accent-500, because the base
+       accent only reaches 3.95:1 on ink — the design system prescribes
+       exactly this step for a dark ground. */
+    --sidebar-background: 20 5% 12%;        /* ink        #201e1d */
+    --sidebar-foreground: 0 5% 84%;         /* neutral-300 #d7d3d3 */
+    --sidebar-primary: 8 100% 62%;          /* accent-500  #ff563c */
+    --sidebar-primary-foreground: 20 5% 12%;
+    --sidebar-accent: 0 2% 17%;             /* neutral-900 #2d2b2b */
+    --sidebar-accent-foreground: 0 22% 96%; /* neutral-100 #f8f4f4 */
+    --sidebar-border: 0 2% 26%;             /* neutral-800 #444141 */
+    --sidebar-ring: 8 100% 62%;
+    --sidebar-muted: 0 2% 60%;              /* neutral-500 #9b9797 */
+
+    /* Not in the design system — it is mono and names no status hues. The
+       app needs them (attendance bands, access states), so they are held to
+       the system's character: desaturated, flat, and dark enough to carry
+       white at AA rather than bright enough to compete with the accent. */
+    --success: 152 38% 26%;
     --success-foreground: 0 0% 100%;
-    --warning: 33 90% 42%;
+    --warning: 33 78% 27%;
     --warning-foreground: 0 0% 100%;
+
+    /* Elevation, tuned to the ground exactly as the design system tunes it.
+       Modernist barely lifts anything — "nothing floats" — so these are
+       reached for rarely: a dialog, a drag preview, a popover. */
+    --shadow-sm: 0 1px 2px hsl(0 2% 17% / 0.14);
+    --shadow-md: 0 3px 10px hsl(0 2% 17% / 0.16);
+    --shadow-lg: 0 12px 32px hsl(0 2% 17% / 0.22);
 
     /* Defaults for the teaching register's own tokens, so the utilities
        built on them (bg-register-deep and friends) are never left pointing
@@ -71,49 +145,64 @@
     --register-shadow: 0 1px 2px hsl(0 0% 0% / 0.06), 0 8px 24px hsl(0 0% 0% / 0.06);
   }
 
+  /* The dark ground. Modernist ships light only, so this is derived rather
+     than copied: the ink becomes the ground, the neutral ramp runs the other
+     way, and the accent steps up to accent-500 — the step the design system
+     names for a dark ground. Everything structural is unchanged; it is the
+     same flat, ruled, zero-radius system seen at night. */
   .dark {
-    --background: 0 0% 8%;
-    --foreground: 0 0% 93%;
+    --background: 20 5% 12%;         /* ink        #201e1d */
+    --foreground: 0 22% 96%;         /* neutral-100 #f8f4f4, 15.2:1 */
 
-    --card: 0 0% 11%;
-    --card-foreground: 0 0% 93%;
+    --card: 0 2% 17%;                /* neutral-900 #2d2b2b */
+    --card-foreground: 0 22% 96%;
 
-    --popover: 0 0% 11%;
-    --popover-foreground: 0 0% 93%;
+    --popover: 0 2% 17%;
+    --popover-foreground: 0 22% 96%;
 
-    --primary: 205 65% 66%;
-    --primary-foreground: 0 0% 8%;
+    --primary: 8 100% 62%;           /* accent-500 #ff563c, 5.26:1 on ink */
+    --primary-foreground: 20 5% 12%;
 
-    --secondary: 0 0% 16%;
-    --secondary-foreground: 0 0% 93%;
+    --secondary: 0 2% 22%;
+    --secondary-foreground: 0 22% 96%;
 
-    --muted: 0 0% 16%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 0 2% 22%;
+    --muted-foreground: 0 3% 72%;    /* neutral-400 #bab6b6, 8.3:1 */
 
-    --accent: 205 65% 66%;
-    --accent-foreground: 0 0% 8%;
+    --accent: 0 2% 22%;
+    --accent-foreground: 0 22% 96%;
 
-    --destructive: 0 55% 45%;
+    /* Deeper than primary in both themes, by the same rule as the light
+       ground: danger is the graver red, not a different one. */
+    --destructive: 8 87% 46%;        /* accent-600 #dd2b0f */
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 24%;
-    --input: 0 0% 40%;
-    --ring: 48 100% 50%;
+    --border: 0 2% 26%;              /* neutral-800 #444141 */
+    --input: 0 2% 32%;
+    --ring: 8 100% 62%;
 
-    --sidebar-background: 0 0% 11%;
-    --sidebar-foreground: 0 0% 82%;
-    --sidebar-primary: 205 65% 66%;
-    --sidebar-primary-foreground: 0 0% 8%;
-    --sidebar-accent: 0 0% 17%;
-    --sidebar-accent-foreground: 0 0% 93%;
-    --sidebar-border: 0 0% 22%;
-    --sidebar-ring: 48 100% 50%;
-    --sidebar-muted: 0 0% 55%;
+    --rule-accent: 8 100% 62%;       /* accent-500 #ff563c */
 
-    --success: 160 45% 55%;
-    --success-foreground: 0 0% 8%;
-    --warning: 38 80% 60%;
-    --warning-foreground: 0 0% 8%;
+    /* The rail stays a rail: on a dark ground it separates by taking the
+       surface step rather than the ground's own ink. */
+    --sidebar-background: 0 2% 17%;         /* neutral-900 #2d2b2b */
+    --sidebar-foreground: 0 5% 84%;
+    --sidebar-primary: 8 100% 62%;
+    --sidebar-primary-foreground: 20 5% 12%;
+    --sidebar-accent: 0 2% 24%;
+    --sidebar-accent-foreground: 0 22% 96%;
+    --sidebar-border: 0 2% 30%;
+    --sidebar-ring: 8 100% 62%;
+    --sidebar-muted: 0 3% 66%;
+
+    --success: 152 32% 62%;
+    --success-foreground: 20 5% 12%;
+    --warning: 33 70% 62%;
+    --warning-foreground: 20 5% 12%;
+
+    --shadow-sm: 0 1px 2px hsl(0 0% 0% / 0.4);
+    --shadow-md: 0 3px 10px hsl(0 0% 0% / 0.45);
+    --shadow-lg: 0 12px 32px hsl(0 0% 0% / 0.55);
   }
 }
 
@@ -128,20 +217,104 @@
     -webkit-font-smoothing: antialiased;
   }
 
+  /* Modernist headings are Archivo at 800 with a tight line and a slight
+     negative track. The weight is a variable so the register, which sets
+     Georgia, can drop back to a weight a serif actually has. */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: var(--font-heading-weight);
+    line-height: 1.12;
     letter-spacing: -0.015em;
   }
 
-  /* Gov.uk-style high-visibility keyboard focus */
+  /* The design system's keyboard focus: a 2px accent ring, offset, and no
+     underbar. It replaces the gov.uk yellow-and-black bar the previous
+     palette used. The register keeps its own ring (moss, 3px) further down
+     this file, so this does not reach it. */
   :focus-visible {
-    outline: 3px solid hsl(var(--ring));
-    outline-offset: 0;
-    box-shadow: 0 2px 0 0 hsl(var(--foreground));
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    box-shadow: none;
+  }
+
+  ::selection {
+    background: hsl(var(--rule-accent) / 0.3);
   }
 }
 
+
+/* =====================================================================
+   The Modernist component layer.
+
+   These are the structural pieces the design system organises pages with —
+   the strong rule, the kicker, the flush-left surface panel, the modular
+   grid. They are written against the theme's variables rather than against
+   the design system's raw hexes, so inside the register they take the
+   register's own colours instead of TraineeHQ's red.
+
+   Everything else in the app is a shadcn component, and those follow the
+   tokens above without needing a class here.
+   ===================================================================== */
+@layer components {
+  /* The system's signature: a 2px rule, never a hairline. */
+  .ds-rule {
+    border-top: 2px solid hsl(var(--border));
+  }
+
+  /* A section opened by a rule, the way the design system divides a page. */
+  .ds-section {
+    border-top: 2px solid hsl(var(--border));
+    padding-top: var(--space-4, 1rem);
+  }
+
+  /* The small uppercase label above a title. Set in the accent at 10px,
+     which is chrome rather than body copy, so the 3:1 accent is in bounds. */
+  .ds-kicker {
+    font-family: var(--font-display);
+    font-weight: var(--font-heading-weight);
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: hsl(var(--rule-accent));
+  }
+
+  /* A card without the card: surface-filled, flush-left, no radius and no
+     border — the tonal step and the grid do the separating. */
+  .ds-panel {
+    background: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    padding: 1rem;
+  }
+
+  /* The modular grid, with its structure left visible. Cells are separated
+     by the rule itself rather than by a gap, so the grid reads as drawn
+     rather than as floating boxes. The negative margin hides the outer
+     edges, leaving only the rules between cells. */
+  .ds-grid {
+    display: grid;
+    gap: 1px;
+    background: hsl(var(--border));
+    border: 1px solid hsl(var(--border));
+  }
+  .ds-grid > * {
+    background: hsl(var(--background));
+  }
+
+  /* Modernist button labels are flush left — "a button wider than its label
+     starts the text at the left padding edge, never centered". Applied to
+     the full-width buttons, where the difference actually shows; a button
+     shrink-wrapped to its label looks the same either way. */
+  .ds-flush {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  /* Photographs print in pure black and white. */
+  .ds-grayscale {
+    filter: grayscale(1) contrast(1.08);
+  }
+}
 
 @layer utilities {
   .font-display {
@@ -214,10 +387,23 @@
 /* ===================================================================== */
 @layer base {
   .register-theme {
-    /* Georgia for headings, the body font left alone: the serif headline
-       over a plain sans is the register's signature, and Manrope is close
-       enough to the Inter it uses to not be worth a second font download. */
+    /* Georgia for headings, Manrope for the body: the serif headline over a
+       plain sans is the register's signature, and Manrope is close enough to
+       the Inter it uses to not be worth a second font download.
+
+       Both are pinned. TraineeHQ's own body face is now Archivo, and
+       `--font-body` was previously inherited rather than set here — leaving
+       it inherited would have quietly restyled every line of the register
+       the moment the rest of the site changed family. The heading weight is
+       pinned for the same reason: Modernist asks for 800, which Georgia
+       does not have, and asking for it would have the browser synthesise a
+       smeared faux-bold. */
     --font-display: Georgia, "Times New Roman", serif;
+    --font-body: 'Manrope', system-ui, sans-serif;
+    --font-heading-weight: 700;
+
+    /* The register points with clay, never with TraineeHQ's red. */
+    --rule-accent: 17 54% 49%;
 
     --background: 48 36% 95%;        /* paper     #f6f4ec */
     --foreground: 155 22% 11%;       /* ink       #15211c */
@@ -322,11 +508,18 @@
     --register-clay-ink: 24 70% 84%;
     --register-gold: 40 52% 55%;
     --register-shadow: 0 1px 2px hsl(0 0% 0% / 0.3), 0 8px 24px hsl(0 0% 0% / 0.25);
+
+    --rule-accent: 17 62% 62%;
   }
 
   /* Cards sit off the paper rather than being drawn on it — the shadow is
-     two very soft layers, so a page of them still reads as calm. */
+     two very soft layers, so a page of them still reads as calm.
+
+     The border is drawn here rather than inherited: TraineeHQ's cards are
+     now surface-filled and unoutlined, so the line the register has always
+     had around a card has to be put back on the register's side. */
   .register-theme [data-slot="card"] {
+    border: 1px solid hsl(var(--border));
     box-shadow: var(--register-shadow);
   }
 

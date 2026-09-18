@@ -8,7 +8,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <div className="min-h-screen flex w-full">
         <AppSidebar />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="h-14 flex items-center gap-4 border-b px-4 bg-card shrink-0">
+          {/* The header bar sits on the page's own ground rather than on a
+              raised card, and is separated by the design system's 2px rule —
+              in Modernist the rule does the work an elevation change used to. */}
+          <header className="flex h-14 shrink-0 items-center gap-4 border-b-2 border-border bg-background px-4">
             <SidebarTrigger />
             <div className="flex-1" />
             <ThemeToggle />

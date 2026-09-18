@@ -4,14 +4,20 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  // The design system's tag: square, 11px, tinted from a ramp step rather
+  // than filled with the role colour. `rounded-sm` resolves through
+  // --radius, so it is 0 here and stays rounded inside the register.
+  "inline-flex items-center rounded-sm border px-2.5 py-[3px] text-[11px] font-medium tracking-[0.02em] transition-colors focus:outline-none",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground",
+        // Tinted from the 100 step with text from the 800 — the pairing the
+        // design system uses, and legible at 11px, which a solid accent fill
+        // is not.
+        default: "border-transparent bg-accent-100 text-accent-800",
+        secondary: "border-transparent bg-secondary text-secondary-foreground",
+        destructive: "border-transparent bg-destructive text-destructive-foreground",
+        outline: "border-rule text-accent-700",
       },
     },
     defaultVariants: {
