@@ -11,6 +11,7 @@ const Separator = React.forwardRef<
     ref={ref}
     decorative={decorative}
     orientation={orientation}
+    data-slot="separator"
     className={cn("shrink-0 bg-border", // A rule, not a hairline: 2px is the design system's divider weight.
       orientation === "horizontal" ? "h-[2px] w-full" : "h-full w-[2px]", className)}
     {...props}

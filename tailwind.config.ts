@@ -42,6 +42,8 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+          active: "hsl(var(--primary-active))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -50,6 +52,7 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          hover: "hsl(var(--destructive-hover))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
@@ -62,6 +65,12 @@ export default {
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          // Theme-aware, unlike the numbered steps below: `strong` is the
+          // pressed state of an accent tint and `deep` is the accent at text
+          // weight. The shared primitives use these, so they follow the
+          // register's moss and clay instead of painting it red.
+          strong: "hsl(var(--accent-strong))",
+          deep: "hsl(var(--accent-deep))",
           100: "#fff2ef",
           200: "#ffe0d9",
           300: "#ffc4b8",

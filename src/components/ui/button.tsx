@@ -13,25 +13,27 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Hover and pressed states step down the accent ramp rather than
-        // fading the fill with an alpha — the design system asks for a solid
-        // step, and a faded red over the ground goes pink.
-        default: "bg-primary text-primary-foreground hover:bg-accent-700 active:bg-accent-800",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-accent-900 active:bg-accent-900",
+        // Hover and pressed states are a solid step along the ramp rather
+        // than the fill faded with an alpha, and they come from tokens so the
+        // teaching register's own moss and clay follow through unchanged.
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover active:bg-primary-active",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive-hover active:bg-destructive-hover",
         // The secondary is an outline in the divider, tinted with ink on
         // hover — no fill of its own, so the grid stays the loudest thing.
         outline: "border border-input bg-transparent hover:bg-foreground/[0.07] active:bg-foreground/[0.14]",
         secondary: "bg-secondary text-secondary-foreground hover:bg-foreground/[0.07] active:bg-foreground/[0.14]",
-        ghost: "text-accent-foreground hover:bg-accent active:bg-accent-200",
+        ghost: "text-accent-foreground hover:bg-accent active:bg-accent-strong",
         // Deep enough for paragraph-size text, which the base accent is not.
-        link: "text-accent-700 underline underline-offset-[3px] hover:text-accent-800",
+        link: "text-accent-deep underline underline-offset-[3px] hover:text-primary",
       },
       size: {
         // 36px is the design system's control height, shared with the input.
-        default: "h-9 px-3.5 py-2",
-        sm: "h-8 px-2.5 text-[13px]",
-        lg: "h-11 px-6",
-        icon: "h-9 w-9 p-0",
+        // Read through a variable so the teaching register can keep the 40px
+        // control it had, rather than being shortened along with the rest.
+        default: "h-[var(--control-h)] px-3.5 py-2",
+        sm: "h-[var(--control-h-sm)] px-2.5 text-[13px]",
+        lg: "h-[var(--control-h-lg)] px-6",
+        icon: "h-[var(--control-h)] w-[var(--control-h)] p-0",
       },
     },
     defaultVariants: {
@@ -50,7 +52,7 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button";
-    return <Comp className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
+    return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} ref={ref} {...props} />;
   },
 );
 Button.displayName = "Button";

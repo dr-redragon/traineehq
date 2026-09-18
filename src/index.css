@@ -61,6 +61,14 @@
 
     --primary: 8 87% 46%;            /* accent-600 #dd2b0f — see note above */
     --primary-foreground: 0 0% 100%;
+    /* The design system asks for a solid step down the ramp on hover and
+       press, not the fill faded with an alpha — a translucent red over this
+       ground goes pink. They are tokens rather than ramp classes because the
+       shadcn primitives are shared with the teaching register, which points
+       with moss and clay: a `hover:bg-accent-700` baked into the Button would
+       paint TraineeHQ's red onto the register's pages. */
+    --primary-hover: 8 100% 34%;     /* accent-700 #ae1800 */
+    --primary-active: 8 92% 25%;     /* accent-800 #7c1405 */
 
     --secondary: 0 7% 91%;           /* neutral-200 #eae7e7 */
     --secondary-foreground: 20 5% 12%;
@@ -75,12 +83,21 @@
        brand voice lives in `--rule-accent` and `--ring`. */
     --accent: 11 100% 97%;           /* accent-100 #fff2ef */
     --accent-foreground: 8 92% 25%;  /* accent-800 #7c1405 */
+    /* One step past `accent`, for the pressed state of anything the accent
+       only tints. */
+    --accent-strong: 11 100% 93%;    /* accent-200 #ffe0d9 */
+    /* The accent at text weight. `--rule-accent` is the accent itself, which
+       the system tunes to 3:1 — right for a rule or an icon, not for a word.
+       This is the deep step that clears AA, and it is what a link, an outline
+       tag or any other accent-coloured text is set in. */
+    --accent-deep: 8 100% 34%;       /* accent-700 #ae1800, 6.41:1 */
 
     /* Mono system, so danger cannot be a different hue — it is a deeper
        step of the same red, which keeps a delete visibly graver than a
        primary action without leaving the palette. */
     --destructive: 8 92% 25%;        /* accent-800 #7c1405 */
     --destructive-foreground: 0 0% 100%;
+    --destructive-hover: 9 69% 18%;  /* accent-900 #4d170e */
 
     /* The divider, flattened. The design system writes it as 40% ink over
        the ground; Tailwind composes `hsl(var(--border))` without an alpha,
@@ -92,6 +109,15 @@
 
     /* Zero, everywhere. */
     --radius: 0rem;
+
+    /* Control metrics. The design system puts a button and a field on the same
+       36px so the pair lines up in a form row. They are tokens because the
+       shadcn primitives are shared with the teaching register, which keeps the
+       taller control it has always had. */
+    --control-h: 2.25rem;            /* 36px */
+    --control-h-sm: 2rem;            /* 32px */
+    --control-h-lg: 2.75rem;         /* 44px */
+    --field-h: 2.25rem;              /* 36px, matching the button */
 
     /* The accent at full strength, for the things the design system does
        run red: the active rail marker, a section's leading rule, a kicker. */
@@ -162,6 +188,10 @@
 
     --primary: 8 100% 62%;           /* accent-500 #ff563c, 5.26:1 on ink */
     --primary-foreground: 20 5% 12%;
+    /* The ramp runs the other way on a dark ground: hover and press go
+       lighter, not darker. */
+    --primary-hover: 10 100% 76%;    /* accent-400 #ff9783 */
+    --primary-active: 10 100% 86%;   /* accent-300 #ffc4b8 */
 
     --secondary: 0 2% 22%;
     --secondary-foreground: 0 22% 96%;
@@ -171,11 +201,14 @@
 
     --accent: 0 2% 22%;
     --accent-foreground: 0 22% 96%;
+    --accent-strong: 0 2% 28%;
+    --accent-deep: 10 100% 76%;      /* accent-400 #ff9783, 7.9:1 on ink */
 
     /* Deeper than primary in both themes, by the same rule as the light
        ground: danger is the graver red, not a different one. */
     --destructive: 8 87% 46%;        /* accent-600 #dd2b0f */
     --destructive-foreground: 0 0% 100%;
+    --destructive-hover: 8 100% 34%; /* accent-700 #ae1800 */
 
     --border: 0 2% 26%;              /* neutral-800 #444141 */
     --input: 0 2% 32%;
@@ -422,6 +455,8 @@
 
     --primary: 142 26% 33%;          /* moss      #3f6b4f */
     --primary-foreground: 45 100% 98%;
+    --primary-hover: 144 27% 26%;
+    --primary-active: 144 27% 20%;
 
     --secondary: 70 20% 92%;         /* sage      #eef0e6 */
     --secondary-foreground: 144 27% 24%;
@@ -438,10 +473,15 @@
        rule, an excused absence — under --register-clay. */
     --accent: 70 20% 92%;
     --accent-foreground: 144 27% 24%;
+    --accent-strong: 70 20% 85%;
+    /* Deep moss, so an outline tag or a link inside the register reads moss
+       rather than TraineeHQ red. */
+    --accent-deep: 144 27% 24%;
 
     /* Clay, taken down far enough that white sits on it at 5:1. */
     --destructive: 17 56% 44%;
     --destructive-foreground: 0 0% 100%;
+    --destructive-hover: 17 56% 36%;
 
     --border: 45 24% 80%;            /* line      #d8d2c0 */
     --input: 45 20% 74%;
@@ -483,6 +523,8 @@
 
     --primary: 142 30% 58%;
     --primary-foreground: 155 22% 11%;
+    --primary-hover: 142 30% 66%;
+    --primary-active: 142 30% 74%;
 
     --secondary: 150 10% 18%;
     --secondary-foreground: 45 25% 92%;
@@ -492,9 +534,12 @@
 
     --accent: 150 12% 20%;
     --accent-foreground: 45 25% 92%;
+    --accent-strong: 150 12% 26%;
+    --accent-deep: 142 30% 66%;
 
     --destructive: 17 62% 56%;
     --destructive-foreground: 155 22% 11%;
+    --destructive-hover: 17 62% 64%;
 
     --border: 150 8% 24%;
     --input: 150 8% 34%;
@@ -542,5 +587,104 @@
     outline: 3px solid hsl(var(--ring));
     outline-offset: 1px;
     box-shadow: none;
+  }
+
+  /* ------------------------------------------------------------------
+     Holding the register still.
+
+     The palette is a token swap, so the register was always going to be
+     safe from it — it sets its own tokens and everything follows. Its
+     SHAPE was not. TraineeHQ and the register share one set of shadcn
+     primitives, and Modernist changed those primitives themselves: the
+     button lost 4px and took the heading face, the tag lost its pill, the
+     tab strip lost its track for a baseline rule, the table header went
+     small and uppercase, and the separator doubled in weight. All of that
+     would have arrived in the register uninvited.
+
+     So the register puts its own shapes back. The hooks are `data-slot`
+     attributes on the primitives, the same mechanism the register already
+     used to give its cards their shadow, and the metrics that can be
+     numbers are tokens above rather than selectors here.
+
+     This block is what "excluding the teaching register" costs once the
+     two share a component library. It should be deleted, not extended,
+     when the register gets its own pass.
+     ------------------------------------------------------------------ */
+  .register-theme {
+    --control-h: 2.5rem;             /* 40px — the register's button */
+    --control-h-sm: 2.25rem;
+    --control-h-lg: 2.75rem;
+    --field-h: 2.75rem;              /* 44px — the register's field */
+  }
+
+  /* The button keeps the body face at a normal weight, and a label centred
+     in it: the flush-left label is Modernist's, not the register's. */
+  .register-theme [data-slot="button"] {
+    font-family: var(--font-body);
+    font-weight: 500;
+    justify-content: center;
+    text-align: center;
+  }
+
+  /* The tag keeps its pill. */
+  .register-theme [data-slot="badge"] {
+    border-radius: 9999px;
+    padding: 0.125rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: normal;
+  }
+
+  /* The tabs keep their inset track and their raised selected pill, rather
+     than sitting flush on a rule. */
+  .register-theme [data-slot="tabs-list"] {
+    height: 2.5rem;
+    gap: 0;
+    border-bottom: 0;
+    border-radius: var(--radius);
+    background: hsl(var(--muted));
+    padding: 0.25rem;
+  }
+  .register-theme [data-slot="tabs-trigger"] {
+    margin-bottom: 0;
+    border-bottom: 0;
+    border-radius: max(0px, calc(var(--radius) - 4px));
+    font-family: var(--font-body);
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+  }
+  .register-theme [data-slot="tabs-trigger"][data-state="active"] {
+    background: hsl(var(--background));
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* The table keeps its roomier rows and its sentence-case header. */
+  .register-theme [data-slot="table-head"] {
+    height: 3rem;
+    padding: 0 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: none;
+    letter-spacing: normal;
+  }
+  .register-theme [data-slot="table-cell"] {
+    padding: 1rem;
+  }
+
+  /* The field keeps the heavier rule and the paper behind it, rather than
+     the single rule and inset surface Modernist gives it. */
+  .register-theme [data-slot="input"],
+  .register-theme [data-slot="textarea"] {
+    border-width: 2px;
+    border-radius: max(0px, calc(var(--radius) - 4px));
+    background: hsl(var(--background));
+  }
+
+  /* And the separator stays a hairline. */
+  .register-theme [data-slot="separator"][data-orientation="horizontal"] {
+    height: 1px;
+  }
+  .register-theme [data-slot="separator"][data-orientation="vertical"] {
+    width: 1px;
   }
 }

@@ -11,6 +11,7 @@ const TabsList = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
     ref={ref}
+    data-slot="tabs-list"
     className={cn(
       // Modernist names no tab component, so this is the system's own
       // vocabulary applied to one: the pill and its inset track are dropped
@@ -31,6 +32,7 @@ const TabsTrigger = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Trigger
     ref={ref}
+    data-slot="tabs-trigger"
     className={cn(
       // The -mb-[2px] pulls the trigger's own border down onto the list's
       // baseline rule so the active marker replaces that rule rather than

@@ -11,13 +11,14 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        // Tinted from the 100 step with text from the 800 — the pairing the
-        // design system uses, and legible at 11px, which a solid accent fill
-        // is not.
-        default: "border-transparent bg-accent-100 text-accent-800",
+        // Tinted from the accent's lightest step with text from its deepest
+        // — the pairing the design system uses for a tag, and legible at 11px,
+        // which a solid accent fill is not. Both are tokens, so inside the
+        // register the tag is sage and moss rather than red.
+        default: "border-transparent bg-accent text-accent-foreground",
         secondary: "border-transparent bg-secondary text-secondary-foreground",
         destructive: "border-transparent bg-destructive text-destructive-foreground",
-        outline: "border-rule text-accent-700",
+        outline: "border-rule text-accent-deep",
       },
     },
     defaultVariants: {
@@ -29,7 +30,7 @@ const badgeVariants = cva(
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 
 function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+  return <div data-slot="badge" className={cn(badgeVariants({ variant }), className)} {...props} />;
 }
 
 export { Badge, badgeVariants };
