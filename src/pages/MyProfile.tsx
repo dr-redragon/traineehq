@@ -3,13 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ColorSchemePicker } from "@/components/ColorSchemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, GraduationCap, Stethoscope, Save, Download, Trash2, Shield, Eye, UserCheck, Lock } from "lucide-react";
+import { User, Mail, GraduationCap, Stethoscope, Save, Download, Trash2, Shield, Eye, UserCheck, Lock, Palette } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -204,17 +205,20 @@ const MyProfile = () => {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-2xl font-display font-bold">My Profile</h1>
-          <p className="text-sm text-muted-foreground">View and manage your account details</p>
+      <div className="animate-fade-in max-w-2xl space-y-6 p-9">
+        <div className="border-b-2 border-border pb-5">
+          <p className="ds-kicker mb-2">Account</p>
+          <h1 className="font-display text-[clamp(32px,4vw,46px)] font-extrabold leading-none tracking-[-0.03em]">
+            My profile
+          </h1>
+          <p className="mt-2 text-muted-foreground">View and manage your account details</p>
         </div>
 
         {/* Role & Specialty summary */}
         <Card>
           <CardContent className="p-5 flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <RoleIcon className="h-4 w-4 text-accent" />
+              <RoleIcon className="h-4 w-4 text-rule" />
               <Badge variant={userRole === "admin" || userRole === "super_admin" ? "destructive" : userRole === "facilitator" ? "default" : "secondary"} className="text-xs capitalize">
                 {userRole}
               </Badge>
@@ -237,7 +241,7 @@ const MyProfile = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <User className="h-5 w-5 text-accent" /> Personal Details
+              <User className="h-5 w-5 text-rule" /> Personal Details
             </CardTitle>
             <CardDescription>Update your name, email address, and training grade</CardDescription>
           </CardHeader>
@@ -289,7 +293,7 @@ const MyProfile = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
-              <Lock className="h-5 w-5 text-accent" /> Change Password
+              <Lock className="h-5 w-5 text-rule" /> Change Password
             </CardTitle>
             <CardDescription>Update your password to keep your account secure</CardDescription>
           </CardHeader>
@@ -379,14 +383,31 @@ const MyProfile = () => {
           </CardContent>
         </Card>
 
+        {/* Appearance */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Palette className="h-5 w-5 text-rule" /> Appearance
+            </CardTitle>
+            <CardDescription>
+              Choose the accent colour used across the site. Everything else — the
+              paper, the type and the rules — stays as it is.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ColorSchemePicker />
+          </CardContent>
+        </Card>
+
         {/* GDPR / Data */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Data & Privacy</CardTitle>
             <CardDescription>
               You can download or delete your stored data at any time. We hold your name,
-              email, specialty, training grade and login timestamps, plus anything you have
-              posted on the discussion boards. Your data is not shared with third parties.
+              email, specialty, training grade, display preferences and login timestamps,
+              plus anything you have posted on the discussion boards. Your data is not
+              shared with third parties.
               {(profile as { gdpr_consent_at?: string | null } | null)?.gdpr_consent_at ? (
                 <span className="mt-2 block">
                   You were shown the data protection notice on{" "}

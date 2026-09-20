@@ -187,7 +187,7 @@ export function AdminContent() {
             return (
               <Card key={r.id} className="hover:shadow-sm transition-shadow">
                 <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-secondary">
                     <Icon className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="flex-1 min-w-0">

@@ -14,6 +14,7 @@ import KeyContacts from "./pages/KeyContacts";
 import AdminPanel from "./pages/AdminPanel";
 import MyProfile from "./pages/MyProfile";
 import CommunityHub from "./pages/CommunityHub";
+import SpecialtyDiscussion from "./pages/SpecialtyDiscussion";
 import NotFound from "./pages/NotFound";
 import RequestAccess from "./pages/RequestAccess";
 import RegisterDirectory from "./pages/RegisterDirectory";
@@ -35,6 +36,7 @@ import { RegisterLayout } from "./components/register/RegisterLayout";
 import { RequireAuth } from "./components/RequireAuth";
 import { GdprConsentNotice } from "./components/GdprConsentNotice";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { ColorSchemeSync } from "./hooks/useColorScheme";
 
 const queryClient = new QueryClient();
 
@@ -89,6 +91,10 @@ const App = () => (
       <TooltipProvider>
       <DeaneryProvider>
         <AuthCacheSync />
+        {/* The reader's accent scheme, read from their profile and put on
+            <html>. At the root because it has to apply on every page, not
+            just the one with the picker on it. */}
+        <ColorSchemeSync />
         <Toaster />
         <Sonner />
         {/* BASE_URL is "/" locally and "/<repo>/" on GitHub Pages. */}
@@ -114,6 +120,9 @@ const App = () => (
             <Route path="/specialty/:id" element={<RequireAuth><SpecialtyDetail /></RequireAuth>} />
             <Route path="/contacts" element={<RequireAuth><KeyContacts /></RequireAuth>} />
             <Route path="/community" element={<RequireAuth><CommunityHub /></RequireAuth>} />
+            {/* A specialty's board, on its own address so it can be linked and
+                bookmarked rather than reached by scrolling past the files. */}
+            <Route path="/community/:id" element={<RequireAuth><SpecialtyDiscussion /></RequireAuth>} />
             <Route path="/profile" element={<RequireAuth><MyProfile /></RequireAuth>} />
 
             {/*

@@ -41,7 +41,7 @@ const ContactForm = ({ compact = false }: ContactFormProps) => {
 
   if (compact) {
     return (
-      <div className="w-full max-w-sm mx-auto text-center">
+      <div className="w-full max-w-sm">
         <p className="text-xs text-muted-foreground mb-3">Have a question? Get in touch.</p>
         <form onSubmit={handleSubmit} className="space-y-2.5">
           <div className="grid grid-cols-2 gap-2">
@@ -68,7 +68,7 @@ const ContactForm = ({ compact = false }: ContactFormProps) => {
             className="min-h-[60px] text-xs resize-none"
             required
           />
-          <Button type="submit" size="sm" variant="outline" className="w-full h-8 text-xs" disabled={isSending}>
+          <Button type="submit" size="sm" variant="outline" className="ds-flush h-8 w-full text-xs" disabled={isSending}>
             {isSending ? "Sending…" : "Send"}
             {!isSending && <Send className="h-3 w-3 ml-1" />}
           </Button>
@@ -80,9 +80,10 @@ const ContactForm = ({ compact = false }: ContactFormProps) => {
   return (
     <section className="border-t bg-secondary/30">
       <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="max-w-sm mx-auto text-center">
-          <h2 className="text-lg font-display font-bold mb-1">Get in Touch</h2>
-          <p className="text-xs text-muted-foreground mb-6">
+        <div className="max-w-md border-t-2 border-border pt-8">
+          <p className="ds-kicker mb-2">Contact</p>
+          <h2 className="mb-1 font-display text-[32px] font-extrabold leading-tight tracking-tight">Get in Touch</h2>
+          <p className="mb-6 text-sm text-muted-foreground">
             Have a question or suggestion? Send us a message.
           </p>
           <form onSubmit={handleSubmit} className="space-y-3">
@@ -119,7 +120,7 @@ const ContactForm = ({ compact = false }: ContactFormProps) => {
                 required
               />
             </div>
-            <Button type="submit" size="sm" className="w-full" disabled={isSending}>
+            <Button type="submit" size="sm" className="ds-flush w-full" disabled={isSending}>
               {isSending ? "Sending…" : "Send Message"}
               {!isSending && <Send className="h-3.5 w-3.5" />}
             </Button>

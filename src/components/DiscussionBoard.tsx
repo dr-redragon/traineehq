@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -327,22 +326,28 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-sm">Discussion Board</h3>
-          <p className="text-xs text-muted-foreground">Ask questions, share insights, and discuss with fellow trainees</p>
-        </div>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-          <div className="flex items-center rounded-md border bg-background overflow-x-auto">
+      {/* No heading of its own any more. The board has one home — the
+          specialty's discussion page — and that page already names it; drawing
+          a second title here read as "ENT discussion" followed immediately by
+          "DISCUSSION / Discussion Board". What is left is the controls. */}
+      <div className="flex flex-col justify-between gap-3 border-b-2 border-border pb-3 sm:flex-row sm:items-center">
+        <p className="text-[13px] text-muted-foreground">
+          Ask questions, share insights, and discuss with fellow trainees
+        </p>
+        <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+          {/* The design system's segmented control: one outline around the set,
+              the divider between each option, and the selection a solid accent
+              fill rather than a highlighted pill. */}
+          <div className="flex items-center overflow-x-auto border border-border">
             {sortOptions.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setSortBy(opt.value)}
-                className={`px-2.5 py-1.5 text-[11px] font-medium whitespace-nowrap transition-colors ${
+                className={`whitespace-nowrap border-l border-border px-2.5 py-1.5 text-[11px] font-medium transition-colors first:border-l-0 ${
                   sortBy === opt.value
                     ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                } first:rounded-l-md last:rounded-r-md`}
+                    : "text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground"
+                }`}
               >
                 {opt.label}
               </button>
@@ -373,39 +378,45 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
       </div>
 
       {isLoading ? (
-        <p className="text-sm text-muted-foreground text-center py-12">Loading discussions…</p>
+        <p className="py-10 text-sm text-muted-foreground">Loading discussions…</p>
       ) : !discussions?.length ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-12 text-center">
-            <MessageSquare className="h-10 w-10 text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">No discussions yet. Start the conversation!</p>
-          </CardContent>
-        </Card>
+        <div className="flex items-center gap-3 border border-dashed border-border px-4 py-10">
+          <MessageSquare className="h-8 w-8 shrink-0 text-muted-foreground" aria-hidden />
+          <p className="text-sm text-muted-foreground">No discussions yet. Start the conversation!</p>
+        </div>
       ) : (
-        <div className="space-y-3">
+        /* Threads are a ruled stack, not a set of cards. The rule between two
+           posts is the same 2px rule that divides the page, so the board reads
+           as one list rather than as a column of boxes. */
+        <div className="divide-y-2 divide-border border-b-2 border-border">
           {sortedDiscussions.map((post) => {
             const voteCount = getVoteCount(post.id);
             const userVote = getUserVote(post.id);
             const isExpanded = expandedPost === post.id;
 
             return (
-              <Card key={post.id} className={`transition-shadow ${isExpanded ? "shadow-md ring-1 ring-accent/20" : "hover:shadow-sm"} ${post.is_pinned ? "border-accent/30 bg-accent/5" : ""}`}>
-                <CardContent className="p-0">
+              <div
+                key={post.id}
+                className={`border-l-2 transition-colors ${
+                  isExpanded ? "border-rule bg-card" : "border-transparent hover:bg-accent"
+                } ${post.is_pinned ? "border-rule bg-accent-strong" : ""}`}
+              >
+                <div>
                   <div className="flex">
                     {/* Vote column */}
-                    <div className="flex flex-col items-center gap-0.5 px-3 py-4 border-r bg-muted/30">
+                    <div className="flex flex-col items-center gap-0.5 border-r border-border px-3 py-4">
                       <button
                         onClick={() => castVote.mutate({ discussionId: post.id, voteType: 1 })}
-                        className={`p-0.5 rounded hover:bg-accent/20 transition-colors ${userVote === 1 ? "text-accent" : "text-muted-foreground"}`}
+                        className={`p-0.5 transition-colors hover:bg-accent ${userVote === 1 ? "text-accent-deep" : "text-muted-foreground"}`}
                       >
                         <ArrowBigUp className="h-5 w-5" />
                       </button>
-                      <span className={`text-xs font-semibold ${voteCount > 0 ? "text-accent" : voteCount < 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                      <span className={`text-xs font-semibold ${voteCount > 0 ? "text-accent-deep" : voteCount < 0 ? "text-destructive" : "text-muted-foreground"}`}>
                         {voteCount}
                       </span>
                       <button
                         onClick={() => castVote.mutate({ discussionId: post.id, voteType: -1 })}
-                        className={`p-0.5 rounded hover:bg-destructive/20 transition-colors ${userVote === -1 ? "text-destructive" : "text-muted-foreground"}`}
+                        className={`p-0.5 transition-colors hover:bg-accent-strong ${userVote === -1 ? "text-destructive" : "text-muted-foreground"}`}
                       >
                         <ArrowBigDown className="h-5 w-5" />
                       </button>
@@ -419,8 +430,8 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                           onClick={() => setExpandedPost(isExpanded ? null : post.id)}
                         >
                           <div className="flex items-center gap-2 mb-1">
-                            {post.is_pinned && <Pin className="h-3 w-3 text-accent" />}
-                            <h4 className="text-sm font-semibold hover:text-accent transition-colors">{post.title}</h4>
+                            {post.is_pinned && <Pin className="h-3 w-3 text-rule" />}
+                            <h4 className="font-display text-[15px] font-extrabold leading-tight tracking-tight">{post.title}</h4>
                           </div>
                           <p className={`text-sm text-muted-foreground ${isExpanded ? "" : "line-clamp-2"}`}>{post.content}</p>
                         </div>
@@ -436,7 +447,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                               aria-pressed={watched.has(post.id)}
                               onClick={() => toggleWatch.mutate({ id: post.id, watching: watched.has(post.id) })}
                             >
-                              <Eye className={`h-3.5 w-3.5 ${watched.has(post.id) ? "text-accent" : "text-muted-foreground"}`} />
+                              <Eye className={`h-3.5 w-3.5 ${watched.has(post.id) ? "text-rule" : "text-muted-foreground"}`} />
                             </Button>
                           )}
                           {canPin && (
@@ -447,7 +458,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                               title={post.is_pinned ? "Unpin" : "Pin"}
                               onClick={() => togglePin.mutate({ id: post.id, pinned: !!post.is_pinned })}
                             >
-                              <Pin className={`h-3.5 w-3.5 ${post.is_pinned ? "text-accent fill-accent" : "text-muted-foreground"}`} />
+                              <Pin className={`h-3.5 w-3.5 ${post.is_pinned ? "text-rule fill-rule" : "text-muted-foreground"}`} />
                             </Button>
                           )}
                           {currentUser && (currentUser.id === post.author_id || isAdmin) && (
@@ -461,7 +472,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                         <span className="flex items-center gap-1"><User className="h-3 w-3" /> {getAuthorName(post.author_id)}</span>
                         <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {timeAgo(post.created_at)}</span>
                         <button
-                          className="flex items-center gap-1 hover:text-accent transition-colors"
+                          className="flex items-center gap-1 hover:text-accent-deep transition-colors"
                           onClick={() => setExpandedPost(isExpanded ? null : post.id)}
                         >
                           <MessageSquare className="h-3 w-3" />
@@ -475,7 +486,7 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
 
                       {/* Comments section */}
                       {isExpanded && (
-                        <div className="mt-4 border-t pt-4 space-y-3">
+                        <div className="mt-4 space-y-3 border-t-2 border-border pt-4">
                           {/* Top-level comments */}
                           {topLevelComments.map((comment) => (
                             <CommentThread
@@ -521,8 +532,8 @@ export function DiscussionBoard({ specialtyId }: DiscussionBoardProps) {
                       )}
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </div>
@@ -562,7 +573,7 @@ function CommentThread({
     <div className="space-y-2">
       <div className="flex gap-2">
         <div className="flex flex-col items-center gap-0.5 pt-1">
-          <button onClick={() => onVote(comment.id, 1)} className={`${userVote === 1 ? "text-accent" : "text-muted-foreground"} hover:text-accent`}>
+          <button onClick={() => onVote(comment.id, 1)} className={`${userVote === 1 ? "text-accent-deep" : "text-muted-foreground"} hover:text-accent-deep`}>
             <ArrowBigUp className="h-4 w-4" />
           </button>
           <span className="text-[10px] font-semibold text-muted-foreground">{voteCount}</span>
@@ -575,7 +586,7 @@ function CommentThread({
           <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
             <span>{getAuthorName(comment.author_id)}</span>
             <span>{timeAgo(comment.created_at)}</span>
-            <button className="hover:text-accent transition-colors" onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}>
+            <button className="hover:text-accent-deep transition-colors" onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}>
               Reply
             </button>
             {(currentUserId === comment.author_id || isAdmin) && (
@@ -596,11 +607,11 @@ function CommentThread({
       </div>
       {/* Nested replies */}
       {replies.length > 0 && (
-        <div className="ml-8 pl-3 border-l-2 border-muted space-y-2">
+        <div className="ml-8 space-y-2 border-l-2 border-border pl-3">
           {replies.map((r) => (
             <div key={r.id} className="flex gap-2">
               <div className="flex flex-col items-center gap-0.5 pt-1">
-                <button onClick={() => onVote(r.id, 1)} className={`${getUserVote(r.id) === 1 ? "text-accent" : "text-muted-foreground"} hover:text-accent`}>
+                <button onClick={() => onVote(r.id, 1)} className={`${getUserVote(r.id) === 1 ? "text-accent-deep" : "text-muted-foreground"} hover:text-accent-deep`}>
                   <ArrowBigUp className="h-3.5 w-3.5" />
                 </button>
                 <span className="text-[10px] font-semibold text-muted-foreground">{getVoteCount(r.id)}</span>

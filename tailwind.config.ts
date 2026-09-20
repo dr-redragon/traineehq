@@ -42,6 +42,8 @@ export default {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          hover: "hsl(var(--primary-hover))",
+          active: "hsl(var(--primary-active))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -50,14 +52,49 @@ export default {
         destructive: {
           DEFAULT: "hsl(var(--destructive))",
           foreground: "hsl(var(--destructive-foreground))",
+          hover: "hsl(var(--destructive-hover))",
         },
         muted: {
           DEFAULT: "hsl(var(--muted))",
           foreground: "hsl(var(--muted-foreground))",
         },
+        // `accent` is shadcn's hover fill, so DEFAULT is the palest step of the
+        // ramp. The numbered steps are the design system's own 100-900 scale,
+        // generated in OKLCH on one shared lightness ramp — reach for a step
+        // rather than mixing an ad-hoc tint.
         accent: {
           DEFAULT: "hsl(var(--accent))",
           foreground: "hsl(var(--accent-foreground))",
+          // Theme-aware, unlike the numbered steps below: `strong` is the
+          // pressed state of an accent tint and `deep` is the accent at text
+          // weight. The shared primitives use these, so they follow the
+          // register's moss and clay instead of painting it red.
+          strong: "hsl(var(--accent-strong))",
+          deep: "hsl(var(--accent-deep))",
+          100: "#fff2ef",
+          200: "#ffe0d9",
+          300: "#ffc4b8",
+          400: "#ff9783",
+          500: "#ff563c",
+          600: "#dd2b0f",
+          700: "#ae1800",
+          800: "#7c1405",
+          900: "#4d170e",
+        },
+        // The accent at full strength — what the design system actually runs
+        // red: the active rail marker, a leading section rule, a kicker. It
+        // follows the scoped theme, so inside the register it is clay.
+        rule: "hsl(var(--rule-accent))",
+        ink: {
+          100: "#f8f4f4",
+          200: "#eae7e7",
+          300: "#d7d3d3",
+          400: "#bab6b6",
+          500: "#9b9797",
+          600: "#7d7979",
+          700: "#605d5d",
+          800: "#444141",
+          900: "#2d2b2b",
         },
         popover: {
           DEFAULT: "hsl(var(--popover))",
@@ -77,6 +114,7 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
           muted: "hsl(var(--sidebar-muted))",
+          kicker: "hsl(var(--sidebar-kicker))",
         },
         success: {
           DEFAULT: "hsl(var(--success))",
@@ -100,13 +138,25 @@ export default {
           gold: "hsl(var(--register-gold))",
         },
       },
+      // Modernist barely lifts anything — "nothing floats" — so these are
+      // reached for rarely and are softer than Tailwind's defaults. The
+      // defaults are replaced rather than added to, so the shadow utilities
+      // already scattered through the app land on the system's values.
       boxShadow: {
+        sm: "var(--shadow-sm)",
+        DEFAULT: "var(--shadow-sm)",
+        md: "var(--shadow-md)",
+        lg: "var(--shadow-lg)",
         register: "var(--register-shadow)",
       },
+      // Modernist is 0px everywhere, but the register sits at 0.75rem, so the
+      // steps still have to subtract without going negative — `max()` keeps a
+      // 0 radius at 0 instead of resolving to -2px, which some browsers treat
+      // as invalid and drop (taking the whole declaration with it).
       borderRadius: {
         lg: "var(--radius)",
-        md: "calc(var(--radius) - 2px)",
-        sm: "calc(var(--radius) - 4px)",
+        md: "max(0px, calc(var(--radius) - 2px))",
+        sm: "max(0px, calc(var(--radius) - 4px))",
       },
       keyframes: {
         "accordion-down": {

@@ -27,8 +27,8 @@ export function AdminAttendance() {
     <Card>
       <CardContent className="space-y-4 p-6">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10">
-            <ClipboardCheck className="h-5 w-5 text-primary" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
+            <ClipboardCheck className="h-5 w-5 text-rule" />
           </div>
           <div className="space-y-1">
             <h3 className="font-display font-semibold">Teaching registers</h3>
@@ -39,7 +39,7 @@ export function AdminAttendance() {
           </div>
         </div>
 
-        <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+        <div className="rounded-md border bg-muted/30 p-3 text-sm">
           {isLoading ? (
             <span className="text-muted-foreground">Checking your access…</span>
           ) : mine.length === 0 ? (

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Clock, FileText, Video, LinkIcon, BookOpen, CheckSquare, FolderOpen } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
 import { Badge } from "@/components/ui/badge";
 import type { LucideIcon } from "lucide-react";
 
@@ -24,36 +24,36 @@ export function RecentResourcesWidget() {
   });
 
   return (
-    <div>
-      <h2 className="text-lg font-display font-semibold mb-4">Recently Added Resources</h2>
+    <WidgetSection icon={Clock} title="Recently Added Resources" count={recentResources?.length || undefined}>
       {!recentResources?.length ? (
-        <p className="text-sm text-muted-foreground text-center py-8">No resources added yet.</p>
+        <WidgetEmpty>No resources added yet.</WidgetEmpty>
       ) : (
-        <div className="space-y-2">
+        <div className="divide-y divide-border">
           {recentResources.map((r: any) => {
             const Icon = typeIcons[r.resource_type] || FileText;
             const specName = r.subsections?.specialties?.short_name ?? "";
             return (
-              <Card key={r.id} className="hover:shadow-sm transition-shadow cursor-pointer">
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-secondary">
-                    <Icon className="h-4 w-4 text-muted-foreground" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium truncate">{r.title}</h4>
-                    <p className="text-xs text-muted-foreground">{specName}</p>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] shrink-0">{r.resource_type.toUpperCase()}</Badge>
-                  <span className="text-xs text-muted-foreground shrink-0 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
-                    {new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
-                  </span>
-                </CardContent>
-              </Card>
+              <div
+                key={r.id}
+                className="flex cursor-pointer items-center gap-4 px-1 py-2.5 transition-colors hover:bg-accent"
+              >
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-secondary">
+                  <Icon className="h-4 w-4 text-muted-foreground" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="truncate text-sm font-medium">{r.title}</h4>
+                  <p className="text-xs text-muted-foreground">{specName}</p>
+                </div>
+                <Badge variant="secondary" className="shrink-0">{r.resource_type.toUpperCase()}</Badge>
+                <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                  <Clock className="h-3 w-3" />
+                  {new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              </div>
             );
           })}
         </div>
       )}
-    </div>
+    </WidgetSection>
   );
 }

@@ -73,7 +73,7 @@ export function GdprConsentNotice() {
       className="fixed inset-x-0 bottom-0 z-50 border-t bg-card/95 backdrop-blur-sm print:hidden"
     >
       <div className="mx-auto flex max-w-4xl flex-col gap-3 p-4 sm:flex-row sm:items-start sm:gap-4">
-        <ShieldCheck className="hidden h-5 w-5 shrink-0 text-accent sm:mt-0.5 sm:block" />
+        <ShieldCheck className="hidden h-5 w-5 shrink-0 text-rule sm:mt-0.5 sm:block" />
 
         <div className="flex-1 space-y-2 text-sm">
           <p className="font-semibold">What this site keeps about you</p>
@@ -91,7 +91,7 @@ export function GdprConsentNotice() {
                   href={PRIVACY_POLICY_URL}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-accent underline underline-offset-4"
+                  className="text-accent-deep underline underline-offset-4"
                 >
                   Read the full privacy policy
                 </a>

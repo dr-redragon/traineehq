@@ -66,17 +66,13 @@ const Login = () => {
         <p className="relative z-10 text-primary-foreground/40 text-sm">
           © 2026 North West HST Training Hub. All rights reserved.
         </p>
-        {/* Decorative circles */}
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full border border-accent/10" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-full border border-accent/10" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-full bg-accent/5" />
       </div>
 
       {/* Right - login form */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md animate-fade-in">
           <div className="lg:hidden flex items-center gap-3 mb-10">
-            <img src={logoWhite} alt="NW HST Training Hub" className="h-9 w-9 rounded-lg bg-primary p-1" />
+            <img src={logoWhite} alt="NW HST Training Hub" className="h-9 w-9 rounded-md bg-primary p-1" />
             <h1 className="text-lg font-display font-semibold tracking-tight">North West HST Training Hub</h1>
           </div>
 
@@ -103,7 +99,7 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-xs text-accent hover:underline">
+                <Link to="/forgot-password" className="text-xs text-accent-deep hover:underline">
                   Forgot password?
                 </Link>
               </div>
@@ -129,14 +125,14 @@ const Login = () => {
 
           <p className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{" "}
-            <Link to="/request-access" className="text-accent hover:underline font-medium">Request Access</Link>
+            <Link to="/request-access" className="text-accent-deep hover:underline font-medium">Request Access</Link>
           </p>
 
           <p className="text-center text-xs text-muted-foreground mt-4">
             By signing in, you agree to our{" "}
-            <PolicyLink kind="privacy" className="text-accent hover:underline" />{" "}
+            <PolicyLink kind="privacy" className="text-accent-deep hover:underline" />{" "}
             and{" "}
-            <PolicyLink kind="terms" className="text-accent hover:underline" />.
+            <PolicyLink kind="terms" className="text-accent-deep hover:underline" />.
           </p>
           <div className="mt-8 pt-6 border-t">
             <ContactForm compact />

@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
 import { Star, Mail, Building2 } from "lucide-react";
 
 export function StarredContactsWidget() {
@@ -28,41 +28,26 @@ export function StarredContactsWidget() {
 
   if (!starred?.length) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <Star className="h-4 w-4 text-primary" />
-            Key Contacts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No starred contacts yet. Star contacts from the Key Contacts page.
-          </p>
-        </CardContent>
-      </Card>
+      <WidgetSection icon={Star} title="Key Contacts">
+        <WidgetEmpty>
+          No starred contacts yet. Star contacts from the Key Contacts page.
+        </WidgetEmpty>
+      </WidgetSection>
     );
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold flex items-center gap-2">
-          <Star className="h-4 w-4 text-primary" />
-          Key Contacts
-          <Badge variant="secondary" className="text-[10px] ml-auto">{starred.length}</Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
+    <WidgetSection icon={Star} title="Key Contacts" count={starred.length}>
+      <div className="divide-y divide-border">
         {starred.map((s: any) => {
           const c = s.contacts;
           if (!c) return null;
           return (
             <div
               key={s.id}
-              className="flex items-start gap-3 p-2 rounded-md hover:bg-secondary/50 transition-colors"
+              className="flex items-start gap-3 px-1 py-2 transition-colors hover:bg-accent"
             >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm bg-primary/10 text-xs font-semibold text-rule">
                 {c.name.charAt(0)}
               </div>
               <div className="flex-1 min-w-0">
@@ -71,7 +56,7 @@ export function StarredContactsWidget() {
                   <Building2 className="h-2.5 w-2.5" />
                   {c.organisation}
                 </p>
-                <a href={`mailto:${c.email}`} className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors">
+                <a href={`mailto:${c.email}`} className="text-xs text-muted-foreground hover:text-accent-deep flex items-center gap-1 transition-colors">
                   <Mail className="h-2.5 w-2.5" />
                   {c.email}
                 </a>
@@ -79,7 +64,7 @@ export function StarredContactsWidget() {
             </div>
           );
         })}
-      </CardContent>
-    </Card>
+      </div>
+    </WidgetSection>
   );
 }
