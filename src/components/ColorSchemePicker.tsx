@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { AlertCircle, Check } from "lucide-react";
 
 import { COLOR_SCHEMES } from "@/lib/colorSchemes";
 import { useColorScheme } from "@/hooks/useColorScheme";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
  * choice is that you see it and change your mind.
  */
 export function ColorSchemePicker() {
-  const { scheme, setScheme } = useColorScheme();
+  const { scheme, setScheme, saveFailed } = useColorScheme();
 
   return (
     <div className="space-y-3">
@@ -59,10 +59,17 @@ export function ColorSchemePicker() {
           );
         })}
       </div>
-      <p className="text-[12px] text-muted-foreground">
-        Saved in this browser, like the light and dark setting — signing in on another
-        device will start you back on the default.
-      </p>
+      {saveFailed ? (
+        <p className="flex items-start gap-1.5 text-[12px] text-destructive">
+          <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" aria-hidden />
+          The colour is applied here, but it could not be saved to your account. It
+          will go back to your saved choice on another device.
+        </p>
+      ) : (
+        <p className="text-[12px] text-muted-foreground">
+          Saved to your account, so it follows you to any device you sign in on.
+        </p>
+      )}
     </div>
   );
 }

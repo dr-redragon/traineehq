@@ -512,6 +512,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          color_scheme: string | null
           created_at: string
           deanery_id: string | null
           email: string | null
@@ -525,6 +526,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          color_scheme?: string | null
           created_at?: string
           deanery_id?: string | null
           email?: string | null
@@ -538,6 +540,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          color_scheme?: string | null
           created_at?: string
           deanery_id?: string | null
           email?: string | null

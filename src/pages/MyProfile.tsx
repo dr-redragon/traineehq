@@ -405,8 +405,9 @@ const MyProfile = () => {
             <CardTitle className="text-lg">Data & Privacy</CardTitle>
             <CardDescription>
               You can download or delete your stored data at any time. We hold your name,
-              email, specialty, training grade and login timestamps, plus anything you have
-              posted on the discussion boards. Your data is not shared with third parties.
+              email, specialty, training grade, display preferences and login timestamps,
+              plus anything you have posted on the discussion boards. Your data is not
+              shared with third parties.
               {(profile as { gdpr_consent_at?: string | null } | null)?.gdpr_consent_at ? (
                 <span className="mt-2 block">
                   You were shown the data protection notice on{" "}

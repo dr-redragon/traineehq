@@ -36,6 +36,7 @@ import { RegisterLayout } from "./components/register/RegisterLayout";
 import { RequireAuth } from "./components/RequireAuth";
 import { GdprConsentNotice } from "./components/GdprConsentNotice";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { ColorSchemeSync } from "./hooks/useColorScheme";
 
 const queryClient = new QueryClient();
 
@@ -90,6 +91,10 @@ const App = () => (
       <TooltipProvider>
       <DeaneryProvider>
         <AuthCacheSync />
+        {/* The reader's accent scheme, read from their profile and put on
+            <html>. At the root because it has to apply on every page, not
+            just the one with the picker on it. */}
+        <ColorSchemeSync />
         <Toaster />
         <Sonner />
         {/* BASE_URL is "/" locally and "/<repo>/" on GitHub Pages. */}

@@ -25,6 +25,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { DeaneryProvider } from "@/contexts/DeaneryContext";
+import { ColorSchemeSync } from "@/hooks/useColorScheme";
 import Index from "@/pages/Index";
 import SpecialtyDetail from "@/pages/SpecialtyDetail";
 import CommunityHub from "@/pages/CommunityHub";
@@ -114,6 +115,7 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <DeaneryProvider>
+          <ColorSchemeSync />
           <MemoryRouter initialEntries={[start]}>
             <Routes>
               <Route path="/dashboard" element={<Index />} />

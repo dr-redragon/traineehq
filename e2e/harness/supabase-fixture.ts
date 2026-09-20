@@ -248,8 +248,27 @@ function builder(table: string) {
     },
   };
 
+  // Writes land on the in-memory rows so a preference chosen in the preview
+  // survives the read that follows it.
+  //
+  // Applied on await, reading `rows` at that moment rather than when `update`
+  // was called: supabase-js is written `.update(values).eq(...)`, so the
+  // filters arrive AFTER the values. Capturing the rows up front wrote the
+  // change to every row in the table.
+  //
+  // It is still only memory — a page reload rebuilds the fixture from the
+  // literals above, so the preview cannot demonstrate persistence across
+  // reloads the way the real database does.
+  chain.update = (values: Row) => {
+    chain.then = (resolve: (v: unknown) => unknown) => {
+      for (const r of rows) Object.assign(r, values);
+      return Promise.resolve({ data: rows, error: null, count: rows.length }).then(resolve);
+    };
+    return chain;
+  };
+
   for (const method of [
-    "select", "insert", "update", "upsert", "delete", "gt", "gte", "lt", "lte",
+    "select", "insert", "upsert", "delete", "gt", "gte", "lt", "lte",
     "contains", "not", "filter", "range", "match", "overlaps", "abortSignal",
     "throwOnError",
   ]) {
