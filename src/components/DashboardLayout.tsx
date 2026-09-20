@@ -1,10 +1,8 @@
-import { useState } from "react";
 import { useLocation } from "react-router-dom";
-import { Search } from "lucide-react";
 
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
-import { GlobalSearch } from "@/components/GlobalSearch";
+import { InlineSearch } from "@/components/InlineSearch";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
 /**
@@ -39,7 +37,6 @@ export function DashboardLayout({
   /** What the top bar should say, when the path alone cannot say it. */
   breadcrumb?: string;
 }) {
-  const [searchOpen, setSearchOpen] = useState(false);
   const crumb = useCrumb(breadcrumb);
 
   return (
@@ -56,22 +53,17 @@ export function DashboardLayout({
               are not decoration either — one collapses the rail on a phone and
               the other is the only way to reach the dark ground. They sit at
               the ends so the field still leads. */}
-          <header className="sticky top-0 z-20 flex h-[60px] shrink-0 items-center gap-4 border-b-2 border-border bg-background px-4 sm:px-6">
+          {/* z-30 so the search dropdown sits over the page rather than
+              under the first sticky thing it meets. */}
+          <header className="sticky top-0 z-30 flex h-[60px] shrink-0 items-center gap-4 border-b-2 border-border bg-background px-4 sm:px-6">
             <SidebarTrigger className="shrink-0" />
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="flex h-9 min-w-0 flex-1 items-center gap-2 border border-input bg-card px-3 text-sm text-muted-foreground transition-colors hover:border-foreground/45"
-            >
-              <Search className="h-4 w-4 shrink-0" aria-hidden />
-              <span className="truncate text-left">Search every file, folder and thread</span>
-            </button>
+            <InlineSearch className="min-w-0 flex-1" />
             <kbd className="hidden shrink-0 text-[12px] tracking-[0.08em] text-muted-foreground sm:inline">⌘K</kbd>
             {crumb && (
               <span className="hidden shrink-0 text-[13px] text-muted-foreground lg:inline">{crumb}</span>
             )}
             <ThemeToggle />
           </header>
-          <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
           <main className="flex-1 overflow-auto">
             {children}
           </main>
