@@ -30,6 +30,11 @@ const SPECIALTIES = [
   { id: "sp-6", name: "Vascular Surgery", short_name: "Vascular", icon_name: "HeartPulse", color: "8 87% 46%", parent_specialty_id: "sp-3", sort_order: 6, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
   { id: "sp-7", name: "Paediatric Surgery", short_name: "Paeds", icon_name: "Baby", color: "0 2% 60%", parent_specialty_id: null, sort_order: 7, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
   { id: "sp-8", name: "Urology", short_name: "Urology", icon_name: "Droplet", color: "0 2% 37%", parent_specialty_id: null, sort_order: 8, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
+  // Withdrawn by an admin: still in the table, still readable to the people
+  // assigned to it, and deliberately absent from the rail, the search box and
+  // its own page. It is here so the preview demonstrates that rather than
+  // leaving it to a unit test.
+  { id: "sp-9", name: "Ophthalmology", short_name: "Ophthalmology", icon_name: "Eye", color: "0 2% 37%", parent_specialty_id: null, sort_order: 9, deanery_id: DEANERY.id, is_active: false, deleted_at: null },
 ];
 
 const SUBSECTIONS = [
@@ -38,6 +43,7 @@ const SUBSECTIONS = [
   { id: "sub-3", specialty_id: "sp-1", name: "FRCS Preparation", sort_order: 3 },
   { id: "sub-4", specialty_id: "sp-1", name: "Guidelines", sort_order: 4 },
   { id: "sub-5", specialty_id: "sp-1", name: "Audit & QI", sort_order: 5 },
+  { id: "sub-6", specialty_id: "sp-9", name: "Cataract Surgery", sort_order: 1 },
 ];
 
 const specOf = (id: string) => SPECIALTIES.find((s) => s.id === id);
@@ -48,6 +54,10 @@ const RESOURCES = [
   { id: "r-3", title: "Section 1 question bank", resource_type: "link", subsection_id: "sub-3", created_at: "2026-08-21T09:00:00Z", description: null, url: "https://example.invalid/bank", file_path: null, folder_id: null, file_size: null, updated_at: "2026-09-16T09:00:00Z" },
   { id: "r-4", title: "ENT UK tonsillectomy guideline", resource_type: "document", subsection_id: "sub-4", created_at: "2026-08-14T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 317000, updated_at: "2026-09-05T09:00:00Z" },
   { id: "r-5", title: "Regional audit template", resource_type: "checklist", subsection_id: "sub-5", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 47000, updated_at: "2026-08-20T09:00:00Z" },
+  // In the withdrawn specialty, and so unfindable. Its title shares the word
+  // "audit" with r-5 above, which is the point: searching "audit" must return
+  // the one and not the other.
+  { id: "r-6", title: "Cataract audit template", resource_type: "checklist", subsection_id: "sub-6", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 51000, updated_at: "2026-08-20T09:00:00Z" },
 ];
 
 const withSub = (r: (typeof RESOURCES)[number]) => {
@@ -81,6 +91,12 @@ const CONTACTS = [
   { id: "ct-1", name: "Ms Helena Frost", role: "Training Programme Director", organisation: "North West Deanery", email: "tpd@example.invalid", phone: null, category: "Programme", specialty_id: "sp-1", notes: null, archived: false },
   { id: "ct-2", name: "Mr Idris Kanu", role: "College Tutor", organisation: "Royal Infirmary", email: "tutor@example.invalid", phone: null, category: "Programme", specialty_id: "sp-1", notes: null, archived: false },
   { id: "ct-3", name: "Dr Anna Beaumont", role: "Simulation Lead", organisation: "Postgraduate Centre", email: "sim@example.invalid", phone: null, category: "Education", specialty_id: "sp-1", notes: null, archived: false },
+  // No specialty: the general directory, which everyone signed in is meant to
+  // find. It is here so the search's visibility filter is shown keeping these
+  // rather than treating a missing specialty as something to hide.
+  { id: "ct-4", name: "Ms Rowan Pike", role: "Deanery Audit Coordinator", organisation: "North West Deanery", email: "audit@example.invalid", phone: null, category: "Programme", specialty_id: null, notes: null, archived: false },
+  // In the withdrawn specialty, so it must not be findable.
+  { id: "ct-5", name: "Mr Silas Verity", role: "Cataract Service Lead", organisation: "Eye Hospital", email: "eye@example.invalid", phone: null, category: "Education", specialty_id: "sp-9", notes: null, archived: false },
 ];
 
 const TABLES: Record<string, unknown[]> = {
@@ -166,15 +182,25 @@ function matchesPattern(value: unknown, pattern: string) {
 /**
  * `col.ilike."%foo%",other.ilike."%foo%"` — PostgREST's OR syntax, the subset
  * the app actually writes. Clauses are pulled out with a regex rather than by
- * splitting on commas, because a quoted term is allowed to contain one.
+ * splitting on commas, because both a quoted term and an `in.(a,b)` list are
+ * allowed to contain one.
  */
-const CLAUSE_RE = /([a-z_]+)\.([a-z]+)\.("(?:[^"\\]|\\.)*"|[^,]*)/gi;
+const CLAUSE_RE = /([a-z_]+)\.([a-z]+)\.("(?:[^"\\]|\\.)*"|\([^)]*\)|[^,]*)/gi;
+
+/** `(a,b,c)` as written in an `in.` clause. */
+function parseList(arg: string): string[] {
+  return arg.trim().replace(/^\(|\)$/g, "").split(",").map((v) => unwrapPattern(v)).filter(Boolean);
+}
 
 function matchesOr(row: Row, expr: string) {
   const clauses = [...expr.matchAll(CLAUSE_RE)];
   return clauses.some(([, col, op, arg]) => {
     if (op === "ilike" || op === "like") return matchesPattern(row[col], arg);
     if (op === "eq") return String(row[col]) === unwrapPattern(arg);
+    // Both of these arrived with the search's visibility scope: a contact is
+    // shown when it belongs to a specialty in scope, or to none at all.
+    if (op === "is") return arg.trim() === "null" ? row[col] == null : false;
+    if (op === "in") return row[col] != null && parseList(arg).includes(String(row[col]));
     return false;
   });
 }
@@ -194,6 +220,24 @@ function matchesOr(row: Row, expr: string) {
  * list is ignored, because the fixture rows are already the shape the pages
  * expect.
  */
+/**
+ * A column, or a column inside an embedded table.
+ *
+ * PostgREST filters an embedded resource by its path — `subsections.specialty_id`
+ * on a resources query — and the search relies on that to keep files in a
+ * withdrawn section from being sent at all. Reading the path here is what makes
+ * the preview behave the same way; a plain key lookup would find nothing and
+ * silently drop every row.
+ */
+function valueAt(row: Row, path: string): unknown {
+  if (!path.includes(".")) return row[path];
+  return path.split(".").reduce<unknown>(
+    (value, key) =>
+      value && typeof value === "object" ? (value as Row)[key] : undefined,
+    row,
+  );
+}
+
 function builder(table: string) {
   let rows = [...((TABLES[table] ?? []) as Row[])];
 
@@ -205,7 +249,7 @@ function builder(table: string) {
     csv: () => Promise.resolve({ data: "", error: null }),
 
     eq: (col: string, val: unknown) => {
-      rows = rows.filter((r) => r[col] === val || String(r[col]) === String(val));
+      rows = rows.filter((r) => valueAt(r, col) === val || String(valueAt(r, col)) === String(val));
       return chain;
     },
     neq: (col: string, val: unknown) => {
@@ -213,11 +257,11 @@ function builder(table: string) {
       return chain;
     },
     is: (col: string, val: unknown) => {
-      rows = rows.filter((r) => (val === null ? r[col] == null : r[col] === val));
+      rows = rows.filter((r) => (val === null ? valueAt(r, col) == null : valueAt(r, col) === val));
       return chain;
     },
     in: (col: string, vals: unknown[]) => {
-      rows = rows.filter((r) => vals.includes(r[col]));
+      rows = rows.filter((r) => vals.includes(valueAt(r, col)));
       return chain;
     },
     ilike: (col: string, pattern: string) => {

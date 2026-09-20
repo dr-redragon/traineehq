@@ -39,7 +39,7 @@ const SpecialtyDetail = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const queryClient = useQueryClient();
-  const { data: hasEditRights } = useCanManageSpecialty(id);
+  const { data: hasEditRights, isPending: rightsPending } = useCanManageSpecialty(id);
   const [editMode, setEditMode] = useState(false);
   const canManage = !!hasEditRights && editMode;
   const discussionRef = useRef<HTMLDivElement>(null);
@@ -306,6 +306,24 @@ const SpecialtyDetail = () => {
       <DashboardLayout>
         <div className="flex items-center justify-center h-64 text-muted-foreground">
           Specialty not found.
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // A withdrawn specialty — switched off by an admin rather than deleted. The
+  // database still hands the row to everyone assigned to it, so without this
+  // the rail and the search box would hide it while a bookmark, an old link or
+  // a pasted URL walked straight back in. Whoever can manage it still gets
+  // through, since they are the ones who turn it back on.
+  //
+  // Held on the loading state until the rights query settles, so a facilitator
+  // does not see this flash before their permissions arrive.
+  if (!specialty.is_active && (rightsPending || !hasEditRights)) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center text-muted-foreground">
+          {rightsPending ? "Loading…" : "This specialty is no longer available."}
         </div>
       </DashboardLayout>
     );

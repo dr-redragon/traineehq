@@ -60,7 +60,10 @@ const PATHS: Record<string, string> = {
   landing: "/",
 };
 
-const start = PATHS[page] ?? PATHS.dashboard;
+// `&id=` swaps the row a page opens on, so a reviewer can look at any
+// specialty or board rather than only the one wired into PATHS.
+const rowId = params.get("id");
+const start = (PATHS[page] ?? PATHS.dashboard).replace(/(sp-1)$/, rowId ?? "$1");
 
 /**
  * A row of page links pinned to the bottom of the preview.

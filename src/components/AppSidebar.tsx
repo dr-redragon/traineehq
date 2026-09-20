@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, ChevronDown, ChevronRight,
@@ -9,6 +8,7 @@ import {
 import logoWhite from "@/assets/logo-white.png";
 import { getIcon } from "@/lib/iconMap";
 import { useUserRole } from "@/hooks/useUserRole";
+import { useVisibleSpecialties } from "@/hooks/useVisibleSpecialties";
 import { useMyRegisterMemberships } from "@/hooks/useRegisters";
 import { useMyRegisterMemberships as useMyClassicRegisterMemberships }
   from "@/hooks/classic/useRegisters";
@@ -68,24 +68,9 @@ export function AppSidebar() {
     useMyClassicRegisterMemberships();
   const hasClassicRegisters = !classicLoaded || (myClassicRegisters?.length ?? 0) > 0;
 
-  const { data: specialties } = useQuery({
-    queryKey: ["sidebar-specialties", activeDeanery?.id],
-    queryFn: async () => {
-      let query = supabase
-        .from("specialties")
-        .select("id, short_name, icon_name, color, parent_specialty_id, sort_order")
-        .eq("is_active", true)
-        .is("deleted_at", null)
-        .order("sort_order");
-      if (activeDeanery) {
-        query = query.eq("deanery_id", activeDeanery.id);
-      }
-      const { data, error } = await query;
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!activeDeanery,
-  });
+  // Shared with the search box, so the rail and the results agree on what a
+  // person is allowed to see. See useVisibleSpecialties.
+  const { data: specialties } = useVisibleSpecialties();
 
   // Separate top-level and children
   const topLevel = specialties?.filter((s) => !s.parent_specialty_id) ?? [];
