@@ -511,17 +511,21 @@ const SpecialtyDetail = () => {
               </div>
             )}
           </TabsContent>
-              {/* Only the latest few threads. The whole board — composer,
-                  voting, comment trees — now lives at /community/:id, because
-                  a second long list under the file browser made the discussion
-                  something you could only reach by scrolling past the files,
-                  and gave it no address of its own to link anyone to. */}
-              <div ref={discussionRef}>
-                <SpecialtyDiscussionPreview specialtyId={id!} specialtyName={specialty.short_name} />
-              </div>
             </div>
           </div>
         </Tabs>
+
+        {/* The discussion is the specialty's, not the open category's, so it
+            sits below the whole grid at full width rather than inside the
+            column beside the category rail. In there it was indented under a
+            244px gutter that has nothing to do with it, and it changed width
+            depending on which category you had open.
+
+            Only the latest few threads: the whole board — composer, voting,
+            comment trees — lives at /community/:id. */}
+        <div ref={discussionRef} className="border-t-2 border-border px-9 py-8">
+          <SpecialtyDiscussionPreview specialtyId={id!} specialtyName={specialty.short_name} />
+        </div>
       </div>
 
       {/* Add Section Dialog */}
