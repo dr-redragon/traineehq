@@ -3,13 +3,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { ColorSchemePicker } from "@/components/ColorSchemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { User, Mail, GraduationCap, Stethoscope, Save, Download, Trash2, Shield, Eye, UserCheck, Lock } from "lucide-react";
+import { User, Mail, GraduationCap, Stethoscope, Save, Download, Trash2, Shield, Eye, UserCheck, Lock, Palette } from "lucide-react";
 import { toast } from "sonner";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -205,9 +206,12 @@ const MyProfile = () => {
   return (
     <DashboardLayout>
       <div className="animate-fade-in max-w-2xl space-y-6 p-9">
-        <div>
-          <h1 className="text-2xl font-display font-bold">My Profile</h1>
-          <p className="text-sm text-muted-foreground">View and manage your account details</p>
+        <div className="border-b-2 border-border pb-5">
+          <p className="ds-kicker mb-2">Account</p>
+          <h1 className="font-display text-[clamp(32px,4vw,46px)] font-extrabold leading-none tracking-[-0.03em]">
+            My profile
+          </h1>
+          <p className="mt-2 text-muted-foreground">View and manage your account details</p>
         </div>
 
         {/* Role & Specialty summary */}
@@ -376,6 +380,22 @@ const MyProfile = () => {
             >
               <Lock className="h-4 w-4" /> Update Password
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Appearance */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Palette className="h-5 w-5 text-rule" /> Appearance
+            </CardTitle>
+            <CardDescription>
+              Choose the accent colour used across the site. Everything else — the
+              paper, the type and the rules — stays as it is.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ColorSchemePicker />
           </CardContent>
         </Card>
 

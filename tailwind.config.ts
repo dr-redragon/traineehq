@@ -114,6 +114,7 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
           muted: "hsl(var(--sidebar-muted))",
+          kicker: "hsl(var(--sidebar-kicker))",
         },
         success: {
           DEFAULT: "hsl(var(--success))",

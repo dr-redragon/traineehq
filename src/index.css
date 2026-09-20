@@ -145,6 +145,9 @@
     --sidebar-border: 0 2% 26%;             /* neutral-800 #444141 */
     --sidebar-ring: 8 100% 62%;
     --sidebar-muted: 0 2% 60%;              /* neutral-500 #9b9797 */
+    /* The deanery line under the wordmark. Held to 4.6:1 against the lighter
+       of the two rail grounds, so it reads in both themes. */
+    --sidebar-kicker: 8 100% 76%;
 
     /* Not in the design system — it is mono and names no status hues. The
        app needs them (attendance bands, access states), so they are held to
@@ -233,6 +236,7 @@
     --sidebar-border: 0 2% 30%;
     --sidebar-ring: 8 100% 62%;
     --sidebar-muted: 0 3% 66%;
+    --sidebar-kicker: 8 100% 76%;
 
     --success: 152 32% 62%;
     --success-foreground: 20 5% 12%;
@@ -462,6 +466,314 @@
 
 }
 
+
+
+/* =====================================================================
+   Colour schemes.
+
+   A per-person choice of accent, layered over the palette rather than
+   replacing it: the ground, the ink, the rules, the radius and the type
+   are Modernist's in every scheme, and only the accent role changes. That
+   is why a scheme is six variables and not a second palette — the system
+   is mono by design, so the accent is the only thing there is to vary.
+
+   Each scheme was generated against WCAG AA rather than picked by eye, and
+   every pair a reader actually reads is checked: white on the primary
+   fill, the deep step on the ground, text on the pastel tint, and the same
+   four again on the dark ground. All land at 4.6:1 or better. The pastel
+   is the *tint* — the thing you see behind a tag or a hovered row — while
+   text and fills take the deep steps of the same hue, because pastel text
+   on a pastel ground is exactly the trap this could have fallen into.
+   `--rule-accent` is held to 3:1, which is the bar for a rule or an icon.
+
+   `:not(.register-theme)` is load-bearing: the teaching register sets its
+   own accent and is excluded from the redesign, so a scheme must not reach
+   it even though both classes live on <html>.
+
+   NOT in `@layer base`, and that is load-bearing rather than an oversight.
+   Tailwind tree-shakes rules inside a layer whose class names it cannot find
+   in the source, and these class names are never written literally anywhere —
+   the hook builds them as `scheme-${id}`. Inside a layer, every light rule was
+   silently dropped from the build while the `.dark` ones survived, because
+   "dark" does appear in the source. Unlayered CSS is not scanned, so it is
+   emitted as written; it also outranks the layered `:root` defaults it is
+   meant to override, which is what we want.
+   ===================================================================== */
+/* Ink Rail — The design system's own red — near-mono, high contrast. */
+:root.scheme-ink:not(.register-theme) {
+  --primary: 8 87% 47%;
+  --primary-hover: 8 87% 39%;
+  --primary-active: 8 87% 32%;
+  --accent: 8 100% 96%;
+  --accent-strong: 8 100% 91%;
+  --accent-foreground: 8 87% 43.5%;
+  --accent-deep: 8 87% 44%;
+  --rule-accent: 8 97% 58.5%;
+  --ring: 8 97% 58.5%;
+  --destructive: 8 87% 32%;
+  --destructive-hover: 8 87% 26%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 8 87% 47%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 8 100% 63%;
+  --sidebar-kicker: 8 100% 63%;
+
+}
+:root.scheme-ink:not(.register-theme).dark {
+  --primary: 8 100% 55%;
+  --primary-hover: 8 100% 65%;
+  --primary-active: 8 100% 73%;
+  --accent: 8 12% 22%;
+  --accent-strong: 8 12% 28%;
+  --accent-foreground: 8 20% 65%;
+  --accent-deep: 8 100% 55%;
+  --rule-accent: 8 100% 55%;
+  --ring: 8 100% 55%;
+  --destructive: 8 100% 43%;
+  --destructive-hover: 8 100% 35%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 8 87% 47%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 8 100% 63%;
+  --sidebar-kicker: 8 100% 63%;
+
+}
+
+/* Blush — A soft rose. */
+:root.scheme-blush:not(.register-theme) {
+  --primary: 344 62% 53%;
+  --primary-hover: 344 62% 45%;
+  --primary-active: 344 62% 38%;
+  --accent: 344 92% 96%;
+  --accent-strong: 344 92% 91%;
+  --accent-foreground: 344 62% 48%;
+  --accent-deep: 344 62% 49%;
+  --rule-accent: 344 72% 62.5%;
+  --ring: 344 72% 62.5%;
+  --destructive: 344 62% 38%;
+  --destructive-hover: 344 62% 32%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 344 62% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 344 82% 66.5%;
+  --sidebar-kicker: 344 82% 66.5%;
+
+}
+:root.scheme-blush:not(.register-theme).dark {
+  --primary: 344 77% 61%;
+  --primary-hover: 344 77% 71%;
+  --primary-active: 344 77% 79%;
+  --accent: 344 12% 22%;
+  --accent-strong: 344 12% 28%;
+  --accent-foreground: 344 20% 65.5%;
+  --accent-deep: 344 77% 61%;
+  --rule-accent: 344 77% 61%;
+  --ring: 344 77% 61%;
+  --destructive: 344 77% 49%;
+  --destructive-hover: 344 77% 41%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 344 62% 53%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 344 82% 66.5%;
+  --sidebar-kicker: 344 82% 66.5%;
+
+}
+
+/* Apricot — Warm peach. */
+:root.scheme-apricot:not(.register-theme) {
+  --primary: 24 72% 41.5%;
+  --primary-hover: 24 72% 33.5%;
+  --primary-active: 24 72% 26.5%;
+  --accent: 24 92% 96%;
+  --accent-strong: 24 92% 91%;
+  --accent-foreground: 24 72% 39.5%;
+  --accent-deep: 24 72% 39%;
+  --rule-accent: 24 82% 48.5%;
+  --ring: 24 82% 48.5%;
+  --destructive: 24 72% 26.5%;
+  --destructive-hover: 24 72% 20.5%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 24 72% 41.5%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 24 92% 50%;
+  --sidebar-kicker: 24 92% 50%;
+
+}
+:root.scheme-apricot:not(.register-theme).dark {
+  --primary: 24 87% 46.5%;
+  --primary-hover: 24 87% 56.5%;
+  --primary-active: 24 87% 64.5%;
+  --accent: 24 12% 22%;
+  --accent-strong: 24 12% 28%;
+  --accent-foreground: 24 20% 64%;
+  --accent-deep: 24 87% 46.5%;
+  --rule-accent: 24 87% 46.5%;
+  --ring: 24 87% 46.5%;
+  --destructive: 24 87% 34.5%;
+  --destructive-hover: 24 87% 26.5%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 24 72% 41.5%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 24 92% 50%;
+  --sidebar-kicker: 24 92% 50%;
+
+}
+
+/* Sage — Muted green. */
+:root.scheme-sage:not(.register-theme) {
+  --primary: 152 42% 36%;
+  --primary-hover: 152 42% 28%;
+  --primary-active: 152 42% 21%;
+  --accent: 152 48% 96%;
+  --accent-strong: 152 48% 91%;
+  --accent-foreground: 152 42% 34.5%;
+  --accent-deep: 152 42% 33.5%;
+  --rule-accent: 152 52% 40%;
+  --ring: 152 52% 40%;
+  --destructive: 152 42% 21%;
+  --destructive-hover: 152 42% 15%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 152 42% 36%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 152 62% 40.5%;
+  --sidebar-kicker: 152 62% 40.5%;
+
+}
+:root.scheme-sage:not(.register-theme).dark {
+  --primary: 152 57% 38.5%;
+  --primary-hover: 152 57% 48.5%;
+  --primary-active: 152 57% 56.5%;
+  --accent: 152 12% 22%;
+  --accent-strong: 152 12% 28%;
+  --accent-foreground: 152 20% 61.5%;
+  --accent-deep: 152 57% 38.5%;
+  --rule-accent: 152 57% 38.5%;
+  --ring: 152 57% 38.5%;
+  --destructive: 152 57% 30%;
+  --destructive-hover: 152 57% 24%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 152 42% 36%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 152 62% 40.5%;
+  --sidebar-kicker: 152 62% 40.5%;
+
+}
+
+/* Sky — Cool blue. */
+:root.scheme-sky:not(.register-theme) {
+  --primary: 204 62% 42.5%;
+  --primary-hover: 204 62% 34.5%;
+  --primary-active: 204 62% 27.5%;
+  --accent: 204 82% 96%;
+  --accent-strong: 204 82% 91%;
+  --accent-foreground: 204 62% 40.5%;
+  --accent-deep: 204 62% 40%;
+  --rule-accent: 204 72% 49.5%;
+  --ring: 204 72% 49.5%;
+  --destructive: 204 62% 27.5%;
+  --destructive-hover: 204 62% 21.5%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 204 62% 42.5%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 204 82% 52%;
+  --sidebar-kicker: 204 82% 52%;
+
+}
+:root.scheme-sky:not(.register-theme).dark {
+  --primary: 204 77% 48%;
+  --primary-hover: 204 77% 58%;
+  --primary-active: 204 77% 66%;
+  --accent: 204 12% 22%;
+  --accent-strong: 204 12% 28%;
+  --accent-foreground: 204 20% 63.5%;
+  --accent-deep: 204 77% 48%;
+  --rule-accent: 204 77% 48%;
+  --ring: 204 77% 48%;
+  --destructive: 204 77% 36%;
+  --destructive-hover: 204 77% 28%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 204 62% 42.5%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 204 82% 52%;
+  --sidebar-kicker: 204 82% 52%;
+
+}
+
+/* Lilac — Pale violet. */
+:root.scheme-lilac:not(.register-theme) {
+  --primary: 264 48% 57.5%;
+  --primary-hover: 264 48% 49.5%;
+  --primary-active: 264 48% 42.5%;
+  --accent: 264 74% 96%;
+  --accent-strong: 264 74% 91%;
+  --accent-foreground: 264 48% 54.5%;
+  --accent-deep: 264 48% 55%;
+  --rule-accent: 264 58% 66%;
+  --ring: 264 58% 66%;
+  --destructive: 264 48% 42.5%;
+  --destructive-hover: 264 48% 36.5%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 264 48% 57.5%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 264 68% 70%;
+  --sidebar-kicker: 264 68% 70%;
+
+}
+:root.scheme-lilac:not(.register-theme).dark {
+  --primary: 264 63% 66%;
+  --primary-hover: 264 63% 76%;
+  --primary-active: 264 63% 84%;
+  --accent: 264 12% 22%;
+  --accent-strong: 264 12% 28%;
+  --accent-foreground: 264 20% 66%;
+  --accent-deep: 264 63% 66%;
+  --rule-accent: 264 63% 66%;
+  --ring: 264 63% 66%;
+  --destructive: 264 63% 54%;
+  --destructive-hover: 264 63% 46%;
+  /* The rail is dark in both themes, so its selected fill and its kicker
+     are the same in both scheme blocks: a fill that carries white at
+     4.6:1, and a kicker light enough to read on the lighter of the two
+     rail grounds. */
+  --sidebar-primary: 264 48% 57.5%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-ring: 264 68% 70%;
+  --sidebar-kicker: 264 68% 70%;
+
+}
 
 /* ===================================================================== */
 /* The teaching register's own skin.                                     */

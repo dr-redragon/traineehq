@@ -107,7 +107,7 @@ export function AppSidebar() {
               </h1>
               {/* The deanery is the kicker under the product, in the accent's
                   light step — the base accent only reaches 3.95:1 on ink. */}
-              <p className="mt-0.5 truncate text-[12px] font-medium uppercase leading-tight tracking-[0.14em] text-accent-400">
+              <p className="mt-0.5 truncate text-[12px] font-medium uppercase leading-tight tracking-[0.14em] text-sidebar-kicker">
                 {activeDeanery?.name ?? ""} HST
               </p>
             </div>
