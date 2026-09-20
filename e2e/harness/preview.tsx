@@ -30,6 +30,7 @@ import SpecialtyDetail from "@/pages/SpecialtyDetail";
 import CommunityHub from "@/pages/CommunityHub";
 import SpecialtyDiscussion from "@/pages/SpecialtyDiscussion";
 import KeyContacts from "@/pages/KeyContacts";
+import MyProfile from "@/pages/MyProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import Landing from "@/pages/Landing";
 import "@/index.css";
@@ -53,6 +54,7 @@ const PATHS: Record<string, string> = {
   community: "/community",
   board: "/community/sp-1",
   contacts: "/contacts",
+  profile: "/profile",
   admin: "/admin",
   landing: "/",
 };
@@ -119,6 +121,7 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/community" element={<CommunityHub />} />
               <Route path="/community/:id" element={<SpecialtyDiscussion />} />
               <Route path="/contacts" element={<KeyContacts />} />
+              <Route path="/profile" element={<MyProfile />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/" element={<Landing />} />
             </Routes>

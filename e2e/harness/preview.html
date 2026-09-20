@@ -4,6 +4,25 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>TraineeHQ redesign preview</title>
+
+    <!-- The accent scheme, applied before first paint.
+
+         Without this the page renders in the default red and then repaints
+         into the chosen colour a frame later, which is the same flash
+         next-themes solves the same way for light/dark. It is inline and
+         synchronous on purpose: a module script would run too late.
+
+         Kept deliberately small and defensive — an unknown or missing value,
+         or storage being unavailable, simply leaves the default in place. The
+         key matches SCHEME_STORAGE_KEY in src/lib/colorSchemes.ts. -->
+    <script>
+      (function () {
+        try {
+          var s = localStorage.getItem("traineehq-color-scheme");
+          if (s && /^[a-z]+$/.test(s)) document.documentElement.classList.add("scheme-" + s);
+        } catch (e) { /* no storage: the default scheme stands */ }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

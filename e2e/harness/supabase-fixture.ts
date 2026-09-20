@@ -16,7 +16,10 @@
  * person or a real trainee's data.
  */
 
-const DEANERY = { id: "dny-1", name: "North West", slug: "north-west" };
+// `is_active` matters now that the fixture's `eq` filters for real: the
+// deanery provider asks for active deaneries only, and without the column the
+// whole app fell back to "no deanery" — an empty rail and no specialties.
+const DEANERY = { id: "dny-1", name: "North West", slug: "north-west", is_active: true };
 
 const SPECIALTIES = [
   { id: "sp-1", name: "Otolaryngology", short_name: "ENT", icon_name: "Stethoscope", color: "8 85% 50%", parent_specialty_id: null, sort_order: 1, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
@@ -75,9 +78,9 @@ const PROFILES = [
 ];
 
 const CONTACTS = [
-  { id: "ct-1", name: "Ms Helena Frost", role: "Training Programme Director", organisation: "North West Deanery", email: "tpd@example.invalid", phone: null, category: "Programme", specialty_id: "sp-1", notes: null },
-  { id: "ct-2", name: "Mr Idris Kanu", role: "College Tutor", organisation: "Royal Infirmary", email: "tutor@example.invalid", phone: null, category: "Programme", specialty_id: "sp-1", notes: null },
-  { id: "ct-3", name: "Dr Anna Beaumont", role: "Simulation Lead", organisation: "Postgraduate Centre", email: "sim@example.invalid", phone: null, category: "Education", specialty_id: "sp-1", notes: null },
+  { id: "ct-1", name: "Ms Helena Frost", role: "Training Programme Director", organisation: "North West Deanery", email: "tpd@example.invalid", phone: null, category: "Programme", specialty_id: "sp-1", notes: null, archived: false },
+  { id: "ct-2", name: "Mr Idris Kanu", role: "College Tutor", organisation: "Royal Infirmary", email: "tutor@example.invalid", phone: null, category: "Programme", specialty_id: "sp-1", notes: null, archived: false },
+  { id: "ct-3", name: "Dr Anna Beaumont", role: "Simulation Lead", organisation: "Postgraduate Centre", email: "sim@example.invalid", phone: null, category: "Education", specialty_id: "sp-1", notes: null, archived: false },
 ];
 
 const TABLES: Record<string, unknown[]> = {
@@ -137,21 +140,118 @@ const TABLES: Record<string, unknown[]> = {
  * only that a plausible set does. So every filter is a no-op returning `this`,
  * and awaiting the builder resolves with the table.
  */
+type Row = Record<string, unknown>;
+
+const text = (v: unknown) => (typeof v === "string" ? v.toLowerCase() : "");
+
+/**
+ * Turn a PostgREST filter argument back into a plain search term.
+ *
+ * The app builds these with `orIlikePattern`, which quotes the whole pattern
+ * and backslash-escapes any `%` or `_` the person actually typed — so what
+ * arrives here looks like `"%urol%"`, quotes and all. Stripping only the `%`
+ * left the quotes in the needle, and nothing ever matched.
+ */
+function unwrapPattern(raw: string) {
+  let v = raw.trim();
+  if (v.startsWith('"') && v.endsWith('"')) v = v.slice(1, -1);
+  return v.replace(/\\(.)/g, "$1").replace(/[%*]/g, "").toLowerCase();
+}
+
+function matchesPattern(value: unknown, pattern: string) {
+  const needle = unwrapPattern(pattern);
+  return needle === "" || text(value).includes(needle);
+}
+
+/**
+ * `col.ilike."%foo%",other.ilike."%foo%"` — PostgREST's OR syntax, the subset
+ * the app actually writes. Clauses are pulled out with a regex rather than by
+ * splitting on commas, because a quoted term is allowed to contain one.
+ */
+const CLAUSE_RE = /([a-z_]+)\.([a-z]+)\.("(?:[^"\\]|\\.)*"|[^,]*)/gi;
+
+function matchesOr(row: Row, expr: string) {
+  const clauses = [...expr.matchAll(CLAUSE_RE)];
+  return clauses.some(([, col, op, arg]) => {
+    if (op === "ilike" || op === "like") return matchesPattern(row[col], arg);
+    if (op === "eq") return String(row[col]) === unwrapPattern(arg);
+    return false;
+  });
+}
+
+/**
+ * A query builder that filters for real, within reason.
+ *
+ * It started as a chain of no-ops returning the whole table, which was fine
+ * while the preview only had to render a page. It stopped being fine once the
+ * search box moved into the header: with every filter ignored, typing "curr"
+ * listed every specialty in the fixture, so the one thing the preview was
+ * meant to demonstrate was the one thing it could not show honestly.
+ *
+ * So `eq`, `is`, `in`, `ilike` and `or` narrow the rows, and `order` and
+ * `limit` shape them. Everything else still returns `this`. This is a stand-in
+ * for a screenshot, not a database — it does not join, and `select()`'s column
+ * list is ignored, because the fixture rows are already the shape the pages
+ * expect.
+ */
 function builder(table: string) {
-  const rows = TABLES[table] ?? [];
-  const result = { data: rows, error: null, count: rows.length };
-  const single = { data: rows[0] ?? null, error: null };
+  let rows = [...((TABLES[table] ?? []) as Row[])];
 
   const chain: Record<string, unknown> = {
-    then: (resolve: (v: unknown) => unknown) => Promise.resolve(result).then(resolve),
-    single: () => Promise.resolve(single),
-    maybeSingle: () => Promise.resolve(single),
+    then: (resolve: (v: unknown) => unknown) =>
+      Promise.resolve({ data: rows, error: null, count: rows.length }).then(resolve),
+    single: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
+    maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
     csv: () => Promise.resolve({ data: "", error: null }),
+
+    eq: (col: string, val: unknown) => {
+      rows = rows.filter((r) => r[col] === val || String(r[col]) === String(val));
+      return chain;
+    },
+    neq: (col: string, val: unknown) => {
+      rows = rows.filter((r) => String(r[col]) !== String(val));
+      return chain;
+    },
+    is: (col: string, val: unknown) => {
+      rows = rows.filter((r) => (val === null ? r[col] == null : r[col] === val));
+      return chain;
+    },
+    in: (col: string, vals: unknown[]) => {
+      rows = rows.filter((r) => vals.includes(r[col]));
+      return chain;
+    },
+    ilike: (col: string, pattern: string) => {
+      rows = rows.filter((r) => matchesPattern(r[col], pattern));
+      return chain;
+    },
+    like: (col: string, pattern: string) => {
+      rows = rows.filter((r) => matchesPattern(r[col], pattern));
+      return chain;
+    },
+    or: (expr: string) => {
+      rows = rows.filter((r) => matchesOr(r, expr));
+      return chain;
+    },
+    order: (col: string, opts?: { ascending?: boolean }) => {
+      const dir = opts?.ascending === false ? -1 : 1;
+      rows = [...rows].sort((a, b) => {
+        const x = a[col] as string | number, y = b[col] as string | number;
+        if (x == null) return 1;
+        if (y == null) return -1;
+        return x < y ? -dir : x > y ? dir : 0;
+      });
+      return chain;
+    },
+    limit: (n: number) => {
+      rows = rows.slice(0, n);
+      return chain;
+    },
   };
+
   for (const method of [
-    "select", "insert", "update", "upsert", "delete", "eq", "neq", "gt", "gte",
-    "lt", "lte", "like", "ilike", "is", "in", "contains", "or", "not", "filter",
-    "order", "limit", "range", "match", "overlaps", "abortSignal", "throwOnError",
+    "select", "insert", "update", "upsert", "delete", "gt", "gte", "lt", "lte",
+    "contains", "not", "filter", "range", "match", "overlaps", "abortSignal",
+    "throwOnError",
   ]) {
     chain[method] = () => chain;
   }
