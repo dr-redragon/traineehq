@@ -143,8 +143,12 @@ const TABLES: Record<string, unknown[]> = {
     },
   ],
   folders: [],
+  // `is_active` matters now that the fixture's `eq` filters for real: the
+  // board asks for active notices, so a row without the column is dropped and
+  // the banner renders empty.
   specialty_notices: [
-    { id: "n-1", specialty_id: "sp-1", content: "The October teaching day has moved to the Lecture Theatre B.", created_at: "2026-09-13T09:00:00Z", author_id: "u-3" },
+    { id: "n-1", specialty_id: "sp-1", content: "The October teaching day has moved to Lecture Theatre B.", created_at: "2026-09-13T09:00:00Z", author_id: "u-3", is_active: true },
+    { id: "n-2", specialty_id: "sp-1", content: "ARCP evidence for this rotation closes on 30 September.", created_at: "2026-09-10T09:00:00Z", author_id: "u-2", is_active: true },
   ],
 };
 
