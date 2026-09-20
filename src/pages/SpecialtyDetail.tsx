@@ -344,7 +344,8 @@ const SpecialtyDetail = () => {
       <div className="animate-fade-in">
         {/* "Specialty library" over the name at display scale, on the page's
             own rule — 1B's specialty opening. */}
-        <div className="border-b-2 border-border px-9 py-8">
+        <div className="border-b-2 border-border">
+          <div className="px-9 py-8">
           <div className="flex flex-wrap items-end gap-4">
           <div
             className="flex h-14 w-14 shrink-0 items-center justify-center"
@@ -377,14 +378,15 @@ const SpecialtyDetail = () => {
           )}
           </div>
 
+          </div>
+
           {/* The notice board belongs to the specialty, not to its files, so
               it sits in the banner rather than on top of the file list where
-              it used to push the files down the page. It draws no border of
-              its own — inside a banner that already has one, a second box
-              would just be a box in a box. */}
-          <div className="mt-6">
-            <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
-          </div>
+              it used to push the files down the page. It is outside the
+              banner's padding on purpose: it draws ink bands the full width of
+              the page, the same as the dashboard's notice, and a band inset by
+              a gutter on each side would be the box this layout removed. */}
+          <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
         </div>
 
         {/* The categories move off the top of the page and down its left side.

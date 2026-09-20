@@ -4,8 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/RichText";
 import { RichTextArea } from "@/components/RichTextArea";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Megaphone, ChevronDown, Plus, Trash2, X, Pencil, Check } from "lucide-react";
+import { Plus, Trash2, X, Pencil, Check } from "lucide-react";
 import { toast } from "sonner";
 
 interface SpecialtyNoticeBoardProps {
@@ -13,9 +12,27 @@ interface SpecialtyNoticeBoardProps {
   canManage: boolean;
 }
 
+/**
+ * A specialty's notices, drawn the way the dashboard draws its own.
+ *
+ * The dashboard already had a notice bar — ink across the full width, NOTICE
+ * flush left in small caps, the text inline after it and the attribution at
+ * the far end — and the design system runs the accent as a poster in exactly
+ * one place, inverting the notice under it so two fields never compete. This
+ * board used to be a collapsible panel with a megaphone and a chevron, which
+ * said "a widget on a page" where the dashboard's said "a notice". They are
+ * the same thing and now read the same.
+ *
+ * The bands are full-bleed, so this renders its own `px-9` rather than sitting
+ * inside the banner's padding: an ink strip inset by a gutter on each side
+ * would read as a box, which is the thing being removed.
+ *
+ * Composing stays on the light ground. The bands are for reading; a rich-text
+ * toolbar and a pair of form buttons inverted onto ink would be a second,
+ * worse copy of controls that already work.
+ */
 export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNoticeBoardProps) {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(true);
   const [adding, setAdding] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -116,109 +133,116 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
 
   if (!notices?.length && !canManage) return null;
 
-  return (
-    <Collapsible open={open} onOpenChange={setOpen}>
-      <div>
-        <CollapsibleTrigger asChild>
-          <button className="flex w-full items-center justify-between gap-3 py-1.5 text-left">
-            <span className="flex items-center gap-2">
-              <Megaphone className="h-3.5 w-3.5 shrink-0 text-rule" />
-              <span className="ds-kicker">Notice board</span>
-              {notices?.length ? (
-                <span className="text-[11px] text-muted-foreground">{notices.length}</span>
-              ) : null}
-            </span>
-            <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-0" : "-rotate-90"}`} />
-          </button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div className="space-y-2 pb-1 pt-1">
-            {notices?.length === 0 && !adding && (
-              <p className="py-1 text-[13px] text-muted-foreground">No notices yet.</p>
-            )}
+  /** The compose / edit form, on the light ground under the bands. */
+  const editor = (
+    value: string,
+    onChange: (v: string) => void,
+    onCancel: () => void,
+    onSave: () => void,
+    saving: boolean,
+    saveLabel: string,
+    placeholder?: string,
+  ) => (
+    <div className="space-y-2 border-t-2 border-border px-9 py-4">
+      <RichTextArea
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        rows={3}
+        className="text-sm"
+        autoFocus
+      />
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={onCancel}>
+          <X className="mr-1 h-3.5 w-3.5" /> Cancel
+        </Button>
+        <Button size="sm" onClick={onSave} disabled={!value.trim() || saving}>
+          <Check className="mr-1 h-3.5 w-3.5" /> {saving ? "Saving…" : saveLabel}
+        </Button>
+      </div>
+    </div>
+  );
 
-            {notices?.map((notice: any) => (
-              <div key={notice.id} className="flex items-start gap-3 border-t border-border py-2.5 first:border-t-0 first:pt-0">
-                <div className="flex-1 min-w-0">
-                  {editingId === notice.id ? (
-                    <div className="space-y-2">
-                      <RichTextArea
-                        value={editContent}
-                        onChange={setEditContent}
-                        rows={3}
-                        className="text-sm"
-                        autoFocus
-                      />
-                      <div className="flex gap-2 justify-end">
-                        <Button variant="outline" size="sm" onClick={() => { setEditingId(null); setEditContent(""); }}>
-                          <X className="h-3.5 w-3.5 mr-1" /> Cancel
-                        </Button>
-                        <Button size="sm" onClick={() => updateNotice.mutate({ id: notice.id, content: editContent })} disabled={!editContent.trim() || updateNotice.isPending}>
-                          <Check className="h-3.5 w-3.5 mr-1" /> {updateNotice.isPending ? "Saving…" : "Save"}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="text-sm whitespace-pre-wrap"><RichText text={notice.content} /></p>
-                      <p className="text-[10px] text-muted-foreground mt-1">
-                        {getAuthorName(notice.author_id)} · {timeAgo(notice.created_at)}
-                      </p>
-                    </>
-                  )}
-                </div>
-                {canManage && editingId !== notice.id && (
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => { setEditingId(notice.id); setEditContent(notice.content); }}
-                    >
-                      <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7"
-                      onClick={() => deleteNotice.mutate(notice.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
-                    </Button>
-                  </div>
+  return (
+    <div>
+      {/* One ink band per notice, divided the way the dashboard divides its
+          own when more than one is running. */}
+      {notices?.length ? (
+        <div className="divide-y divide-background/20">
+          {notices.map((notice: any) =>
+            editingId === notice.id ? (
+              <div key={notice.id}>
+                {editor(
+                  editContent,
+                  setEditContent,
+                  () => { setEditingId(null); setEditContent(""); },
+                  () => updateNotice.mutate({ id: notice.id, content: editContent }),
+                  updateNotice.isPending,
+                  "Save",
                 )}
               </div>
-            ))}
-
-            {adding && (
-              <div className="space-y-2">
-                <RichTextArea
-                  value={newContent}
-                  onChange={setNewContent}
-                  placeholder="Write a notice for this specialty…"
-                  rows={3}
-                  className="text-sm"
-                  autoFocus
-                />
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" size="sm" onClick={() => { setAdding(false); setNewContent(""); }}>
-                    <X className="h-3.5 w-3.5 mr-1" /> Cancel
-                  </Button>
-                  <Button size="sm" onClick={() => addNotice.mutate()} disabled={!newContent.trim() || addNotice.isPending}>
-                    {addNotice.isPending ? "Posting…" : "Post Notice"}
-                  </Button>
-                </div>
+            ) : (
+              <div
+                key={notice.id}
+                className="group flex flex-wrap items-baseline gap-x-5 gap-y-1 bg-foreground px-9 py-4 text-background"
+              >
+                <span className="shrink-0 text-[11px] font-extrabold uppercase tracking-[0.14em]">
+                  Notice
+                </span>
+                <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm">
+                  <RichText text={notice.content} />
+                </p>
+                <span className="shrink-0 text-[13px] opacity-60">
+                  {getAuthorName(notice.author_id)} · {timeAgo(notice.created_at)}
+                </span>
+                {canManage && (
+                  // Held at low contrast until the row is under the cursor, so
+                  // the band reads as a notice rather than as a row of tools.
+                  <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Edit notice"
+                      className="h-7 w-7 text-background/70 hover:bg-background/15 hover:text-background"
+                      onClick={() => { setEditingId(notice.id); setEditContent(notice.content); }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Remove notice"
+                      className="h-7 w-7 text-background/70 hover:bg-background/15 hover:text-background"
+                      onClick={() => deleteNotice.mutate(notice.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </span>
+                )}
               </div>
-            )}
+            ),
+          )}
+        </div>
+      ) : null}
 
-            {canManage && !adding && (
-              <Button variant="ghost" size="sm" className="-ml-1.5 gap-1.5 text-xs" onClick={() => setAdding(true)}>
-                <Plus className="h-3.5 w-3.5" /> Add Notice
+      {adding
+        ? editor(
+            newContent,
+            setNewContent,
+            () => { setAdding(false); setNewContent(""); },
+            () => addNotice.mutate(),
+            addNotice.isPending,
+            "Post notice",
+            "Write a notice for this specialty…",
+          )
+        : canManage && (
+            <div className="px-9 py-3">
+              <Button variant="ghost" size="sm" className="-ml-2 gap-1.5 text-xs" onClick={() => setAdding(true)}>
+                <Plus className="h-3.5 w-3.5" />
+                {notices?.length ? "Add notice" : "Add the first notice"}
               </Button>
-            )}
-          </div>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
+            </div>
+          )}
+    </div>
   );
 }
