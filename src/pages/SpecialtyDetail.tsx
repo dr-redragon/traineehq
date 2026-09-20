@@ -509,6 +509,9 @@ const SpecialtyDetail = () => {
                 <DriveBrowser
                   subsection={sub}
                   specialtyId={specialty.id}
+                  // Only for the section the folder is actually in, so a stale
+                  // `?folder=` cannot open something in a different tab.
+                  openFolderId={searchParams.get("subsection") === sub.id ? searchParams.get("folder") : null}
                   resources={subResources}
                   folders={subFolders}
                   subheadings={subSubheadings}

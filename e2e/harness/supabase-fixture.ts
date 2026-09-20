@@ -51,20 +51,35 @@ const specOf = (id: string) => SPECIALTIES.find((s) => s.id === id);
 const RESOURCES = [
   { id: "r-1", title: "JCST Curriculum 2026 — ENT", resource_type: "pdf", subsection_id: "sub-1", created_at: "2026-09-02T09:00:00Z", description: "The current curriculum, with the 2026 amendments marked up.", url: null, file_path: null, folder_id: null, file_size: 2517000, updated_at: "2026-09-14T09:00:00Z" },
   { id: "r-2", title: "Grommet insertion — step by step", resource_type: "video", subsection_id: "sub-2", created_at: "2026-08-28T09:00:00Z", description: "Recorded at a regional teaching day.", url: null, file_path: null, folder_id: null, file_size: 88000, updated_at: "2026-09-10T09:00:00Z" },
-  { id: "r-3", title: "Section 1 question bank", resource_type: "link", subsection_id: "sub-3", created_at: "2026-08-21T09:00:00Z", description: null, url: "https://example.invalid/bank", file_path: null, folder_id: null, file_size: null, updated_at: "2026-09-16T09:00:00Z" },
+  { id: "r-3", title: "Section 1 question bank", resource_type: "link", subsection_id: "sub-3", created_at: "2026-08-21T09:00:00Z", description: null, url: "https://example.invalid/bank", file_path: null, folder_id: "fd-2", file_size: null, updated_at: "2026-09-16T09:00:00Z" },
   { id: "r-4", title: "ENT UK tonsillectomy guideline", resource_type: "document", subsection_id: "sub-4", created_at: "2026-08-14T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 317000, updated_at: "2026-09-05T09:00:00Z" },
-  { id: "r-5", title: "Regional audit template", resource_type: "checklist", subsection_id: "sub-5", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 47000, updated_at: "2026-08-20T09:00:00Z" },
+  { id: "r-5", title: "Regional audit template", resource_type: "checklist", subsection_id: "sub-5", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: "fd-1", file_size: 47000, updated_at: "2026-08-20T09:00:00Z" },
   // In the withdrawn specialty, and so unfindable. Its title shares the word
   // "audit" with r-5 above, which is the point: searching "audit" must return
   // the one and not the other.
   { id: "r-6", title: "Cataract audit template", resource_type: "checklist", subsection_id: "sub-6", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 51000, updated_at: "2026-08-20T09:00:00Z" },
 ];
 
-const withSub = (r: (typeof RESOURCES)[number]) => {
+/**
+ * Hangs the `subsections!inner(specialty_id, specialties!inner(short_name))`
+ * embed off a row, the way PostgREST returns it.
+ *
+ * Both files and folders are selected with that embed and filtered through it
+ * on `subsections.specialty_id`, so both need it here or the filter matches
+ * nothing and the preview shows an empty drive.
+ */
+const withSub = <T extends { subsection_id: string }>(r: T) => {
   const sub = SUBSECTIONS.find((s) => s.id === r.subsection_id);
   const spec = sub ? specOf(sub.specialty_id) : undefined;
   return { ...r, subsections: sub ? { specialty_id: sub.specialty_id, specialties: { short_name: spec?.short_name ?? "" } } : null };
 };
+
+const FOLDERS = [
+  { id: "fd-1", name: "Audit templates", subsection_id: "sub-5", subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+  { id: "fd-2", name: "Past papers", subsection_id: "sub-3", subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+  // In the withdrawn specialty, so it must stay unfindable.
+  { id: "fd-3", name: "Cataract audit archive", subsection_id: "sub-6", subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+];
 
 const DISCUSSIONS = [
   { id: "d-1", title: "How are people finding the new logbook requirements?", content: "The 2026 curriculum asks for indicative numbers by ST6 rather than at CCT. Has anyone had this come up at ARCP yet, and did your TPD take the old or the new reading?", specialty_id: "sp-1", author_id: "u-2", created_at: "2026-09-16T10:12:00Z", is_pinned: true },
@@ -142,7 +157,10 @@ const TABLES: Record<string, unknown[]> = {
       widget_settings: {},
     },
   ],
-  folders: [],
+  // The app reads `resource_folders`; this key used to be `folders`, which no
+  // query has ever asked for, so the drive rendered without any and the search
+  // had nothing to find.
+  resource_folders: FOLDERS.map(withSub),
   // `is_active` matters now that the fixture's `eq` filters for real: the
   // board asks for active notices, so a row without the column is dropped and
   // the banner renders empty.

@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import {
   DndContext, DragOverlay, pointerWithin,
   rectIntersection, useDroppable,
@@ -49,6 +49,14 @@ interface DriveBrowserProps {
   folders: Tables<"resource_folders">[];
   subheadings: Subheading[];
   canManage: boolean;
+  /**
+   * A folder to open on arrival, from `?folder=` in the URL.
+   *
+   * A folder result in the search box names a place, so following one should
+   * put you inside it rather than in the section that contains it and leave
+   * you to find it again.
+   */
+  openFolderId?: string | null;
 }
 
 interface DragItem {
@@ -88,13 +96,21 @@ function DropZone({
 }
 
 export function DriveBrowser({
-  subsection, specialtyId, resources, folders, subheadings, canManage,
+  subsection, specialtyId, resources, folders, subheadings, canManage, openFolderId,
 }: DriveBrowserProps) {
   const queryClient = useQueryClient();
 
   /* ---------- Local state ---------- */
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(openFolderId ?? null);
   const [selection, setSelection] = useState<Set<string>>(new Set()); // ids of selected items (files or `folder-row:id`)
+
+  // Following a second folder result while already in the drive changes the
+  // param but not the mounted component, so the state has to follow it. Only
+  // when it names a folder: clearing it should leave you where you are rather
+  // than throwing you back to the root mid-task.
+  useEffect(() => {
+    if (openFolderId) setCurrentFolderId(openFolderId);
+  }, [openFolderId]);
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false); // "Select" pressed: tapping a row ticks it
 
