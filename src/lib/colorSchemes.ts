@@ -59,7 +59,14 @@ export const COLOR_SCHEMES: ColorScheme[] = [
   },
 ];
 
-export const DEFAULT_SCHEME = "ink";
+/**
+ * What a person sees before they have chosen anything.
+ *
+ * Named here and again in the inline script in index.html (and the preview's
+ * copy), because the class has to be on <html> before the first paint and the
+ * bundle has not run by then. The two have to agree.
+ */
+export const DEFAULT_SCHEME = "sky";
 
 /** Where the choice is kept. Also read by the inline script in index.html. */
 export const SCHEME_STORAGE_KEY = "traineehq-color-scheme";

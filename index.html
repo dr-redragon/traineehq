@@ -34,10 +34,18 @@
          key matches SCHEME_STORAGE_KEY in src/lib/colorSchemes.ts. -->
     <script>
       (function () {
+        // Keep in step with DEFAULT_SCHEME in src/lib/colorSchemes.ts. The
+        // default has to be named here as well as there: the base :root tokens
+        // are the design's own red, so a first-time visitor with nothing stored
+        // would paint red and then repaint into the default a frame later —
+        // exactly the flash this script exists to prevent.
+        var fallback = "sky";
+        var name = fallback;
         try {
           var s = localStorage.getItem("traineehq-color-scheme");
-          if (s && /^[a-z]+$/.test(s)) document.documentElement.classList.add("scheme-" + s);
-        } catch (e) { /* no storage: the default scheme stands */ }
+          if (s && /^[a-z]+$/.test(s)) name = s;
+        } catch (e) { /* no storage: the default stands */ }
+        document.documentElement.classList.add("scheme-" + name);
       })();
     </script>
   </head>
