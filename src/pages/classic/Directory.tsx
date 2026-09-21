@@ -2,12 +2,15 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { ClassicShell } from "@/components/classic/ClassicShell";
+import { Modal } from "@/components/classic/Modal";
 import {
   useCreatableDeaneries, useCreatableSpecialties, useCreateRegister,
-  useGroupedRegisters, useRequestRegisterAccess,
+  useDeleteRegisterForever, useGroupedRegisters, useRegisterArchive,
+  useRequestRegisterAccess, useRestoreRegister,
 } from "@/hooks/classic/useRegisters";
 import { useUserRole } from "@/hooks/useUserRole";
-import type { RegisterDirectoryEntry } from "@/lib/classic/types";
+import { archivedAgo, daysUntilPurge, purgeCountdown } from "@/lib/classic/archive";
+import type { ArchivedRegister, RegisterDirectoryEntry } from "@/lib/classic/types";
 
 /**
  * The classic register's front door: the registers you hold, the ones you have
@@ -40,6 +43,135 @@ function RegisterRow({
       </div>
       <div className="row-actions">{action}</div>
     </div>
+  );
+}
+
+/**
+ * Registers this person has deleted, and the clock they are running against.
+ *
+ * Shown only when there is something in it: an empty "Archive" heading on a
+ * page most people reach every day would be a permanent reminder of a thing
+ * that has not happened.
+ *
+ * It lives on the directory rather than inside a register because a deleted
+ * register has no page left to visit — and because this is where somebody
+ * comes when the specialty they want to start is mysteriously unavailable.
+ * The answer is usually sitting right here.
+ */
+function ArchiveSection() {
+  const { data: archived } = useRegisterArchive();
+  const restore = useRestoreRegister();
+  const destroy = useDeleteRegisterForever();
+  const [destroying, setDestroying] = useState<ArchivedRegister | null>(null);
+
+  if (!archived?.length) return null;
+
+  const restoreOne = (entry: ArchivedRegister) => {
+    restore.mutate(entry.id, {
+      onSuccess: () => toast.success(`${entry.name} is back`),
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
+
+  const destroyOne = (entry: ArchivedRegister) => {
+    destroy.mutate(entry.id, {
+      onSuccess: () => {
+        setDestroying(null);
+        toast.success(`${entry.name} has been deleted permanently`);
+      },
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
+
+  return (
+    <>
+      <div className="grouphead">Archive</div>
+      <div className="card">
+        {archived.map((entry) => {
+          // The last few days are said in the same red as the warning that
+          // put it here; a countdown that looks like every other tag until
+          // the morning it expires is not a countdown.
+          const urgent = daysUntilPurge(entry.purge_at) <= 3;
+          return (
+            <div className="list-item" key={entry.id}>
+              <div>
+                <div className="li-main">{entry.name}</div>
+                <div className="li-sub">
+                  {entry.deanery_name} · {entry.specialty_name} ·{" "}
+                  {entry.trainee_count} {entry.trainee_count === 1 ? "trainee" : "trainees"} ·{" "}
+                  {entry.session_count}{" "}
+                  {entry.session_count === 1 ? "teaching day" : "teaching days"}
+                </div>
+                <div className="pill-row">
+                  <span
+                    className="att-tag wait"
+                    style={urgent ? { background: "#fbeee9", color: "#9c3d1c" } : undefined}
+                  >
+                    {purgeCountdown(entry.purge_at)}
+                  </span>
+                  <span className="li-sub">Deleted {archivedAgo(entry.archived_at)}</span>
+                </div>
+              </div>
+              <div className="row-actions">
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  disabled={restore.isPending}
+                  onClick={() => restoreOne(entry)}
+                >
+                  Restore
+                </button>
+                <button
+                  type="button"
+                  className="btn ghost sm"
+                  onClick={() => setDestroying(entry)}
+                >
+                  Delete permanently
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="helper">
+        A deleted register waits here for 15 days. Restoring brings it back
+        whole — trainees, teaching days, attendance and feedback — for every
+        organiser who had it. When the time runs out it is deleted permanently
+        on its own.
+      </p>
+
+      {destroying && (
+        <Modal title="Delete permanently?" onClose={() => setDestroying(null)}>
+          <div className="notice bad">
+            <strong>This destroys {destroying.name} now.</strong> Its{" "}
+            {destroying.trainee_count}{" "}
+            {destroying.trainee_count === 1 ? "trainee" : "trainees"} and{" "}
+            {destroying.session_count}{" "}
+            {destroying.session_count === 1 ? "teaching day" : "teaching days"} —
+            with every attendance mark, feedback response and certificate record
+            — are deleted with it. There is no undo and no backup to restore
+            from.
+          </div>
+          <p className="helper" style={{ marginTop: 12 }}>
+            You do not have to do this: leave it alone and it will be deleted on
+            its own in {purgeCountdown(destroying.purge_at).toLowerCase()}.
+          </p>
+          <div className="row-actions" style={{ marginTop: 16, justifyContent: "flex-end" }}>
+            <button type="button" className="btn ghost" onClick={() => setDestroying(null)}>
+              Keep it in the archive
+            </button>
+            <button
+              type="button"
+              className="btn clay"
+              disabled={destroy.isPending}
+              onClick={() => destroyOne(destroying)}
+            >
+              {destroy.isPending ? "Deleting…" : "Yes, delete it permanently"}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 
@@ -161,6 +293,8 @@ export default function ClassicDirectory() {
               ))
             )}
           </div>
+
+          <ArchiveSection />
         </>
       )}
 
@@ -222,7 +356,9 @@ export default function ClassicDirectory() {
               </div>
               <p className="helper">
                 A specialty already carrying a register in that deanery is not
-                offered — ask that register's owners for access instead.
+                offered — ask that register's owners for access instead. One
+                sitting in the archive still counts: restore it, or delete it
+                permanently, to free the specialty up again.
               </p>
             </>
           )}

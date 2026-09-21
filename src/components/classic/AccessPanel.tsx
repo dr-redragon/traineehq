@@ -5,9 +5,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Modal } from "@/components/classic/Modal";
 import {
-  useDecideAccess, useDeleteRegister, useInviteToRegister, useRegisterMembers,
+  useArchiveRegister, useDecideAccess, useInviteToRegister, useRegisterMembers,
   useRegisterPeople, useRegisterRequests, useRemoveMember, useSetMemberRole,
 } from "@/hooks/classic/useRegisterAccess";
+import { purgeCountdown } from "@/lib/classic/archive";
 import { certificateFilename, renderCertificatePdf } from "@/lib/classic/certificate";
 import {
   LOGO_MIME_TYPES, REGISTER_LOGO_BUCKET, registerLogoPath, registerLogoUrl, rejectLogo,
@@ -260,25 +261,36 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
 }
 
 /**
- * The one irreversible thing this tab can do, kept apart from everything
- * else on it and behind a second, explicit step.
+ * The one destructive thing this tab can do, kept apart from everything else
+ * on it and behind a second, explicit step.
  *
  * `window.confirm` is used elsewhere in the register for a reversible undo,
- * but this deletes every trainee, session, attendance mark, feedback response
- * and certificate the register holds — a browser dialog that looks the same
- * as "remove this trainee?" undersells that. It gets its own popup instead,
- * said in red.
+ * and a browser dialog that looks the same as "remove this trainee?" would
+ * undersell taking a whole register away from every organiser who uses it. It
+ * gets its own popup instead, said in red.
+ *
+ * What it is NOT is the end of the register: deleting archives it, and the
+ * archive on the directory holds it for fifteen days. That is the part worth
+ * saying plainly here — an organiser who is hesitating should know the door
+ * is not locked behind them.
  */
 function DeleteRegister({ entry }: { entry: RegisterDirectoryEntry }) {
   const navigate = useNavigate();
   const [confirming, setConfirming] = useState(false);
-  const deleteRegister = useDeleteRegister();
+  const archive = useArchiveRegister();
 
   const confirm = () => {
-    deleteRegister.mutate(entry.id, {
-      onSuccess: () => {
-        toast.success(`${entry.name} has been deleted`);
-        navigate("/classic_registers");
+    archive.mutate(entry.id, {
+      onSuccess: (purgeAt) => {
+        setConfirming(false);
+        // Replace rather than push: the page behind this one is a register the
+        // caller can no longer open, so Back must not return to it.
+        navigate("/classic-registers", { replace: true });
+        toast.success(`${entry.name} has been deleted.`, {
+          description:
+            `It is in the archive for ${purgeCountdown(purgeAt).toLowerCase()} — restore it ` +
+            "from the register directory any time before then.",
+        });
       },
       onError: (error: Error) => toast.error(error.message),
     });
@@ -291,8 +303,10 @@ function DeleteRegister({ entry }: { entry: RegisterDirectoryEntry }) {
           <div>
             <strong style={{ color: "#9c3d1c" }}>Delete this register</strong>
             <p className="helper" style={{ marginTop: 2 }}>
-              Removes {entry.name} for everyone — its trainees, teaching days,
-              attendance, feedback and certificates. This cannot be undone.
+              Takes {entry.name} away from every organiser who uses it, with its
+              trainees, teaching days, attendance and feedback. It goes to the
+              archive first and can be restored for 15 days; after that it is
+              deleted permanently.
             </p>
           </div>
           <button type="button" className="btn clay sm" onClick={() => setConfirming(true)}>
@@ -304,11 +318,17 @@ function DeleteRegister({ entry }: { entry: RegisterDirectoryEntry }) {
       {confirming && (
         <Modal title="Delete this register?" onClose={() => setConfirming(false)}>
           <div className="notice bad">
-            <strong>This permanently deletes {entry.name}.</strong> Every trainee,
-            teaching day, attendance mark, feedback response and certificate
-            record it holds is deleted with it — for every organiser, not just
-            you. There is no undo and no backup to restore from.
+            <strong>This takes {entry.name} away from everyone who uses it.</strong>{" "}
+            Its trainees, teaching days, attendance marks, feedback and
+            certificate records go with it, and no organiser will be able to
+            open it — not just you.
           </div>
+          <p className="helper" style={{ marginTop: 12 }}>
+            It is <strong>not destroyed yet</strong>. It sits in the archive on
+            the register directory for <strong>15 days</strong>, where you can
+            restore it whole or delete it permanently. After 15 days it is
+            deleted permanently on its own.
+          </p>
           <div className="row-actions" style={{ marginTop: 16, justifyContent: "flex-end" }}>
             <button type="button" className="btn ghost" onClick={() => setConfirming(false)}>
               Cancel
@@ -316,10 +336,10 @@ function DeleteRegister({ entry }: { entry: RegisterDirectoryEntry }) {
             <button
               type="button"
               className="btn clay"
-              disabled={deleteRegister.isPending}
+              disabled={archive.isPending}
               onClick={confirm}
             >
-              {deleteRegister.isPending ? "Deleting…" : `Yes, delete ${entry.name}`}
+              {archive.isPending ? "Deleting…" : `Yes, delete ${entry.name}`}
             </button>
           </div>
         </Modal>

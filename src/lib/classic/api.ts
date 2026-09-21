@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  ArchivedRegister,
   CreatableDeanery,
   CreatableSpecialty,
   RegisterAccessRequest,
@@ -240,7 +241,7 @@ export async function inviteToRegister(
       register_id: registerId,
       email: email.trim().toLowerCase(),
       role,
-      redirect_to: `${window.location.origin}/classic_registers`,
+      redirect_to: `${window.location.origin}/classic-registers`,
     },
   });
 
@@ -260,11 +261,46 @@ export async function removeRegisterMember(registerId: string, userId: string): 
 }
 
 /**
- * Delete a register outright — its trainees, sessions, attendance, feedback and
- * certificates go with it. RLS ("owners delete their register") is the whole
- * guard: only an owner's row-level policy lets this succeed, and every table
- * that hangs off `classic_registers` does so `on delete cascade`, so one row
- * going away takes its entire history with it. There is no undo.
+ * Put a register in the archive: out of the directory, out of everyone's way,
+ * and recoverable whole until the date this returns.
+ */
+export async function archiveRegister(registerId: string): Promise<string> {
+  const { data, error } = await untyped.rpc("archive_classic_register", {
+    _register_id: registerId,
+  });
+  raise(error);
+  return data as string;
+}
+
+/** Take it back out again. Refused by the database once the window has closed. */
+export async function restoreRegister(registerId: string): Promise<void> {
+  const { error } = await untyped.rpc("restore_classic_register", {
+    _register_id: registerId,
+  });
+  raise(error);
+}
+
+/**
+ * The archived registers this person owns.
+ *
+ * The RPC sweeps expired entries before it answers, so anything returned here
+ * can still genuinely be restored — the list is not a set of tombstones.
+ */
+export async function fetchRegisterArchive(): Promise<ArchivedRegister[]> {
+  const { data, error } = await untyped.rpc("classic_register_archive");
+  raise(error);
+  return (data ?? []) as ArchivedRegister[];
+}
+
+/**
+ * Destroy an archived register now, without waiting out its fifteen days — its
+ * trainees, sessions, attendance, feedback and certificates go with it.
+ *
+ * RLS ("owners delete their archived register") is the whole guard, and it
+ * requires `archived_at` to be set, so this cannot reach a live register: the
+ * archive is not merely the UI's idea of a first step. Every table hanging off
+ * `classic_registers` does so `on delete cascade`, so one row going away takes
+ * its entire history with it. There is no undo.
  */
 export async function deleteRegister(registerId: string): Promise<void> {
   const { error } = await untyped.from("classic_registers").delete().eq("id", registerId);
