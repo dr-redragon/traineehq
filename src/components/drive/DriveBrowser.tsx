@@ -20,9 +20,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import {
-  ChevronRight, FolderPlus, ListPlus, Upload, Plus, X, Trash2, Download,
+  ChevronRight, FolderPlus, Upload, Plus, X, Trash2, Download,
   FolderInput, CheckSquare, ListChecks, FolderClosed, FileText, MoreVertical, ArrowLeft,
-  ArrowUp, ArrowDown,
+  ArrowUp, ArrowDown, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FileRow, FolderRow } from "@/components/drive/DriveRow";
@@ -34,24 +34,18 @@ import { planReorder } from "@/lib/resourceOrdering";
 import {
   ariaSortFor, nextSort, sortItems, type SortKey, type SortState,
 } from "@/lib/driveSort";
+import {
+  canMoveFolder, collapseWithDescendants, descendantFolderIds, flattenDrive,
+  folderCounts, folderPath,
+} from "@/lib/folderTree";
 import { uploadErrorMessage, removeStoredFiles } from "@/lib/storageUtils";
 import type { Tables } from "@/integrations/supabase/types";
-
-const UNGROUPED = "__ungrouped__";
-
-export interface Subheading {
-  id: string;
-  subsection_id: string;
-  name: string;
-  sort_order: number;
-}
 
 interface DriveBrowserProps {
   subsection: Tables<"subsections">;
   specialtyId: string;
   resources: Tables<"resources">[];
   folders: Tables<"resource_folders">[];
-  subheadings: Subheading[];
   canManage: boolean;
   /**
    * A folder to open on arrival, from `?folder=` in the URL.
@@ -74,33 +68,8 @@ const collisionDetection: CollisionDetection = (args) => {
   return rectIntersection(args);
 };
 
-/** Droppable empty zone (subheading section, root, breadcrumb) */
-function DropZone({
-  id, children, className = "", activeId, fallbackLabel,
-}: {
-  id: string;
-  children?: React.ReactNode;
-  className?: string;
-  activeId?: string | null;
-  fallbackLabel?: string;
-}) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  const active = isOver || activeId === id;
-  return (
-    <div ref={setNodeRef}
-      className={`relative rounded-md transition-colors ${active ? "bg-accent ring-1 ring-rule" : ""} ${className}`}>
-      {children}
-      {active && !children && (
-        <div className="flex items-center justify-center py-6 text-xs text-accent-deep">
-          {fallbackLabel ?? "Drop to move here"}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export function DriveBrowser({
-  subsection, specialtyId, resources, folders, subheadings, canManage, openFolderId,
+  subsection, specialtyId, resources, folders, canManage, openFolderId,
 }: DriveBrowserProps) {
   const queryClient = useQueryClient();
 
@@ -119,6 +88,12 @@ export function DriveBrowser({
   // what this list has always shown. A column click is a temporary view over
   // that rather than a replacement for it.
   const [sort, setSort] = useState<SortState | null>(null);
+
+  // Which folders are open *in place*. Separate from currentFolderId, which is
+  // the folder you have drilled into and are looking at on its own. A folder
+  // can be expanded inline without being the one you are inside, and opening
+  // one does not close the other.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false); // "Select" pressed: tapping a row ticks it
 
@@ -136,9 +111,8 @@ export function DriveBrowser({
 
   const [addFolderOpen, setAddFolderOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
-
-  const [addSubheadingOpen, setAddSubheadingOpen] = useState(false);
-  const [newSubheading, setNewSubheading] = useState("");
+  // Which folder the new one goes inside. Null is the section itself.
+  const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
 
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
   const [moveTargetIds, setMoveTargetIds] = useState<string[]>([]);
@@ -156,21 +130,6 @@ export function DriveBrowser({
     [folders, currentFolderId]
   );
 
-  // Auto-detected subheadings from data
-  const detectedSubheadings = useMemo(() => {
-    const s = new Set<string>();
-    resources.forEach((r) => { const sh = (r as any).subheading; if (sh) s.add(sh); });
-    folders.forEach((f) => { const sh = (f as any).subheading; if (sh) s.add(sh); });
-    return [...s];
-  }, [resources, folders]);
-
-  // The table is the list; the strings found on resources are unioned in so a
-  // subheading assigned before this table existed — or by someone else since
-  // this page loaded — still shows rather than silently swallowing its files.
-  const allSubheadings = useMemo(
-    () => [...new Set([...subheadings.map((h) => h.name), ...detectedSubheadings])],
-    [subheadings, detectedSubheadings]
-  );
 
   /* ---------- Ordering ---------- */
   const sortFiles = (rows: Tables<"resources">[]) =>
@@ -200,17 +159,10 @@ export function DriveBrowser({
     ).map((i) => i.row);
 
   /* ---------- Selection helpers ---------- */
-  const visibleIds: string[] = useMemo(() => {
-    if (currentFolder) {
-      return resources
-        .filter((r) => (r as any).folder_id === currentFolder.id)
-        .map((r) => r.id);
-    }
-    const ids: string[] = [];
-    folders.forEach((f) => ids.push(`folder-row:${f.id}`));
-    resources.filter((r) => !(r as any).folder_id).forEach((r) => ids.push(r.id));
-    return ids;
-  }, [resources, folders, currentFolder]);
+  // Declared after `rows`, which is what it follows: "select all" and
+  // shift-click mean the rows in front of you, including ones an expanded
+  // folder has revealed.
+  const visibleIds: string[] = [];
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -256,6 +208,14 @@ export function DriveBrowser({
     () => resources.filter((r) => selection.has(r.id)),
     [resources, selection]
   );
+  /** The folders a pending move would carry, for working out legal targets. */
+  const movingFolderIds = useMemo(
+    () => (moveTargetIds.length ? [] : [...selection]
+      .filter((id) => id.startsWith("folder-row:"))
+      .map((id) => id.replace("folder-row:", ""))),
+    [moveTargetIds, selection],
+  );
+
   const selectedFolders = useMemo(
     () => folders.filter((f) => selection.has(`folder-row:${f.id}`)),
     [folders, selection]
@@ -273,9 +233,9 @@ export function DriveBrowser({
   });
 
   const updateFolder = useMutation({
-    mutationFn: async (vars: { id: string; subheading?: string | null; name?: string; sort_order?: number }) => {
+    mutationFn: async (vars: { id: string; parentId?: string | null; name?: string; sort_order?: number }) => {
       const upd: any = {};
-      if (vars.subheading !== undefined) upd.subheading = vars.subheading;
+      if (vars.parentId !== undefined) upd.parent_folder_id = vars.parentId;
       if (vars.name !== undefined) upd.name = vars.name;
       if (vars.sort_order !== undefined) upd.sort_order = vars.sort_order;
       const { error } = await supabase.from("resource_folders").update(upd).eq("id", vars.id);
@@ -301,12 +261,18 @@ export function DriveBrowser({
 
   const deleteFolder = useMutation({
     mutationFn: async (id: string) => {
+      // A folder now has a whole branch under it. The database cascades the
+      // folder rows, but the files inside them and the objects in storage are
+      // this code's to clear — a cascade that deletes the rows and leaves the
+      // uploads behind bills for storage nobody can reach.
+      const doomedFolders = [id, ...descendantFolderIds(folders, id)];
+
       // Ask the database rather than the cached props: a file added by somebody
       // else since this page loaded is still the folder's to clean up.
       const { data: contents } = await supabase
-        .from("resources").select("file_url").eq("folder_id", id)
+        .from("resources").select("file_url").in("folder_id", doomedFolders)
         .returns<{ file_url: string | null }[]>();
-      await supabase.from("resources").delete().eq("folder_id", id);
+      await supabase.from("resources").delete().in("folder_id", doomedFolders);
       const { error } = await supabase.from("resource_folders").delete().eq("id", id);
       if (error) throw error;
       await removeStoredFiles((contents ?? []).map((r) => r.file_url));
@@ -318,17 +284,22 @@ export function DriveBrowser({
   });
 
   const createFolder = useMutation({
-    mutationFn: async (vars: { name: string; subheading: string | null }) => {
+    mutationFn: async (vars: { name: string; parentId: string | null }) => {
+      // Uniqueness is per parent now, not per section: "Year 1" inside
+      // Curriculum and "Year 1" inside Exams are two different places and both
+      // should be allowed to keep the name.
       const { data: existing } = await supabase
-        .from("resource_folders").select("name,sort_order")
+        .from("resource_folders").select("name,sort_order,parent_folder_id")
         .eq("subsection_id", subsection.id);
-      const taken = new Set(((existing as any) ?? []).map((r: any) => r.name as string));
+      const siblings = ((existing as any) ?? [])
+        .filter((r: any) => (r.parent_folder_id ?? null) === vars.parentId);
+      const taken = new Set(siblings.map((r: any) => r.name as string));
       let unique = vars.name; let n = 2;
       while (taken.has(unique)) unique = `${vars.name} (${n++})`;
-      const maxOrder = Math.max(-1, ...((existing as any) ?? []).map((r: any) => r.sort_order ?? 0));
+      const maxOrder = Math.max(-1, ...siblings.map((r: any) => r.sort_order ?? 0));
       const { error } = await supabase.from("resource_folders").insert({
         name: unique, subsection_id: subsection.id,
-        subheading: vars.subheading, sort_order: maxOrder + 1,
+        parent_folder_id: vars.parentId, sort_order: maxOrder + 1,
       } as any);
       if (error) throw error;
       return unique;
@@ -341,89 +312,42 @@ export function DriveBrowser({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const createSubheading = useMutation({
-    mutationFn: async (name: string) => {
-      const { error } = await supabase.from("resource_subheadings").insert({
-        subsection_id: subsection.id,
-        name,
-        sort_order: subheadings.length,
-      });
-      // The unique constraint is the check: two subheadings of one name in one
-      // subsection would be two headings the app could never tell apart.
-      if (error) {
-        throw new Error(
-          error.code === "23505" ? `"${name}" already exists here` : error.message
-        );
-      }
-    },
-    onSuccess: (_d, name) => {
-      toast.success(`Subheading "${name}" added`);
-      queryClient.invalidateQueries({ queryKey: ["resource-subheadings"] });
-      setAddSubheadingOpen(false);
-      setNewSubheading("");
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
-
-  /**
-   * Remove a subheading from the list.
-   *
-   * Only ever an empty one. Deleting a subheading that still holds files would
-   * either delete them or silently strand them, and neither is what somebody
-   * tidying up their headings is asking for.
-   */
-  const deleteSubheading = useMutation({
-    mutationFn: async (name: string) => {
-      const holding = resources.filter((r) => (r.subheading ?? null) === name).length
-        + folders.filter((f) => (f.subheading ?? null) === name).length;
-      if (holding > 0) {
-        throw new Error(
-          `"${name}" still holds ${holding} item${holding === 1 ? "" : "s"}. Move them out first.`
-        );
-      }
-      const { error } = await supabase
-        .from("resource_subheadings")
-        .delete()
-        .eq("subsection_id", subsection.id)
-        .eq("name", name);
-      if (error) throw error;
-    },
-    onSuccess: (_d, name) => {
-      toast.success(`Subheading "${name}" removed`);
-      queryClient.invalidateQueries({ queryKey: ["resource-subheadings"] });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   /* ---------- Apply moves (drag drop) ---------- */
   const moveItemsToTarget = async (
     items: { fileIds: string[]; folderIds: string[] },
-    target: { folderId: string | null; subheading: string | null }
+    target: { folderId: string | null }
   ) => {
     try {
-      // Compute next sort order in destination
-      const destResources = target.folderId
-        ? resources.filter((r) => (r as any).folder_id === target.folderId)
-        : resources.filter((r) => !(r as any).folder_id && ((r as any).subheading ?? null) === target.subheading);
+      const destResources = resources.filter(
+        (r) => ((r as any).folder_id ?? null) === target.folderId,
+      );
       let nextOrder = Math.max(-1, ...destResources.map((r) => r.sort_order ?? 0)) + 1;
 
       for (const fid of items.fileIds) {
-        // Don't move a file into the same place
         const r = resources.find((x) => x.id === fid);
         if (!r) continue;
-        if ((r as any).folder_id === target.folderId
-          && (((r as any).subheading ?? null) === target.subheading)) continue;
+        if (((r as any).folder_id ?? null) === target.folderId) continue;
         await updateResourcePlacement.mutateAsync({
-          id: fid, folder_id: target.folderId, subheading: target.subheading,
+          id: fid, folder_id: target.folderId, subheading: null,
           sort_order: nextOrder++,
         });
       }
-      // Folders can only be moved between subheadings (not into another folder)
+
+      // Folders move into folders now. The refusals are the ones the tree
+      // cannot survive: into itself, or into something it contains. The
+      // database refuses both as well; catching them here means saying so
+      // in words rather than surfacing a trigger's exception.
       for (const fid of items.folderIds) {
-        if (target.folderId) continue; // can't nest folders
         const f = folders.find((x) => x.id === fid);
-        if (!f || (f as any).subheading === target.subheading) continue;
-        await updateFolder.mutateAsync({ id: fid, subheading: target.subheading });
+        if (!f || ((f as any).parent_folder_id ?? null) === target.folderId) continue;
+        if (!canMoveFolder(folders, fid, target.folderId)) {
+          toast.error(`"${f.name}" cannot go inside itself`, {
+            description: "Pick a folder that is not inside the one you are moving.",
+          });
+          continue;
+        }
+        await updateFolder.mutateAsync({ id: fid, parentId: target.folderId });
       }
     } catch (e: any) {
       toast.error(e.message ?? "Move failed");
@@ -492,18 +416,19 @@ export function DriveBrowser({
     if (!overId) return;
 
     // Determine target
-    let target: { folderId: string | null; subheading: string | null } | null = null;
+    let target: { folderId: string | null } | null = null;
     if (overId.startsWith("folder:")) {
       const folderId = overId.replace("folder:", "");
       const f = folders.find((x) => x.id === folderId);
       if (!f) return;
-      target = { folderId, subheading: (f as any).subheading ?? null };
-    } else if (overId.startsWith("sub:")) {
-      const sub = overId.replace("sub:", "");
-      target = { folderId: null, subheading: sub === UNGROUPED ? null : sub };
-    } else if (overId === "breadcrumb-root") {
-      // dropping back to section root from inside a folder -> remove folder_id
-      target = { folderId: null, subheading: currentFolder ? (currentFolder as any).subheading ?? null : null };
+      target = { folderId };
+    } else if (overId.startsWith("crumb:")) {
+      // Dropped on a breadcrumb: move up to that level. "crumb:root" is the
+      // section itself, which is what a folder with no parent belongs to.
+      const crumb = overId.replace("crumb:", "");
+      target = { folderId: crumb === "root" ? null : crumb };
+    } else if (overId === "section-root") {
+      target = { folderId: currentFolder ? currentFolder.id : null };
     } else if (resources.some((r) => r.id === overId)) {
       // Dropped on a file row: reorder within that row's list.
       const activeId = String(event.active.id);
@@ -537,7 +462,7 @@ export function DriveBrowser({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleNativeUpload = async (dataTransferOrList: DataTransfer | FileList, dest: {
-    folderId: string | null; subheading: string | null;
+    folderId: string | null;
   }) => {
     setUploading(true);
     try {
@@ -557,19 +482,25 @@ export function DriveBrowser({
       let nextOrder = ((existing?.[0]?.sort_order ?? -1) + 1);
 
       // Folders to auto-create (only when uploading at root, not inside a folder)
+      // A dropped OS folder becomes a real folder, nested under wherever the
+      // drop landed rather than only at the section root — which is what
+      // dragging a folder tree from Finder or Explorer is asking for.
       const folderIdMap: Record<string, string> = {};
-      if (!dest.folderId) {
+      {
         const folderNames = [...new Set(dropped.map((d) => d.folderName).filter(Boolean))] as string[];
         const { data: siblings } = await supabase
-          .from("resource_folders").select("name").eq("subsection_id", subsection.id);
-        const taken = new Set(((siblings as any) ?? []).map((r: any) => r.name as string));
+          .from("resource_folders").select("name,parent_folder_id")
+          .eq("subsection_id", subsection.id);
+        const taken = new Set(((siblings as any) ?? [])
+          .filter((r: any) => (r.parent_folder_id ?? null) === dest.folderId)
+          .map((r: any) => r.name as string));
         for (const fname of folderNames) {
           let unique = fname; let n = 2;
           while (taken.has(unique)) unique = `${fname} (${n++})`;
           taken.add(unique);
           const { data: fd, error: fe } = await supabase.from("resource_folders").insert({
             name: unique, subsection_id: subsection.id,
-            subheading: dest.subheading, sort_order: 0,
+            parent_folder_id: dest.folderId, sort_order: 0,
           } as any).select("id").single();
           if (fe) { toast.error(`Folder failed: ${unique}`); continue; }
           folderIdMap[fname] = (fd as any).id;
@@ -594,7 +525,7 @@ export function DriveBrowser({
           added_by: user?.id ?? null,
           sort_order: nextOrder++,
           folder_id: targetFolderId,
-          subheading: targetFolderId ? null : dest.subheading,
+          subheading: null,
           file_size: file.size,
         } as any);
       }
@@ -657,14 +588,6 @@ export function DriveBrowser({
     }
   };
 
-  const handleBulkMove = async (target: { folderId: string | null; subheading: string | null }) => {
-    const fileIds = selectedFiles.map((r) => r.id);
-    const folderIds = selectedFolders.map((f) => f.id);
-    await moveItemsToTarget({ fileIds, folderIds }, target);
-    toast.success("Moved");
-    setMoveDialogOpen(false);
-    clearSelection();
-  };
 
   const handleDownloadFolder = async (folder: Tables<"resource_folders">) => {
     const folderRes = resources.filter((r) => (r as any).folder_id === folder.id);
@@ -676,164 +599,108 @@ export function DriveBrowser({
   };
 
   /* ---------- Renderers ---------- */
-  const renderRoot = () => {
-    const ungroupedFolders = sortFolders(folders.filter((f) => !(f as any).subheading));
-    const ungroupedFiles = sortFiles(
-      resources.filter((r) => !(r as any).folder_id && !(r as any).subheading),
-    );
+  /* ---------- Renderers ---------- */
 
-    const groups = allSubheadings.map((sh) => ({
-      name: sh,
-      folders: sortFolders(folders.filter((f) => (f as any).subheading === sh)),
-      files: sortFiles(
-        resources.filter((r) => !(r as any).folder_id && (r as any).subheading === sh),
-      ),
+  /**
+   * Every row on screen, in order, at the depth it belongs.
+   *
+   * There used to be two of these — one for the section root and one for the
+   * inside of a folder — because a folder had exactly one level and the two
+   * cases could not meet. With folders inside folders there is only one shape:
+   * a list, where an expanded folder is followed by its own contents indented
+   * one step further. `flattenDrive` works that out; this draws it.
+   */
+  const rows = flattenDrive({
+    folders,
+    files: resources,
+    rootId: currentFolder?.id ?? null,
+    expanded,
+    sortFolders,
+    sortFiles,
+  });
+
+  visibleIds.push(...rows.map((row) => (row.kind === "folder" ? `folder-row:${row.id}` : row.id)));
+
+  /**
+   * The destination list, drawn as the tree it is.
+   *
+   * A flat list of every folder was fine when folders were flat. Nested, the
+   * names alone stop being enough — two "Year 1" folders in different branches
+   * read identically — so the indentation is what tells them apart.
+   *
+   * Somewhere illegal is shown greyed rather than hidden: a folder missing
+   * from the list looks like a bug, whereas one you cannot pick explains
+   * itself.
+   */
+  const moveTargets = flattenDrive({
+    folders,
+    files: [],
+    expanded: new Set(folders.map((f) => f.id)),
+    sortFolders,
+  })
+    .filter((row) => row.kind === "folder")
+    .map((row) => ({
+      folder: row.folder!,
+      depth: row.depth,
+      allowed: movingFolderIds.every((id) => canMoveFolder(folders, id, row.id)),
     }));
 
-    return (
-      <div className="space-y-5">
-        <Section
-          id={`sub:${UNGROUPED}`}
-          label={null}
-          activeDropId={activeDropId}
-          empty={ungroupedFolders.length === 0 && ungroupedFiles.length === 0}
-        >
-          {ungroupedFolders.map((f) => (
-            <FolderRow
-              key={f.id}
-              folder={f}
-              count={resources.filter((r) => (r as any).folder_id === f.id).length}
-              selected={selection.has(`folder-row:${f.id}`)}
-              onClick={(e) => {
-                if (e.shiftKey || e.metaKey || e.ctrlKey) { handleRowClick(`folder-row:${f.id}`, e); return; }
-                if (selectMode || selection.size > 0) { handleRowClick(`folder-row:${f.id}`, e); return; }
-                setCurrentFolderId(f.id); clearSelection();
-              }}
-              canManage={canManage}
-              selectMode={selectMode}
-              onOpen={() => { setCurrentFolderId(f.id); clearSelection(); }}
-              onRename={() => { setRenameFolderId(f.id); setRenameFolderName(f.name); }}
-              onDelete={() => setDeleteFolderId(f.id)}
-              onDownload={() => handleDownloadFolder(f)}
-              isDropTarget={activeDropId === `folder:${f.id}`}
-            />
-          ))}
-          {ungroupedFiles.map((r) => (
-            <FileRow
-              key={r.id} resource={r}
-              selected={selection.has(r.id)}
-              onClick={(e) => handleRowClick(r.id, e)}
-              canManage={canManage}
-              selectMode={selectMode}
-              existingSubheadings={allSubheadings}
-              onDelete={(id) => deleteResource.mutate(id)}
-              onMove={(id) => { setMoveTargetIds([id]); setMoveDialogOpen(true); }}
-              onDownload={(id) => {
-                const r = resources.find((x) => x.id === id);
-                if (!r) return;
-                downloadResourcesAsZip([{ resource: r }], r.title)
-                  .catch((e) => toast.error(e.message));
-              }}
-            />
-          ))}
-        </Section>
-
-        {groups.map((g) => (
-          <div key={g.name} className="space-y-1.5">
-            <DropZone id={`sub:${g.name}`} activeId={activeDropId}>
-              <div className="flex items-center gap-2 px-2 py-1 sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
-                <ChevronRight className="h-3.5 w-3.5 text-muted-foreground rotate-90" />
-                <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {g.name}
-                </h4>
-                <Badge variant="secondary" className="text-[10px]">
-                  {g.folders.length + g.files.length}
-                </Badge>
-                {canManage && g.folders.length + g.files.length === 0 && (
-                  // Offered only while it is empty. A subheading now persists,
-                  // so without this an empty one made by mistake would be
-                  // permanent — the old bug was also the old way out of it.
-                  <Button
-                    variant="ghost" size="icon"
-                    className="h-5 w-5 text-muted-foreground hover:text-destructive"
-                    title={`Remove the "${g.name}" subheading`}
-                    aria-label={`Remove the "${g.name}" subheading`}
-                    onClick={() => deleteSubheading.mutate(g.name)}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                )}
-              </div>
-            </DropZone>
-            <Section
-              id={`sub:${g.name}`}
-              label={g.name}
-              activeDropId={activeDropId}
-              empty={g.folders.length === 0 && g.files.length === 0}
-            >
-              {g.folders.map((f) => (
-                <FolderRow
-                  key={f.id}
-                  folder={f}
-                  count={resources.filter((r) => (r as any).folder_id === f.id).length}
-                  selected={selection.has(`folder-row:${f.id}`)}
-                  onClick={(e) => {
-                    if (e.shiftKey || e.metaKey || e.ctrlKey) { handleRowClick(`folder-row:${f.id}`, e); return; }
-                    if (selectMode || selection.size > 0) { handleRowClick(`folder-row:${f.id}`, e); return; }
-                    setCurrentFolderId(f.id); clearSelection();
-                  }}
-                  canManage={canManage}
-                  selectMode={selectMode}
-                  onOpen={() => { setCurrentFolderId(f.id); clearSelection(); }}
-                  onRename={() => { setRenameFolderId(f.id); setRenameFolderName(f.name); }}
-                  onDelete={() => setDeleteFolderId(f.id)}
-                  onDownload={() => handleDownloadFolder(f)}
-                  isDropTarget={activeDropId === `folder:${f.id}`}
-                />
-              ))}
-              {g.files.map((r) => (
-                <FileRow
-                  key={r.id} resource={r}
-                  selected={selection.has(r.id)}
-                  onClick={(e) => handleRowClick(r.id, e)}
-                  canManage={canManage}
-                  selectMode={selectMode}
-                  existingSubheadings={allSubheadings}
-                  onDelete={(id) => deleteResource.mutate(id)}
-                  onMove={(id) => { setMoveTargetIds([id]); setMoveDialogOpen(true); }}
-                  onDownload={(id) => {
-                    const r = resources.find((x) => x.id === id);
-                    if (!r) return;
-                    downloadResourcesAsZip([{ resource: r }], r.title)
-                      .catch((e) => toast.error(e.message));
-                  }}
-                />
-              ))}
-            </Section>
-          </div>
-        ))}
-      </div>
-    );
+  const runMove = (folderId: string | null) => {
+    const fileIds = moveTargetIds.length ? moveTargetIds : selectedFiles.map((r) => r.id);
+    const folderIds = moveTargetIds.length ? [] : selectedFolders.map((f) => f.id);
+    moveItemsToTarget({ fileIds, folderIds }, { folderId }).then(() => {
+      toast.success("Moved");
+      setMoveDialogOpen(false);
+      setMoveTargetIds([]);
+      clearSelection();
+    });
   };
 
-  const renderFolderView = () => {
-    if (!currentFolder) return null;
-    const folderRes = sortFiles(resources.filter((r) => (r as any).folder_id === currentFolder.id));
-    return (
-      <Section
-        id={`folder:${currentFolder.id}`}
-        label={currentFolder.name}
-        activeDropId={activeDropId}
-        empty={folderRes.length === 0}
-      >
-        {folderRes.map((r) => (
-          <FileRow
-            key={r.id} resource={r}
-            selected={selection.has(r.id)}
-            onClick={(e) => handleRowClick(r.id, e)}
+  const toggleExpanded = (id: string) =>
+    setExpanded((open) =>
+      open.has(id)
+        ? collapseWithDescendants(folders, open, id)
+        : new Set(open).add(id),
+    );
+
+  const openFolder = (id: string) => { setCurrentFolderId(id); clearSelection(); };
+
+  const renderRows = () => (
+    <Section id="section-root" activeDropId={activeDropId} empty={rows.length === 0}>
+      {rows.map((row) =>
+        row.kind === "folder" ? (
+          <FolderRow
+            key={row.id}
+            folder={row.folder!}
+            depth={row.depth}
+            hasChildren={!!row.hasChildren}
+            expanded={!!row.expanded}
+            onToggleExpanded={() => toggleExpanded(row.id)}
+            count={folderCounts(folders, resources, row.id).total}
+            selected={selection.has(`folder-row:${row.id}`)}
+            onClick={(e) => {
+              if (e.shiftKey || e.metaKey || e.ctrlKey) { handleRowClick(`folder-row:${row.id}`, e); return; }
+              if (selectMode || selection.size > 0) { handleRowClick(`folder-row:${row.id}`, e); return; }
+              openFolder(row.id);
+            }}
             canManage={canManage}
             selectMode={selectMode}
-            existingSubheadings={allSubheadings}
+            onOpen={() => openFolder(row.id)}
+            onRename={() => { setRenameFolderId(row.id); setRenameFolderName(row.folder!.name); }}
+            onDelete={() => setDeleteFolderId(row.id)}
+            onDownload={() => handleDownloadFolder(row.folder!)}
+            onNewSubfolder={() => { setNewFolderParentId(row.id); setAddFolderOpen(true); }}
+            isDropTarget={activeDropId === `folder:${row.id}`}
+          />
+        ) : (
+          <FileRow
+            key={row.id}
+            resource={row.file!}
+            depth={row.depth}
+            selected={selection.has(row.id)}
+            onClick={(e) => handleRowClick(row.id, e)}
+            canManage={canManage}
+            selectMode={selectMode}
             onDelete={(id) => deleteResource.mutate(id)}
             onMove={(id) => { setMoveTargetIds([id]); setMoveDialogOpen(true); }}
             onDownload={(id) => {
@@ -843,19 +710,16 @@ export function DriveBrowser({
                 .catch((e) => toast.error(e.message));
             }}
           />
-        ))}
-      </Section>
-    );
-  };
+        ),
+      )}
+    </Section>
+  );
 
-  // dnd sortable id list (must include all draggable ids visible)
-  const sortableIds = useMemo(() => {
-    if (currentFolder) return resources.filter((r) => (r as any).folder_id === currentFolder.id).map((r) => r.id);
-    const ids: string[] = [];
-    folders.forEach((f) => ids.push(`folder-row:${f.id}`));
-    resources.filter((r) => !(r as any).folder_id).forEach((r) => ids.push(r.id));
-    return ids;
-  }, [currentFolder, resources, folders]);
+
+  // Everything currently drawn is draggable, including rows revealed by an
+  // expanded folder — so this follows the flattened list rather than being
+  // worked out a second time and drifting from it.
+  const sortableIds = rows.map((row) => (row.kind === "folder" ? `folder-row:${row.id}` : row.id));
 
   const selectedCount = selection.size;
   const folderDeleteData = deleteFolderId ? folders.find((f) => f.id === deleteFolderId) : null;
@@ -884,10 +748,7 @@ export function DriveBrowser({
         if (!e.dataTransfer.files?.length) return;
         e.preventDefault();
         e.stopPropagation();
-        handleNativeUpload(e.dataTransfer, {
-          folderId: currentFolder?.id ?? null,
-          subheading: currentFolder ? (currentFolder as any).subheading ?? null : null,
-        });
+        handleNativeUpload(e.dataTransfer, { folderId: currentFolder?.id ?? null });
       }}
     >
       <FileDropOverlay
@@ -903,16 +764,23 @@ export function DriveBrowser({
             variant="ghost"
             size="sm"
             className="h-8 gap-1.5 text-xs -ml-2"
-            onClick={() => { setCurrentFolderId(null); clearSelection(); }}
-            aria-label="Back to previous view"
+            onClick={() => {
+              // Up one level, not all the way out — three folders deep, "Back"
+              // meaning "the section" would throw away two steps of context.
+              const trail = folderPath(folders, currentFolder?.id ?? null);
+              const parent = trail.length > 1 ? trail[trail.length - 2].id : null;
+              setCurrentFolderId(parent);
+              clearSelection();
+            }}
+            aria-label="Up one level"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Back
           </Button>
         )}
         <Breadcrumb
           subsectionName={subsection.name}
-          currentFolderName={currentFolder?.name ?? null}
-          onClickRoot={() => { setCurrentFolderId(null); clearSelection(); }}
+          path={folderPath(folders, currentFolder?.id ?? null)}
+          onNavigate={(id) => { setCurrentFolderId(id); clearSelection(); }}
           activeDropId={activeDropId}
         />
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
@@ -955,22 +823,16 @@ export function DriveBrowser({
                   <DropdownMenuItem onClick={() => fileInputRef.current?.click()}>
                     <Upload className="h-3.5 w-3.5 mr-2" /> Upload files
                   </DropdownMenuItem>
-                  {!currentFolder && (
-                    <DropdownMenuItem onClick={() => setAddFolderOpen(true)}>
-                      <FolderPlus className="h-3.5 w-3.5 mr-2" /> New folder
-                    </DropdownMenuItem>
-                  )}
-                  {!currentFolder && (
-                    <DropdownMenuItem onClick={() => setAddSubheadingOpen(true)}>
-                      <ListPlus className="h-3.5 w-3.5 mr-2" /> New subheading
-                    </DropdownMenuItem>
-                  )}
+                  <DropdownMenuItem
+                    onClick={() => { setNewFolderParentId(currentFolder?.id ?? null); setAddFolderOpen(true); }}
+                  >
+                    <FolderPlus className="h-3.5 w-3.5 mr-2" /> New folder
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <AddResourceDialog
                 subsectionId={subsection.id}
                 specialtyId={specialtyId}
-                existingSubheadings={allSubheadings}
               />
               <input
                 ref={fileInputRef}
@@ -979,10 +841,7 @@ export function DriveBrowser({
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files?.length) {
-                    handleNativeUpload(e.target.files, {
-                      folderId: currentFolder?.id ?? null,
-                      subheading: currentFolder ? (currentFolder as any).subheading ?? null : null,
-                    });
+                    handleNativeUpload(e.target.files, { folderId: currentFolder?.id ?? null });
                   }
                   e.target.value = "";
                 }}
@@ -1038,7 +897,7 @@ export function DriveBrowser({
         onDragCancel={() => { setActiveDrag(null); setActiveDropId(null); }}
       >
         <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          {currentFolder ? renderFolderView() : renderRoot()}
+          {renderRows()}
         </SortableContext>
         <DragOverlay dropAnimation={null}>
           {activeDrag ? (
@@ -1089,36 +948,24 @@ export function DriveBrowser({
       {/* Add folder */}
       <Dialog open={addFolderOpen} onOpenChange={setAddFolderOpen}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>New folder</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>New folder</DialogTitle>
+            <DialogDescription>
+              Inside {newFolderParentId
+                ? folders.find((f) => f.id === newFolderParentId)?.name ?? subsection.name
+                : subsection.name}.
+            </DialogDescription>
+          </DialogHeader>
           <div className="space-y-3 pt-2">
             <div className="space-y-1.5">
               <Label>Folder name</Label>
               <Input value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
                 autoFocus placeholder="e.g. Lecture Slides"
-                onKeyDown={(e) => { if (e.key === "Enter" && newFolderName.trim()) createFolder.mutate({ name: newFolderName.trim(), subheading: null }); }} />
+                onKeyDown={(e) => { if (e.key === "Enter" && newFolderName.trim()) createFolder.mutate({ name: newFolderName.trim(), parentId: newFolderParentId }); }} />
             </div>
             <Button className="w-full" disabled={!newFolderName.trim() || createFolder.isPending}
-              onClick={() => createFolder.mutate({ name: newFolderName.trim(), subheading: null })}>
+              onClick={() => createFolder.mutate({ name: newFolderName.trim(), parentId: newFolderParentId })}>
               {createFolder.isPending ? "Creating…" : "Create folder"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Add subheading */}
-      <Dialog open={addSubheadingOpen} onOpenChange={setAddSubheadingOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>New subheading</DialogTitle></DialogHeader>
-          <div className="space-y-3 pt-2">
-            <div className="space-y-1.5">
-              <Label>Subheading name</Label>
-              <Input value={newSubheading} onChange={(e) => setNewSubheading(e.target.value)}
-                autoFocus placeholder="e.g. Core Curriculum" />
-            </div>
-            <Button className="w-full"
-              disabled={!newSubheading.trim() || createSubheading.isPending}
-              onClick={() => createSubheading.mutate(newSubheading.trim())}>
-              {createSubheading.isPending ? "Adding…" : "Add subheading"}
             </Button>
           </div>
         </DialogContent>
@@ -1173,40 +1020,25 @@ export function DriveBrowser({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Move {moveTargetIds.length || selectedCount} item{(moveTargetIds.length || selectedCount) === 1 ? "" : "s"}</DialogTitle>
-            <DialogDescription>Choose a destination folder or subheading.</DialogDescription>
+            <DialogDescription>Choose where they should go.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-1 max-h-72 overflow-y-auto">
+          <div className="max-h-72 space-y-1 overflow-y-auto">
             <button
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-secondary text-left text-sm"
-              onClick={() => {
-                const fileIds = moveTargetIds.length ? moveTargetIds : selectedFiles.map((r) => r.id);
-                const folderIds = moveTargetIds.length ? [] : selectedFolders.map((f) => f.id);
-                moveItemsToTarget({ fileIds, folderIds }, { folderId: null, subheading: null })
-                  .then(() => { toast.success("Moved"); setMoveDialogOpen(false); setMoveTargetIds([]); clearSelection(); });
-              }}>
-              <FileText className="h-4 w-4" /> Ungrouped (top of section)
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
+              onClick={() => runMove(null)}
+            >
+              <FileText className="h-4 w-4" /> {subsection.name} (top of section)
             </button>
-            {allSubheadings.map((sh) => (
-              <button key={`sh-${sh}`}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-secondary text-left text-sm"
-                onClick={() => {
-                  const fileIds = moveTargetIds.length ? moveTargetIds : selectedFiles.map((r) => r.id);
-                  const folderIds = moveTargetIds.length ? [] : selectedFolders.map((f) => f.id);
-                  moveItemsToTarget({ fileIds, folderIds }, { folderId: null, subheading: sh })
-                    .then(() => { toast.success("Moved"); setMoveDialogOpen(false); setMoveTargetIds([]); clearSelection(); });
-                }}>
-                <ChevronRight className="h-4 w-4" /> {sh}
-              </button>
-            ))}
-            {folders.map((f) => (
-              <button key={f.id}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-md hover:bg-secondary text-left text-sm"
-                onClick={() => {
-                  const fileIds = moveTargetIds.length ? moveTargetIds : selectedFiles.map((r) => r.id);
-                  moveItemsToTarget({ fileIds, folderIds: [] }, { folderId: f.id, subheading: (f as any).subheading ?? null })
-                    .then(() => { toast.success("Moved"); setMoveDialogOpen(false); setMoveTargetIds([]); clearSelection(); });
-                }}>
-                <FolderClosed className="h-4 w-4 text-rule" /> {f.name}
+            {moveTargets.map(({ folder, depth, allowed }) => (
+              <button
+                key={folder.id}
+                disabled={!allowed}
+                title={allowed ? undefined : "A folder cannot go inside itself"}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
+                style={{ paddingLeft: `${12 + depth * 18}px` }}
+                onClick={() => runMove(folder.id)}
+              >
+                <FolderClosed className="h-4 w-4 shrink-0 text-rule" /> {folder.name}
               </button>
             ))}
           </div>
@@ -1251,10 +1083,9 @@ function SortHeader({
 }
 
 function Section({
-  id, label, children, activeDropId, empty,
+  id, children, activeDropId, empty,
 }: {
   id: string;
-  label: string | null;
   children?: React.ReactNode;
   activeDropId: string | null;
   empty: boolean;
@@ -1278,40 +1109,66 @@ function Section({
   );
 }
 
+/**
+ * The trail from the section down to the folder you are inside.
+ *
+ * It used to be one step, because a folder could only ever be one step from
+ * the section. With folders inside folders it has to be the whole path, and
+ * each crumb is its own drop target — dragging a file onto "Curriculum"
+ * halfway along the trail moves it there, which is how you get something back
+ * out of a branch you have gone too deep into.
+ *
+ * At the section root there is nothing to trace: the crumb would repeat the
+ * heading directly above it.
+ */
 function Breadcrumb({
-  subsectionName, currentFolderName, onClickRoot, activeDropId,
+  subsectionName, path, onNavigate, activeDropId,
 }: {
   subsectionName: string;
-  currentFolderName: string | null;
-  onClickRoot: () => void;
+  path: { id: string; name: string }[];
+  onNavigate: (folderId: string | null) => void;
   activeDropId: string | null;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: "breadcrumb-root" });
-  const active = currentFolderName && (isOver || activeDropId === "breadcrumb-root");
-
-  // At the root there is nothing to trace: the crumb would just repeat the
-  // section heading directly above it, which is the duplicate line the design
-  // does not have. It earns its place once you are inside a folder — and its
-  // drop target was only ever attached then anyway, so nothing is lost.
-  if (!currentFolderName) return null;
-
+  if (!path.length) return null;
   return (
-    <div className="flex items-center gap-1 text-sm">
-      <button
-        ref={currentFolderName ? setNodeRef : undefined}
-        onClick={onClickRoot}
-        className={`px-2 py-1 rounded-md font-medium transition-colors
-          ${active ? "bg-accent ring-1 ring-rule text-accent-deep" : currentFolderName ? "text-muted-foreground hover:bg-secondary hover:text-foreground" : "text-foreground"}`}
-      >
-        {subsectionName}
-      </button>
-      {currentFolderName && (
-        <>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="px-2 py-1 font-medium">{currentFolderName}</span>
-        </>
-      )}
-    </div>
+    <nav aria-label="Folder path" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
+      <Crumb id="root" label={subsectionName} onClick={() => onNavigate(null)} activeDropId={activeDropId} />
+      {path.map((folder, index) => {
+        const last = index === path.length - 1;
+        return (
+          <span key={folder.id} className="flex min-w-0 items-center gap-1">
+            <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+            {last ? (
+              <span className="truncate font-semibold" aria-current="page">{folder.name}</span>
+            ) : (
+              <Crumb id={folder.id} label={folder.name} onClick={() => onNavigate(folder.id)} activeDropId={activeDropId} />
+            )}
+          </span>
+        );
+      })}
+    </nav>
+  );
+}
+
+function Crumb({
+  id, label, onClick, activeDropId,
+}: {
+  id: string;
+  label: string;
+  onClick: () => void;
+  activeDropId: string | null;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `crumb:${id}` });
+  const active = isOver || activeDropId === `crumb:${id}`;
+  return (
+    <button
+      ref={setNodeRef}
+      type="button"
+      onClick={onClick}
+      className={`truncate px-1 transition-colors hover:text-foreground ${active ? "bg-accent text-accent-deep" : "text-muted-foreground"}`}
+    >
+      {label}
+    </button>
   );
 }
 

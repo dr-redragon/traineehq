@@ -7,6 +7,7 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { ContactCard } from "@/components/ContactCard";
 import { SpecialtyDiscussionPreview } from "@/components/SpecialtyDiscussionPreview";
 import { SpecialtyNoticeBoard } from "@/components/SpecialtyNoticeBoard";
+import { SectionsEditor } from "@/components/SectionsEditor";
 import { DriveBrowser } from "@/components/drive/DriveBrowser";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -20,7 +21,7 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Users, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Settings2, Users, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import { toast } from "sonner";
 import { useCanManageSpecialty } from "@/hooks/useUserRole";
@@ -48,6 +49,7 @@ const SpecialtyDetail = () => {
 
   // Subsection management state
   const [addSubOpen, setAddSubOpen] = useState(false);
+  const [sectionsEditorOpen, setSectionsEditorOpen] = useState(false);
   const [newSubName, setNewSubName] = useState("");
   const [renameSubId, setRenameSubId] = useState<string | null>(null);
   const [renameSubName, setRenameSubName] = useState("");
@@ -162,24 +164,6 @@ const SpecialtyDetail = () => {
         .select("*")
         .in("subsection_id", subsectionIds)
         .order("sort_order");
-      if (error) throw error;
-      return data;
-    },
-    enabled: subsectionIds.length > 0,
-  });
-
-  // The list of subheadings a subsection has. Distinct from the `subheading`
-  // string on each resource, which stays the thing that assigns one.
-  const { data: resourceSubheadings } = useQuery({
-    queryKey: ["resource-subheadings", id, subsectionIds],
-    queryFn: async () => {
-      if (!subsectionIds.length) return [];
-      const { data, error } = await supabase
-        .from("resource_subheadings")
-        .select("*")
-        .in("subsection_id", subsectionIds)
-        .order("sort_order")
-        .returns<{ id: string; subsection_id: string; name: string; sort_order: number }[]>();
       if (error) throw error;
       return data;
     },
@@ -409,18 +393,8 @@ const SpecialtyDetail = () => {
         >
           <div className="grid lg:grid-cols-[244px_minmax(0,1fr)]">
             <div className="border-b-2 border-border py-5 lg:border-b-0 lg:border-r-2">
-              <div className="flex items-baseline justify-between gap-2 px-5 pb-2.5">
+              <div className="px-5 pb-2.5">
                 <p className="ds-kicker">Categories</p>
-                {canManage && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="-mr-1 h-6 gap-1 px-1.5 text-[11px]"
-                    onClick={() => setAddSubOpen(true)}
-                  >
-                    <Plus className="h-3 w-3" /> Section
-                  </Button>
-                )}
               </div>
               <TabsList className="ds-subrail tabs-scrollbar flex h-auto w-full flex-row items-stretch gap-0 overflow-x-auto border-b-0 p-0 lg:flex-col lg:overflow-visible">
                 {canManage && subsections?.length ? (
@@ -455,6 +429,20 @@ const SpecialtyDetail = () => {
                   </span>
                   <span className="shrink-0 text-[12px] font-normal text-muted-foreground">{contacts?.length ?? 0}</span>
                 </TabsTrigger>
+                {/* In the rail rather than in its header, because it belongs
+                    with the sections it edits. Drawn as a row like the rest,
+                    held quieter so it reads as the way out of the list rather
+                    than another place in it. */}
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => setSectionsEditorOpen(true)}
+                    className="flex w-full items-center gap-1.5 px-5 py-2.5 text-left text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Settings2 className="h-3 w-3 shrink-0" />
+                    Edit sections
+                  </button>
+                )}
               </TabsList>
             </div>
 
@@ -466,7 +454,6 @@ const SpecialtyDetail = () => {
               .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
 
             const subFolders = (resourceFolders ?? []).filter((f) => f.subsection_id === sub.id);
-            const subSubheadings = (resourceSubheadings ?? []).filter((h) => h.subsection_id === sub.id);
 
             return (
               <TabsContent key={sub.id} value={sub.name} className="mt-0 space-y-2">
@@ -514,7 +501,6 @@ const SpecialtyDetail = () => {
                   openFolderId={searchParams.get("subsection") === sub.id ? searchParams.get("folder") : null}
                   resources={subResources}
                   folders={subFolders}
-                  subheadings={subSubheadings}
                   canManage={!!canManage}
                 />
               </TabsContent>
@@ -578,6 +564,38 @@ const SpecialtyDetail = () => {
       </Dialog>
 
       {/* Rename Section Dialog */}
+      <SectionsEditor
+        open={sectionsEditorOpen}
+        onOpenChange={setSectionsEditorOpen}
+        sections={(subsections ?? []).map((sub) => ({ id: sub.id, name: sub.name }))}
+        countOf={countOf}
+        busy={reorderSubsections.isPending || addSubsection.isPending}
+        onAdd={(name) => addSubsection.mutate(name)}
+        onRename={(section) => {
+          setSectionsEditorOpen(false);
+          setRenameSubId(section.id);
+          setRenameSubName(section.name);
+        }}
+        onDelete={(section) => {
+          setSectionsEditorOpen(false);
+          const others = (subsections ?? []).filter((s) => s.id !== section.id);
+          setDeleteSubId(section.id);
+          setDeleteAction(others.length > 0 ? "move" : "delete");
+          setMoveTargetId(others[0]?.id ?? "");
+        }}
+        onReorder={(ordered) => {
+          const updates = ordered.map((s, i) => ({ id: s.id, sort_order: i }));
+          queryClient.setQueryData(
+            ["subsections", id],
+            ordered.map((s, i) => ({
+              ...(subsections ?? []).find((x) => x.id === s.id),
+              sort_order: i,
+            })),
+          );
+          reorderSubsections.mutate(updates);
+        }}
+      />
+
       <Dialog open={!!renameSubId} onOpenChange={(o) => { if (!o) { setRenameSubId(null); setRenameSubName(""); } }}>
         <DialogContent>
           <DialogHeader>

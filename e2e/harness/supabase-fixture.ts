@@ -51,7 +51,7 @@ const specOf = (id: string) => SPECIALTIES.find((s) => s.id === id);
 const RESOURCES = [
   { id: "r-1", title: "JCST Curriculum 2026 — ENT", resource_type: "pdf", subsection_id: "sub-1", created_at: "2026-09-02T09:00:00Z", description: "The current curriculum, with the 2026 amendments marked up.", url: null, file_path: null, folder_id: null, file_size: 2517000, updated_at: "2026-09-14T09:00:00Z" },
   { id: "r-2", title: "Grommet insertion — step by step", resource_type: "video", subsection_id: "sub-2", created_at: "2026-08-28T09:00:00Z", description: "Recorded at a regional teaching day.", url: null, file_path: null, folder_id: null, file_size: 88000, updated_at: "2026-09-10T09:00:00Z" },
-  { id: "r-3", title: "Section 1 question bank", resource_type: "link", subsection_id: "sub-3", created_at: "2026-08-21T09:00:00Z", description: null, url: "https://example.invalid/bank", file_path: null, folder_id: "fd-2", file_size: null, updated_at: "2026-09-16T09:00:00Z" },
+  { id: "r-3", title: "Section 1 question bank", resource_type: "link", subsection_id: "sub-3", created_at: "2026-08-21T09:00:00Z", description: null, url: "https://example.invalid/bank", file_path: null, folder_id: "fd-6", file_size: null, updated_at: "2026-09-16T09:00:00Z" },
   { id: "r-4", title: "ENT UK tonsillectomy guideline", resource_type: "document", subsection_id: "sub-4", created_at: "2026-08-14T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 317000, updated_at: "2026-09-05T09:00:00Z" },
   { id: "r-5", title: "Regional audit template", resource_type: "checklist", subsection_id: "sub-5", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: "fd-1", file_size: 47000, updated_at: "2026-08-20T09:00:00Z" },
   // In the withdrawn specialty, and so unfindable. Its title shares the word
@@ -79,11 +79,17 @@ const withSub = <T extends { subsection_id: string }>(r: T) => {
   return { ...r, subsections: sub ? { specialty_id: sub.specialty_id, specialties: { short_name: spec?.short_name ?? "" } } : null };
 };
 
+// Folders nest now, so the fixture has a branch two deep: Past papers holds
+// two sittings, and one of those holds a file. A single flat level would
+// demonstrate none of the behaviour that matters.
 const FOLDERS = [
-  { id: "fd-1", name: "Audit templates", subsection_id: "sub-5", subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
-  { id: "fd-2", name: "Past papers", subsection_id: "sub-3", subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+  { id: "fd-1", name: "Audit templates", subsection_id: "sub-5", parent_folder_id: null, subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+  { id: "fd-2", name: "Past papers", subsection_id: "sub-3", parent_folder_id: null, subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+  { id: "fd-4", name: "2026 sitting", subsection_id: "sub-3", parent_folder_id: "fd-2", subheading: null, sort_order: 1, created_at: "2026-08-02T09:00:00Z", updated_at: "2026-09-01T09:00:00Z" },
+  { id: "fd-5", name: "2025 sitting", subsection_id: "sub-3", parent_folder_id: "fd-2", subheading: null, sort_order: 2, created_at: "2026-08-02T09:00:00Z", updated_at: "2026-08-02T09:00:00Z" },
+  { id: "fd-6", name: "Section 1", subsection_id: "sub-3", parent_folder_id: "fd-4", subheading: null, sort_order: 1, created_at: "2026-08-03T09:00:00Z", updated_at: "2026-08-03T09:00:00Z" },
   // In the withdrawn specialty, so it must stay unfindable.
-  { id: "fd-3", name: "Cataract audit archive", subsection_id: "sub-6", subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+  { id: "fd-3", name: "Cataract audit archive", subsection_id: "sub-6", parent_folder_id: null, subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
 ];
 
 const DISCUSSIONS = [

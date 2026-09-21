@@ -18,17 +18,14 @@ interface EditResourceDialogProps {
   resource: Tables<"resources">;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  existingSubheadings?: string[];
 }
 
-export function EditResourceDialog({ resource, open, onOpenChange, existingSubheadings = [] }: EditResourceDialogProps) {
+export function EditResourceDialog({ resource, open, onOpenChange }: EditResourceDialogProps) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(resource.title);
   const [description, setDescription] = useState(resource.description ?? "");
   const [resourceType, setResourceType] = useState(resource.resource_type);
   const [externalUrl, setExternalUrl] = useState(resource.external_url ?? "");
-  const [subheading, setSubheading] = useState((resource as any).subheading ?? "none");
-  const [customSubheading, setCustomSubheading] = useState("");
   const [subsectionId, setSubsectionId] = useState(resource.subsection_id);
   const [file, setFile] = useState<File | null>(null);
   const [removeFile, setRemoveFile] = useState(false);
@@ -65,8 +62,6 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
       setDescription(resource.description ?? "");
       setResourceType(resource.resource_type);
       setExternalUrl(resource.external_url ?? "");
-      setSubheading((resource as any).subheading ?? "none");
-      setCustomSubheading("");
       setSubsectionId(resource.subsection_id);
       setFile(null);
       setRemoveFile(false);
@@ -115,7 +110,6 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
         fileUrl = null;
       }
 
-      const finalSubheading = subheading === "__new__" ? customSubheading.trim() : (subheading === "none" ? null : subheading);
 
       const { error } = await supabase.from("resources").update({
         title: title.trim(),
@@ -123,7 +117,6 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
         resource_type: resourceType as any,
         external_url: externalUrl.trim() || null,
         file_url: fileUrl,
-        subheading: finalSubheading,
         subsection_id: subsectionId,
         // Keep the displayed size in step with the file actually stored.
         file_size: file ? file.size : (removeFile ? null : (resource as any).file_size),
@@ -237,27 +230,6 @@ export function EditResourceDialog({ resource, open, onOpenChange, existingSubhe
             </div>
           )}
 
-          <div className="space-y-1.5">
-            <Label>Subheading (optional)</Label>
-            <Select value={subheading} onValueChange={setSubheading}>
-              <SelectTrigger><SelectValue placeholder="No subheading" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">No subheading</SelectItem>
-                {existingSubheadings.map((sh) => (
-                  <SelectItem key={sh} value={sh}>{sh}</SelectItem>
-                ))}
-                <SelectItem value="__new__">+ Create new subheading</SelectItem>
-              </SelectContent>
-            </Select>
-            {subheading === "__new__" && (
-              <Input
-                value={customSubheading}
-                onChange={(e) => setCustomSubheading(e.target.value)}
-                placeholder="Enter new subheading name…"
-                className="mt-1.5"
-              />
-            )}
-          </div>
           <Button
             className="w-full"
             onClick={() => updateResource.mutate()}

@@ -575,6 +575,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          parent_folder_id: string | null
           sort_order: number | null
           subheading: string | null
           subsection_id: string
@@ -584,6 +585,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          parent_folder_id?: string | null
           sort_order?: number | null
           subheading?: string | null
           subsection_id: string
@@ -593,6 +595,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          parent_folder_id?: string | null
           sort_order?: number | null
           subheading?: string | null
           subsection_id?: string
