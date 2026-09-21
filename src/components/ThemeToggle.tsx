@@ -1,5 +1,4 @@
-import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/useTheme";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,19 +16,18 @@ const OPTIONS = [
  *
  * "System" is offered as a real choice rather than just the starting value: on a
  * phone set to switch at dusk, a teaching day that runs into the evening should
- * follow the phone rather than stay on whatever was picked at lunchtime.
+ * follow the phone rather than stay on whatever was picked at lunchtime. Pick
+ * light or dark and the device is not consulted again.
  *
  * `resolvedTheme` is what is actually on screen, `theme` is what was chosen —
  * they differ under "system", so the tick marks the choice while the icon shows
  * the result.
+ *
+ * The choice is saved to the account, so it follows the reader to any device
+ * they sign in on. See src/hooks/useTheme.tsx.
  */
 export function ThemeToggle() {
   const { theme, resolvedTheme, setTheme } = useTheme();
-
-  // next-themes cannot know the resolved theme until it has read the document,
-  // so the first render would otherwise guess and flip the icon a moment later.
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
 
   const Icon = resolvedTheme === "dark" ? Moon : Sun;
   const chosen = OPTIONS.find((o) => o.value === theme)?.label ?? "System";
@@ -40,11 +38,9 @@ export function ThemeToggle() {
         <Button
           variant="ghost"
           size="icon"
-          aria-label={`Change theme (currently ${ready ? chosen.toLowerCase() : "loading"})`}
+          aria-label={`Change theme (currently ${chosen.toLowerCase()})`}
         >
-          {/* Held invisible rather than unmounted, so the header does not
-              reflow the moment the theme resolves. */}
-          <Icon className={`h-4 w-4 transition-opacity ${ready ? "opacity-100" : "opacity-0"}`} />
+          <Icon className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-36">
@@ -56,7 +52,7 @@ export function ThemeToggle() {
           >
             <OptionIcon className="h-4 w-4 text-muted-foreground" />
             <span className="flex-1">{label}</span>
-            {ready && theme === value && <span aria-hidden="true">✓</span>}
+            {theme === value && <span aria-hidden="true">✓</span>}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>

@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { supabase } from "@/integrations/supabase/client";
-import { useCurrentUser } from "@/hooks/useUserRole";
+import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import {
   DEFAULT_SCHEME, SCHEME_CLASSES, SCHEME_STORAGE_KEY, isKnownScheme,
 } from "@/lib/colorSchemes";
@@ -10,8 +8,15 @@ import {
 /** Put the scheme on <html>, where `.dark` and `.register-theme` also live. */
 function applyScheme(id: string) {
   const el = document.documentElement;
-  el.classList.remove(...SCHEME_CLASSES);
-  el.classList.add(`scheme-${id}`);
+  const wanted = `scheme-${id}`;
+  // Nothing is removed unless it has to be. The old version stripped every
+  // scheme class and added one back on each call, which briefly left the root
+  // with no scheme at all — the same shape of bug as the theme flicker, one
+  // repaint away from showing the base palette instead of the chosen one.
+  for (const cls of SCHEME_CLASSES) {
+    if (cls !== wanted) el.classList.remove(cls);
+  }
+  el.classList.add(wanted);
 }
 
 function readCache(): string | null {
@@ -38,7 +43,8 @@ function writeCache(id: string) {
  *
  * The account is the record: a trainee opens this from a ward machine, a
  * laptop and a phone, and the colour should be theirs rather than the
- * device's. It lives in `profiles.color_scheme`.
+ * device's. It lives in `profiles.color_scheme`, alongside `profiles.theme`,
+ * and both arrive on the single profile read in useProfile.
  *
  * The browser copy is still there, but only as a CACHE. The profile cannot be
  * fetched before the page is painted, so index.html reads localStorage inline
@@ -51,46 +57,19 @@ function writeCache(id: string) {
  * on the account is not thrown away on the device that made it.
  */
 export function useColorScheme() {
-  const { data: user } = useCurrentUser();
-  const queryClient = useQueryClient();
+  const { data: profile, isSuccess } = useProfile();
+  const save = useUpdateProfile();
   const [scheme, setSchemeState] = useState<string>(() => readCache() ?? DEFAULT_SCHEME);
-
-  const { data: stored, isSuccess } = useQuery({
-    queryKey: ["color-scheme", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("color_scheme")
-        .eq("user_id", user!.id)
-        .single();
-      if (error) throw error;
-      return data?.color_scheme ?? null;
-    },
-    enabled: !!user,
-  });
 
   // The account's answer arrives after first paint and overrides the cache.
   useEffect(() => {
     if (!isSuccess) return;
+    const stored = profile?.color_scheme;
     const next = isKnownScheme(stored) ? stored : readCache() ?? DEFAULT_SCHEME;
     setSchemeState(next);
     applyScheme(next);
     writeCache(next);
-  }, [isSuccess, stored]);
-
-  const save = useMutation({
-    mutationFn: async (id: string) => {
-      if (!user) return;
-      const { error } = await supabase
-        .from("profiles")
-        .update({ color_scheme: id })
-        .eq("user_id", user.id);
-      if (error) throw error;
-    },
-    // Written straight into the cache rather than invalidated: a refetch would
-    // briefly hand back the old value and flicker the whole page back.
-    onSuccess: (_data, id) => queryClient.setQueryData(["color-scheme", user?.id], id),
-  });
+  }, [isSuccess, profile?.color_scheme]);
 
   const setScheme = useCallback(
     (id: string) => {
@@ -101,7 +80,7 @@ export function useColorScheme() {
       setSchemeState(id);
       applyScheme(id);
       writeCache(id);
-      save.mutate(id);
+      save.mutate({ color_scheme: id });
     },
     [save],
   );

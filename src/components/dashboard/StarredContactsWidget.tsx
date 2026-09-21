@@ -2,13 +2,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
-import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
+import { WidgetSection, WidgetEmpty, WidgetSkeleton } from "@/components/dashboard/WidgetSection";
 import { Star, Mail, Building2 } from "lucide-react";
 
 export function StarredContactsWidget() {
   const { data: user } = useCurrentUser();
 
-  const { data: starred } = useQuery({
+  const { data: starred, isPending } = useQuery({
     queryKey: ["my-starred-contacts", user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -25,6 +25,14 @@ export function StarredContactsWidget() {
   });
 
   
+
+  if (!user || isPending) {
+    return (
+      <WidgetSection icon={Star} title="Key Contacts">
+        <WidgetSkeleton rows={2} />
+      </WidgetSection>
+    );
+  }
 
   if (!starred?.length) {
     return (

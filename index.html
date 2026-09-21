@@ -25,34 +25,40 @@
     <!-- The theme and the accent scheme, both applied before first paint.
 
          Inline and synchronous on purpose: a module script would run too late.
+         The served HTML of a Vite SPA is a near-empty shell, so anything in
+         the React tree cannot run until the bundle has downloaded, parsed and
+         mounted. Until then <html> carries no `dark` class and the page paints
+         the light tokens — measured at roughly 800ms of light frames on a
+         6x-throttled CPU before flipping. The window is imperceptible on a
+         fast machine with a warm cache and very visible on a slow one, so the
+         same person sees it only sometimes.
 
-         next-themes cannot do the dark half of this on its own here. In a Next
-         app it injects a blocking script into the served HTML; in a Vite SPA
-         the served HTML is a near-empty shell and its script is part of the
-         React tree, so it cannot run until the bundle has downloaded, parsed
-         and mounted. Until then <html> carries no `dark` class and the page
-         paints the light tokens — measured at roughly 800ms of light frames on
-         a 6x-throttled CPU before flipping. That is the "random flicker": the
-         window is imperceptible on a fast machine with a warm cache and very
-         visible on a slow one, so the same person sees it only sometimes.
+         Both values are read from the browser copies, which are caches of what
+         is on the account: the record is `profiles.theme` and
+         `profiles.color_scheme`, which cannot be fetched before the page is
+         drawn. src/hooks/useTheme.tsx and src/hooks/useColorScheme.ts
+         reconcile the two the moment the profile lands, and normally have
+         nothing to change.
 
-         next-themes agrees with whatever this sets, so it has nothing to
-         change on mount and there is no second flip. Both halves are
-         deliberately defensive: if storage throws or the value is junk, the
-         default stands rather than the page breaking.
+         Both halves are deliberately defensive: if storage throws or the value
+         is junk, the default stands rather than the page breaking.
 
-         The keys match: "theme" is next-themes' default storageKey, and
-         SCHEME_STORAGE_KEY lives in src/lib/colorSchemes.ts. -->
+         The keys match THEME_STORAGE_KEY in src/lib/theme.ts and
+         SCHEME_STORAGE_KEY in src/lib/colorSchemes.ts. -->
     <script>
       (function () {
         var root = document.documentElement;
 
-        // Light or dark. "system" is the default, matching the ThemeProvider.
+        // Light or dark. "system" is the default, matching DEFAULT_THEME. The
+        // device is only consulted under "system": an explicit choice is final,
+        // here and in the app, which is what stops the two disagreeing.
         try {
           var stored = localStorage.getItem("theme") || "system";
           var dark = stored === "dark" || (stored === "system" &&
             window.matchMedia("(prefers-color-scheme: dark)").matches);
-          if (dark) root.classList.add("dark");
+          // toggle, not add: the same idempotent write the app makes, so
+          // nothing ever sees <html> between having the class and not.
+          root.classList.toggle("dark", dark);
           // Tells the browser to draw its own furniture — scrollbars, form
           // controls, the canvas behind the page — to match, so those do not
           // flash white while the rest of the page is already dark.

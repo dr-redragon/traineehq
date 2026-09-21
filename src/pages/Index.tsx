@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getIcon } from "@/lib/iconMap";
 import { useCurrentUser } from "@/hooks/useUserRole";
+import { useProfile } from "@/hooks/useProfile";
 import { useDeanery } from "@/contexts/DeaneryContext";
 import { useDashboardPreferences, type WidgetId } from "@/hooks/useDashboardPreferences";
 import { BookmarksWidget } from "@/components/dashboard/BookmarksWidget";
@@ -70,15 +71,9 @@ const Index = () => {
 
   const sensors = useDragSensors();
 
-  const { data: profile } = useQuery({
-    queryKey: ["my-profile", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase.from("profiles").select("first_name").eq("user_id", user.id).single();
-      return data;
-    },
-    enabled: !!user,
-  });
+  // The greeting's name comes off the shared profile read rather than a
+  // fourth SELECT of the same row.
+  const { data: profile, isPending: profilePending } = useProfile();
 
   const { data: announcements } = useQuery({
     queryKey: ["active-announcements", activeDeanery?.id],
@@ -93,7 +88,11 @@ const Index = () => {
     },
   });
 
-  const firstName = profile?.first_name || "Trainee";
+  // No stand-in name while the profile is in flight. Greeting somebody as
+  // "Trainee" for a second and then correcting it to their own name reads as
+  // the page not knowing who they are; "Welcome back" on its own is true the
+  // whole time, and the name is added when it is known.
+  const firstName = profile?.first_name?.trim() || (profilePending ? null : "Trainee");
 
   // Compute visible widgets (excluding announcements and hidden)
   const allVisible = layout.filter((w) => !hiddenWidgets.includes(w) && w !== "announcements");
@@ -319,7 +318,7 @@ const Index = () => {
               {activeDeanery?.name ?? ""} HST Training Hub
             </p>
             <h1 className="mt-3 font-display text-[clamp(34px,5.2vw,62px)] font-extrabold leading-[0.95] tracking-[-0.035em]">
-              Welcome back, {firstName}
+              Welcome back{firstName ? `, ${firstName}` : ""}
             </h1>
           </div>
           {/* Outlined in the field's own foreground: an ordinary secondary
