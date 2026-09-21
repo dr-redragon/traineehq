@@ -57,6 +57,11 @@ const RESOURCES = [
   // In the withdrawn specialty, and so unfindable. Its title shares the word
   // "audit" with r-5 above, which is the point: searching "audit" must return
   // the one and not the other.
+  // A section with enough in it to show ordering, sizes and dates doing
+  // something — one file per section demonstrated neither.
+  { id: "r-7", title: "Week 10 — Airway workshop", resource_type: "video", subsection_id: "sub-1", created_at: "2026-09-01T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 412000000, updated_at: "2026-09-19T09:00:00Z" },
+  { id: "r-8", title: "Week 2 — Head and neck anatomy", resource_type: "pdf", subsection_id: "sub-1", created_at: "2026-08-02T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 1800000, updated_at: "2026-06-04T09:00:00Z" },
+  { id: "r-9", title: "ENT emergencies — quick reference", resource_type: "link", subsection_id: "sub-1", created_at: "2026-07-11T09:00:00Z", description: null, url: "https://example.invalid/ent", file_path: null, folder_id: null, file_size: null, updated_at: "2026-09-20T09:00:00Z" },
   { id: "r-6", title: "Cataract audit template", resource_type: "checklist", subsection_id: "sub-6", created_at: "2026-08-06T09:00:00Z", description: null, url: null, file_path: null, folder_id: null, file_size: 51000, updated_at: "2026-08-20T09:00:00Z" },
 ];
 

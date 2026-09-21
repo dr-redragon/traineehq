@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import {
   ChevronRight, FolderPlus, ListPlus, Upload, Plus, X, Trash2, Download,
   FolderInput, CheckSquare, ListChecks, FolderClosed, FileText, MoreVertical, ArrowLeft,
+  ArrowUp, ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FileRow, FolderRow } from "@/components/drive/DriveRow";
@@ -30,6 +31,9 @@ import { UploadProgressBar } from "@/components/UploadProgressBar";
 import { AddResourceDialog } from "@/components/AddResourceDialog";
 import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
 import { planReorder } from "@/lib/resourceOrdering";
+import {
+  ariaSortFor, nextSort, sortItems, type SortKey, type SortState,
+} from "@/lib/driveSort";
 import { uploadErrorMessage, removeStoredFiles } from "@/lib/storageUtils";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -111,6 +115,10 @@ export function DriveBrowser({
   useEffect(() => {
     if (openFolderId) setCurrentFolderId(openFolderId);
   }, [openFolderId]);
+  // Null means the hand-arranged order, which is what drag-and-drop writes and
+  // what this list has always shown. A column click is a temporary view over
+  // that rather than a replacement for it.
+  const [sort, setSort] = useState<SortState | null>(null);
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false); // "Select" pressed: tapping a row ticks it
 
@@ -164,6 +172,33 @@ export function DriveBrowser({
     [subheadings, detectedSubheadings]
   );
 
+  /* ---------- Ordering ---------- */
+  const sortFiles = (rows: Tables<"resources">[]) =>
+    sortItems(
+      rows.map((r) => ({
+        kind: "file" as const,
+        name: r.title,
+        type: r.resource_type as string | null,
+        size: r.file_size,
+        updated: r.updated_at,
+        sortOrder: r.sort_order,
+        row: r,
+      })),
+      sort,
+    ).map((i) => i.row);
+
+  const sortFolders = (rows: Tables<"resource_folders">[]) =>
+    sortItems(
+      rows.map((f) => ({
+        kind: "folder" as const,
+        name: f.name,
+        updated: f.updated_at,
+        sortOrder: f.sort_order,
+        row: f,
+      })),
+      sort,
+    ).map((i) => i.row);
+
   /* ---------- Selection helpers ---------- */
   const visibleIds: string[] = useMemo(() => {
     if (currentFolder) {
@@ -208,6 +243,8 @@ export function DriveBrowser({
     setSelection(new Set([id]));
     setLastClickedId(id);
   };
+
+  const toggleSort = (key: SortKey) => setSort((current) => nextSort(current, key));
 
   const clearSelection = () => setSelection(new Set());
   const exitSelectMode = () => { setSelectMode(false); setSelection(new Set()); };
@@ -421,6 +458,18 @@ export function DriveBrowser({
    * rather than report a move that did not happen.
    */
   const reorderOntoRow = async (overResourceId: string, activeId: string) => {
+    // Dropping one row onto another means "put it here", and here is only a
+    // place in the hand-arranged order. While a column sort is on, the
+    // positions on screen are not that order, so applying the drop would
+    // silently rewrite it to match a temporary view. Drive solves this by not
+    // letting you drag at all when sorted; saying so is friendlier.
+    if (sort) {
+      toast.info("Turn off sorting to rearrange", {
+        description: "Click the highlighted column heading again to go back to the arranged order.",
+      });
+      return false;
+    }
+
     // Drag the whole selection when the dragged row is part of it, matching how
     // a drop onto a group behaves; otherwise just the row under the cursor.
     const draggingIds = selection.has(activeId)
@@ -628,17 +677,17 @@ export function DriveBrowser({
 
   /* ---------- Renderers ---------- */
   const renderRoot = () => {
-    const ungroupedFolders = folders.filter((f) => !(f as any).subheading);
-    const ungroupedFiles = resources
-      .filter((r) => !(r as any).folder_id && !(r as any).subheading)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const ungroupedFolders = sortFolders(folders.filter((f) => !(f as any).subheading));
+    const ungroupedFiles = sortFiles(
+      resources.filter((r) => !(r as any).folder_id && !(r as any).subheading),
+    );
 
     const groups = allSubheadings.map((sh) => ({
       name: sh,
-      folders: folders.filter((f) => (f as any).subheading === sh),
-      files: resources
-        .filter((r) => !(r as any).folder_id && (r as any).subheading === sh)
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
+      folders: sortFolders(folders.filter((f) => (f as any).subheading === sh)),
+      files: sortFiles(
+        resources.filter((r) => !(r as any).folder_id && (r as any).subheading === sh),
+      ),
     }));
 
     return (
@@ -769,9 +818,7 @@ export function DriveBrowser({
 
   const renderFolderView = () => {
     if (!currentFolder) return null;
-    const folderRes = resources
-      .filter((r) => (r as any).folder_id === currentFolder.id)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    const folderRes = sortFiles(resources.filter((r) => (r as any).folder_id === currentFolder.id));
     return (
       <Section
         id={`folder:${currentFolder.id}`}
@@ -953,13 +1000,33 @@ export function DriveBrowser({
         />
       )}
 
-      {/* List header */}
-      <div className="flex items-center gap-4 border-b border-foreground/30 border-t-2 border-t-border px-1 py-2.5 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground">
-        <div className="min-w-0 flex-1">Name</div>
-        <div className="hidden w-[110px] shrink-0 sm:block">Type</div>
-        <div className="hidden w-[120px] shrink-0 md:block">Size</div>
-        <div className="hidden w-[110px] shrink-0 text-right lg:block">Updated</div>
+      {/* List header. The headings are buttons: Drive and OneDrive both sort
+          from here, and these had been sitting as plain labels that looked
+          exactly like something you could click. */}
+      <div
+        role="row"
+        className="flex items-center gap-4 border-b border-foreground/30 border-t-2 border-t-border px-1 text-[11px] font-bold uppercase tracking-[0.12em] text-muted-foreground"
+      >
+        <SortHeader sort={sort} column="name" onSort={toggleSort} className="min-w-0 flex-1">Name</SortHeader>
+        <SortHeader sort={sort} column="type" onSort={toggleSort} className="hidden w-[110px] shrink-0 sm:flex">Type</SortHeader>
+        <SortHeader sort={sort} column="size" onSort={toggleSort} className="hidden w-[120px] shrink-0 md:flex">Size</SortHeader>
+        <SortHeader sort={sort} column="updated" onSort={toggleSort} className="hidden w-[110px] shrink-0 justify-end lg:flex">Updated</SortHeader>
       </div>
+
+      {sort && (
+        <p className="px-1 text-[12px] text-muted-foreground">
+          Sorted by {sort.key === "updated" ? "date updated" : sort.key}
+          {sort.dir === "asc" ? ", ascending" : ", descending"}.{" "}
+          <button
+            type="button"
+            className="underline underline-offset-2 hover:text-foreground"
+            onClick={() => setSort(null)}
+          >
+            Back to the arranged order
+          </button>
+          {canManage ? " to drag things around." : "."}
+        </p>
+      )}
 
       {/* Body */}
       <DndContext
@@ -1150,6 +1217,38 @@ export function DriveBrowser({
 }
 
 /* ---------- Subcomponents ---------- */
+
+/**
+ * One clickable column heading.
+ *
+ * The arrow only appears on the column actually in use — a row of four arrows
+ * would say every column is sorted. `aria-sort` carries the same fact to a
+ * screen reader, which is the part a drawn arrow cannot do.
+ */
+function SortHeader({
+  sort, column, onSort, className = "", children,
+}: {
+  sort: SortState | null;
+  column: SortKey;
+  onSort: (key: SortKey) => void;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const active = sort?.key === column;
+  const Arrow = sort?.dir === "desc" ? ArrowDown : ArrowUp;
+  return (
+    <div role="columnheader" aria-sort={ariaSortFor(sort, column)} className={`flex ${className}`}>
+      <button
+        type="button"
+        onClick={() => onSort(column)}
+        className={`flex items-center gap-1 py-2.5 uppercase tracking-[0.12em] transition-colors hover:text-foreground ${active ? "text-foreground" : ""}`}
+      >
+        {children}
+        {active && <Arrow className="h-3 w-3" aria-hidden />}
+      </button>
+    </div>
+  );
+}
 
 function Section({
   id, label, children, activeDropId, empty,
