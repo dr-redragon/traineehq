@@ -277,8 +277,13 @@ function DeleteRegister({ entry }: { entry: RegisterDirectoryEntry }) {
   const confirm = () => {
     deleteRegister.mutate(entry.id, {
       onSuccess: () => {
-        toast.success(`${entry.name} has been deleted`);
-        navigate("/classic_registers");
+        setConfirming(false);
+        // Replace rather than push: the page behind this one is a register
+        // that no longer exists, so Back must not return to it.
+        navigate("/classic-registers", { replace: true });
+        toast.success(`${entry.name} has been deleted.`, {
+          description: "Its trainees, teaching days, attendance and feedback have gone with it.",
+        });
       },
       onError: (error: Error) => toast.error(error.message),
     });

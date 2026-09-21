@@ -89,7 +89,27 @@ export function useInviteToRegister(registerId: string | undefined) {
   );
 }
 
-/** Deleting the whole register. Not scoped to `registerId` up front: the id travels with the call. */
+/**
+ * Deleting the whole register.
+ *
+ * Deliberately not `useRegisterAccessMutation`: that one *invalidates* the
+ * members, requests and people lists, which would send three RPCs asking about
+ * a register that no longer exists while the page is being torn down. Those
+ * caches are dropped instead, and only the directory — which has to lose a row
+ * — is refetched.
+ */
 export function useDeleteRegister() {
-  return useRegisterAccessMutation((registerId: string) => deleteRegister(registerId));
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (registerId: string) => deleteRegister(registerId),
+    onSuccess: () => {
+      for (const key of [
+        "classic-register-members", "classic-register-requests", "classic-register-people",
+        "classic-register-store", "classic-session-status", "classic-form",
+      ]) {
+        queryClient.removeQueries({ queryKey: [key] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["classic-register-directory"] });
+    },
+  });
 }

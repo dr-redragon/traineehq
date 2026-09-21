@@ -236,7 +236,7 @@ export async function inviteToRegister(
       register_id: registerId,
       email: email.trim().toLowerCase(),
       role,
-      redirect_to: `${window.location.origin}/classic_registers`,
+      redirect_to: `${window.location.origin}/classic-registers`,
     },
   });
 
