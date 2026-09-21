@@ -189,7 +189,11 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
                 <span className="shrink-0 text-[11px] font-extrabold uppercase tracking-[0.14em]">
                   Notice
                 </span>
-                <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm">
+                {/* `basis-full` below sm: on a phone the attribution kept its
+                    natural width and squeezed the notice itself into a column
+                    four words wide. Given a full line of its own, the text
+                    reads normally and the attribution drops underneath. */}
+                <p className="min-w-0 flex-1 basis-full whitespace-pre-wrap text-sm sm:basis-auto">
                   <RichText text={notice.content} />
                 </p>
                 <span className="shrink-0 text-[13px] opacity-60">

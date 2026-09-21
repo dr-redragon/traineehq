@@ -392,11 +392,54 @@ const SpecialtyDetail = () => {
           className="w-full"
         >
           <div className="grid lg:grid-cols-[244px_minmax(0,1fr)]">
-            <div className="border-b-2 border-border py-5 lg:border-b-0 lg:border-r-2">
+            <div className="min-w-0 border-b-2 border-border py-5 lg:border-b-0 lg:border-r-2">
               <div className="px-5 pb-2.5">
                 <p className="ds-kicker">Categories</p>
               </div>
-              <TabsList className="ds-subrail tabs-scrollbar flex h-auto w-full flex-row items-stretch gap-0 overflow-x-auto border-b-0 p-0 lg:flex-col lg:overflow-visible">
+
+              {/* On a phone the rail is a dropdown, not a strip.
+                  Laid down as a horizontal strip it ran to 926px inside a
+                  390px screen, so every section past the third was reached by
+                  swiping sideways — and because a grid item's min-width is
+                  `auto`, the strip did not scroll inside its column, it
+                  stretched it, dragging the banner and the notice bands out
+                  with it. `min-w-0` on the column fixes the stretching; this
+                  removes the sideways swipe itself.
+
+                  One control, everything in it, nothing off-screen: the
+                  current section is readable without scrolling and any other
+                  is two taps away. It is also the native picker on a phone,
+                  which is a better target than a 40px-tall tab. */}
+              <div className="flex items-center gap-2 px-5 lg:hidden">
+                <Select value={activeTab ?? defaultTab} onValueChange={setActiveTab}>
+                  <SelectTrigger className="min-w-0 flex-1" aria-label="Choose a section">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subsections?.map((sub) => (
+                      <SelectItem key={sub.id} value={sub.name}>
+                        {sub.name} ({countOf(sub.id)})
+                      </SelectItem>
+                    ))}
+                    <SelectItem value="Key Contacts">
+                      Key Contacts ({contacts?.length ?? 0})
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                {canManage && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label="Edit sections"
+                    onClick={() => setSectionsEditorOpen(true)}
+                  >
+                    <Settings2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              <TabsList className="ds-subrail tabs-scrollbar hidden h-auto w-full flex-row items-stretch gap-0 overflow-x-auto border-b-0 p-0 lg:flex lg:flex-col lg:overflow-visible">
                 {canManage && subsections?.length ? (
                   <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubsectionDragEnd}>
                     <SortableContext items={subsections.map((s) => s.id)} strategy={verticalListSortingStrategy}>

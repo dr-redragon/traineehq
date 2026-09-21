@@ -348,7 +348,7 @@ const Index = () => {
               className="flex flex-wrap items-baseline gap-x-5 gap-y-1 bg-foreground px-9 py-4 text-background"
             >
               <span className="shrink-0 text-[11px] font-extrabold uppercase tracking-[0.14em]">Notice</span>
-              <p className="min-w-0 flex-1 text-sm">
+              <p className="min-w-0 flex-1 basis-full text-sm sm:basis-auto">
                 <span className="font-bold">{a.title}</span>
                 {a.content ? <span className="opacity-90"> — {a.content}</span> : null}
               </p>
