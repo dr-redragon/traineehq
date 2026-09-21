@@ -13,11 +13,14 @@ export function Modal({
   onClose,
   footer,
   children,
+  wide,
 }: {
   title: string;
   onClose: () => void;
   footer?: ReactNode;
   children: ReactNode;
+  /** A form editor needs room for the questions and the preview side by side. */
+  wide?: boolean;
 }) {
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -30,7 +33,12 @@ export function Modal({
       className="modal-back show classic-register"
       onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="modal-card" role="dialog" aria-label={title}>
+      <div
+        className="modal-card"
+        style={wide ? { maxWidth: 960 } : undefined}
+        role="dialog"
+        aria-label={title}
+      >
         <div className="modal-head">
           <h3>{title}</h3>
           <button type="button" className="iconbtn" aria-label="Close" onClick={onClose}>✕</button>

@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { YearTabs } from "@/components/classic/YearTabs";
 import { ChaseDialog } from "@/components/classic/ChaseDialog";
 import { AttendeeProgressList } from "@/components/classic/AttendeeProgressList";
+import { FeedbackFormEditor } from "@/components/classic/FeedbackFormEditor";
+import { Modal } from "@/components/classic/Modal";
 import { setAttendance, upsertSession } from "@/lib/classic/blob";
 import { GRADES } from "@/lib/classic/constants";
 import { isPresent } from "@/lib/classic/attendance";
@@ -50,6 +52,7 @@ export function CheckinPanel({
   const [busy, setBusy] = useState(false);
   const [chasing, setChasing] = useState(false);
   const [autoPublishingId, setAutoPublishingId] = useState<string | null>(null);
+  const [formEditor, setFormEditor] = useState<"template" | "session" | null>(null);
 
   const scoped = year === ALL_YEARS || !years.length
     ? sessionsSorted(blob.sessions)
@@ -179,6 +182,14 @@ export function CheckinPanel({
               Copy form link
             </button>
           )}
+          <button
+            type="button"
+            className="btn ghost sm"
+            style={{ marginTop: 10, marginLeft: 8 }}
+            onClick={() => setFormEditor("template")}
+          >
+            Edit the feedback form template
+          </button>
         </div>
 
         <div>
@@ -318,6 +329,9 @@ export function CheckinPanel({
                   <button type="button" className="btn ghost sm" disabled={busy} onClick={sync}>
                     {busy ? "Working…" : "Sync sign-ins"}
                   </button>
+                  <button type="button" className="btn ghost sm" onClick={() => setFormEditor("session")}>
+                    Edit this day's form
+                  </button>
                 </div>
                 <p className="helper">
                   Syncing works both ways: sign-ins from the QR come into the
@@ -374,6 +388,17 @@ export function CheckinPanel({
           absentees={absentees}
           onClose={() => setChasing(false)}
         />
+      )}
+
+      {formEditor && (
+        <Modal title="Feedback form" onClose={() => setFormEditor(null)} wide>
+          <FeedbackFormEditor
+            registerId={entry.id}
+            sessionId={formEditor === "session" ? active?.cloudId ?? null : null}
+            sessionTitle={active ? `${active.title} — ${formatMonth(active.month)}` : undefined}
+            onClose={() => setFormEditor(null)}
+          />
+        </Modal>
       )}
     </>
   );

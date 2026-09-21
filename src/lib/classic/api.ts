@@ -34,6 +34,7 @@ interface UntypedQuery extends UntypedResult {
   is(column: string, value: unknown): UntypedQuery;
   order(column: string, options?: { ascending?: boolean }): UntypedQuery;
   maybeSingle(): UntypedQuery;
+  delete(): UntypedQuery;
 }
 
 const untyped = supabase as unknown as {
@@ -251,6 +252,18 @@ export async function removeRegisterMember(registerId: string, userId: string): 
     _register_id: registerId,
     _user_id: userId,
   });
+  raise(error);
+}
+
+/**
+ * Delete a register outright — its trainees, sessions, attendance, feedback and
+ * certificates go with it. RLS ("owners delete their register") is the whole
+ * guard: only an owner's row-level policy lets this succeed, and every table
+ * that hangs off `classic_registers` does so `on delete cascade`, so one row
+ * going away takes its entire history with it. There is no undo.
+ */
+export async function deleteRegister(registerId: string): Promise<void> {
+  const { error } = await untyped.from("classic_registers").delete().eq("id", registerId);
   raise(error);
 }
 
