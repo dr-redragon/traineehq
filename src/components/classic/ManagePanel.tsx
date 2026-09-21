@@ -8,8 +8,9 @@ import { GRADES } from "@/lib/classic/constants";
 import { isFormerTrainee } from "@/lib/classic/eligibility";
 import { formatMonth, sessionsSorted } from "@/lib/classic/months";
 import { latestGrade } from "@/lib/classic/attendance";
+import { publishSession } from "@/lib/classic/liveApi";
 import type { ClassicStore } from "@/components/classic/types";
-import type { RegisterTrainee } from "@/lib/classic/types";
+import type { RegisterDirectoryEntry, RegisterTrainee } from "@/lib/classic/types";
 
 /**
  * Trainees & sessions — the two lists everything else is built from.
@@ -20,7 +21,7 @@ import type { RegisterTrainee } from "@/lib/classic/types";
  * deleted: their attendance is still part of the years they were here, and
  * deleting them would silently rewrite those years' figures.
  */
-export function ManagePanel({ store }: { store: ClassicStore }) {
+export function ManagePanel({ store, entry }: { store: ClassicStore; entry: RegisterDirectoryEntry }) {
   const { blob, edit } = store;
 
   const [name, setName] = useState("");
@@ -30,6 +31,7 @@ export function ManagePanel({ store }: { store: ClassicStore }) {
   const [title, setTitle] = useState("");
   const [showFormer, setShowFormer] = useState(false);
   const [editing, setEditing] = useState<RegisterTrainee | null>(null);
+  const [publishing, setPublishing] = useState(false);
 
   const sorted = [...blob.trainees].sort((a, b) => a.name.localeCompare(b.name));
   const current = sorted.filter((t) => !isFormerTrainee(blob, t.id));
@@ -47,10 +49,30 @@ export function ManagePanel({ store }: { store: ClassicStore }) {
     setName(""); setGrade(""); setEmail("");
   };
 
-  const addSession = () => {
+  /**
+   * A teaching day is published the moment it exists — there is no separate
+   * "publish" step to skip or forget. The QR code and the check-in link are
+   * just what a published day looks like, so creating it does both at once.
+   */
+  const addSession = async () => {
     if (!month || !title.trim()) return;
-    edit((b) => upsertSession(b, { id: newId(), month, title: title.trim() }));
-    setMonth(""); setTitle("");
+    const id = newId();
+    const sessionTitle = title.trim();
+    setPublishing(true);
+    try {
+      const { session } = await publishSession({
+        registerId: entry.id,
+        title: sessionTitle,
+        sessionDate: `${month}-01`,
+        localId: id,
+      });
+      edit((b) => upsertSession(b, { id, month, title: sessionTitle, cloudId: session.id }));
+      setMonth(""); setTitle("");
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setPublishing(false);
+    }
   };
 
   const backup = () => {
@@ -170,8 +192,16 @@ export function ManagePanel({ store }: { store: ClassicStore }) {
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
-            <div><button type="button" className="btn primary" onClick={addSession}>Add</button></div>
+            <div>
+              <button type="button" className="btn primary" disabled={publishing} onClick={addSession}>
+                {publishing ? "Publishing…" : "Add"}
+              </button>
+            </div>
           </div>
+          <p className="helper">
+            Adding a teaching day publishes it immediately — its QR code and
+            check-in link are ready as soon as it appears below.
+          </p>
 
           <div style={{ marginTop: 8, maxHeight: 380, overflow: "auto" }}>
             {sessions.length === 0 ? (
