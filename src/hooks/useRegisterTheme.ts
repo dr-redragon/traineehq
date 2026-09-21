@@ -12,8 +12,9 @@ const CLASS = "register-theme";
  * <body>. Scoped to a wrapper, every menu and every toast would have stayed
  * TraineeHQ blue while the page behind it was green.
  *
- * next-themes puts `dark` on that same element, so the two compose: light and
- * dark register palettes are `.register-theme` and `.register-theme.dark`.
+ * The theme puts `dark` on that same element (see src/lib/theme.ts), so the
+ * two compose: light and dark register palettes are `.register-theme` and
+ * `.register-theme.dark`.
  */
 export function useRegisterTheme() {
   useEffect(() => {

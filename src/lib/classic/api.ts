@@ -93,13 +93,17 @@ export async function fetchRegisterStore(registerId: string): Promise<RegisterSt
  * no directory read — it is the cheapest way to ask "do I hold a register".
  */
 export async function fetchMyRegisterMemberships(): Promise<RegisterMember[]> {
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return [];
+  // getSession, not getUser: this is the sidebar asking "does this person hold
+  // a register", on every page, and getUser is a round trip to the auth server
+  // before the one query it gates. The user id only picks the rows to ask for;
+  // row-level security decides what comes back.
+  const { data: auth } = await supabase.auth.getSession();
+  if (!auth.session?.user) return [];
 
   const { data, error } = await untyped
     .from("classic_register_members")
     .select("register_id, user_id, role, granted_by, granted_at")
-    .eq("user_id", auth.user.id);
+    .eq("user_id", auth.session.user.id);
   raise(error);
   return (data ?? []) as RegisterMember[];
 }

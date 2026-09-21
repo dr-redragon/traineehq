@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, type ReactNode } from "
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser, useUserRole } from "@/hooks/useUserRole";
+import { useProfile } from "@/hooks/useProfile";
 
 interface Deanery {
   id: string;
@@ -50,20 +51,10 @@ export function DeaneryProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // Fetch user's profile to get their deanery
-  const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey: ["user-deanery", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data } = await supabase
-        .from("profiles")
-        .select("deanery_id")
-        .eq("user_id", user.id)
-        .single();
-      return data;
-    },
-    enabled: !!user,
-  });
+  // The person's own profile row, which carries their deanery. Shared with
+  // every other reader of that row rather than fetched again here — see
+  // useProfile.
+  const { data: profile, isLoading: profileLoading } = useProfile();
 
   // Set active deanery from profile on load
   useEffect(() => {

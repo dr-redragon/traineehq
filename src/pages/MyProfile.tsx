@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ColorSchemePicker } from "@/components/ColorSchemePicker";
+import { ThemePicker } from "@/components/ThemePicker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -390,12 +391,21 @@ const MyProfile = () => {
               <Palette className="h-5 w-5 text-rule" /> Appearance
             </CardTitle>
             <CardDescription>
-              Choose the accent colour used across the site. Everything else — the
-              paper, the type and the rules — stays as it is.
+              Choose the ground the site is drawn on, and the accent colour used
+              across it. Everything else — the paper, the type and the rules —
+              stays as it is. Both are saved to your account rather than to this
+              browser.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <ColorSchemePicker />
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label>Light or dark</Label>
+              <ThemePicker />
+            </div>
+            <div className="space-y-2">
+              <Label>Accent colour</Label>
+              <ColorSchemePicker />
+            </div>
           </CardContent>
         </Card>
 

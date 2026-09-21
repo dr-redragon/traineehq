@@ -809,7 +809,7 @@
 /* The class goes on <html> (see useRegisterTheme) because Radix renders  */
 /* dialogs, menus and toasts into a portal at the end of <body>: on a     */
 /* wrapper element every menu would stay TraineeHQ blue over a green      */
-/* page. next-themes puts `dark` on that same element, which is why the   */
+/* page. The theme puts `dark` on that same element, which is why the     */
 /* dark palette below is `.register-theme.dark`.                          */
 /* ===================================================================== */
 @layer base {

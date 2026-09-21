@@ -1,14 +1,17 @@
-import { useTheme } from "next-themes";
+import { useTheme } from "@/hooks/useTheme";
 import { Toaster as Sonner, toast } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { theme = "system" } = useTheme();
+  // The resolved theme, not the chosen one: sonner paints its own toasts and
+  // needs to know what is on screen, and "system" would send it back to the
+  // device's appearance — the very thing an explicit choice overrides.
+  const { resolvedTheme } = useTheme();
 
   return (
     <Sonner
-      theme={theme as ToasterProps["theme"]}
+      theme={resolvedTheme}
       className="toaster group"
       toastOptions={{
         classNames: {

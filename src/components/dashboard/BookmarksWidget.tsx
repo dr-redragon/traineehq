@@ -3,13 +3,13 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import { Badge } from "@/components/ui/badge";
-import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
+import { WidgetSection, WidgetEmpty, WidgetSkeleton } from "@/components/dashboard/WidgetSection";
 import { Bookmark, ExternalLink } from "lucide-react";
 
 export function BookmarksWidget() {
   const { data: user } = useCurrentUser();
 
-  const { data: bookmarks } = useQuery({
+  const { data: bookmarks, isPending } = useQuery({
     queryKey: ["my-bookmarks", user?.id],
     queryFn: async () => {
       if (!user) return [];
@@ -24,6 +24,14 @@ export function BookmarksWidget() {
     },
     enabled: !!user,
   });
+
+  if (!user || isPending) {
+    return (
+      <WidgetSection icon={Bookmark} title="Bookmarked Resources">
+        <WidgetSkeleton rows={2} />
+      </WidgetSection>
+    );
+  }
 
   if (!bookmarks?.length) {
     return (
