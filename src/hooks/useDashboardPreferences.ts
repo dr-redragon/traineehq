@@ -82,7 +82,35 @@ export function useDashboardPreferences() {
         .upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["dashboard-preferences"] }),
+    /**
+     * Show the change before the round trip.
+     *
+     * Reordering is the case that needs this: a drag that only takes effect
+     * once Supabase has answered looks like it snapped back and then thought
+     * better of it, which reads as a bug however quick the network is.
+     */
+    onMutate: async (update) => {
+      if (!user) return;
+      const key = ["dashboard-preferences", user.id];
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData(key);
+      queryClient.setQueryData(key, (current: any) => ({
+        ...(current ?? {}),
+        widget_layout: update.widget_layout ?? current?.widget_layout ?? layout,
+        hidden_widgets: update.hidden_widgets ?? current?.hidden_widgets ?? hiddenWidgets,
+        columns: update.columns ?? current?.columns ?? columns,
+        right_column_widgets:
+          update.right_column_widgets ?? current?.right_column_widgets ?? rightColumnWidgets,
+        widget_settings: update.widget_settings ?? current?.widget_settings ?? widgetSettings,
+      }));
+      return { previous, key };
+    },
+    onError: (_error, _update, context) => {
+      if (context?.previous !== undefined) {
+        queryClient.setQueryData(context.key, context.previous);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["dashboard-preferences"] }),
   });
 
   return { layout, hiddenWidgets, columns, rightColumnWidgets, widgetSettings, isLoading, savePrefs };

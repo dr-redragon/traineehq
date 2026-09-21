@@ -1,7 +1,4 @@
 import { useState } from "react";
-import { useSortable } from "@dnd-kit/sortable";
-import { useDroppable } from "@dnd-kit/core";
-import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
@@ -15,6 +12,7 @@ import {
   MoreVertical, Trash2, Eye, Pencil, Bookmark, Download, FolderInput,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropIndicator, useSortableItem, type DragSource } from "@/lib/dnd";
 import { ResourceViewer } from "@/components/ResourceViewer";
 import { EditResourceDialog } from "@/components/EditResourceDialog";
 import { toast } from "sonner";
@@ -52,7 +50,21 @@ interface BaseRowProps {
   canManage: boolean;
   /** Selection mode: checkboxes stay visible and a tap never opens the item. */
   selectMode?: boolean;
-  isDropTarget?: boolean;
+  /**
+   * Whether the gaps beside this row mean anything.
+   *
+   * False while a column sort is on: the order on screen is then a view rather
+   * than the arrangement, so a row has no "above" or "below" worth writing —
+   * though it can still be carried into a folder.
+   */
+  reorderable?: boolean;
+  /** Its place in the flattened list, which is what a drop is measured against. */
+  index?: number;
+  /**
+   * Everything that travels with this row — the selection, when the row is part
+   * of one. Worked out by the browser, which is what holds the selection.
+   */
+  dragGroup?: string[];
 }
 
 /* ---------- File Row ---------- */
@@ -65,25 +77,27 @@ interface FileRowProps extends BaseRowProps {
 }
 
 export function FileRow({
-  resource, selected, onClick, canManage, selectMode, depth = 0,
-  onDelete, onMove, onDownload,
+  resource, selected, onClick, canManage, selectMode, depth = 0, index, dragGroup,
+  reorderable = true, onDelete, onMove, onDownload,
 }: FileRowProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({
-      id: resource.id,
-      disabled: !canManage,
-      data: { type: "resource", resourceId: resource.id },
-    });
+  // A file is a place in an order, never a place to put something: only its
+  // edges accept a drop, and the line drawn there is the gap that gets written.
+  const { ref, itemProps, dragProps, dropProps, edge } = useSortableItem({
+    id: resource.id,
+    index,
+    group: dragGroup,
+    disabled: !canManage,
+    data: { kind: "file", resourceId: resource.id },
+    mode: "between",
+    dropDisabled: !reorderable,
+  });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
     // Padding rather than margin: the row keeps its full width, so its hover
     // fill and its bottom rule still run the whole way across the list. An
     // indented margin would leave a ragged left edge on every nested row.
@@ -125,16 +139,17 @@ export function FileRow({
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
-            ref={setNodeRef}
+            ref={ref}
             style={style}
-            {...attributes}
-            {...listeners}
+            {...itemProps}
+            {...(canManage ? { ...dragProps, ...dropProps } : {})}
             onClick={onClick}
             onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) setViewerOpen(true); }}
             className={`group relative flex cursor-pointer select-none items-center gap-4 border-b border-border px-1 py-3 transition-colors
               ${selected ? "bg-accent-strong" : "hover:bg-accent"}
             `}
           >
+            <DropIndicator edge={edge} />
             {(canManage || selectMode) && (
               <Checkbox
                 checked={selected}
@@ -254,55 +269,59 @@ interface FolderRowProps extends BaseRowProps {
   onDelete: () => void;
   onDownload: () => void;
   downloading?: boolean;
+  /** Refuses a drag that would put a folder inside itself. */
+  accepts?: (source: DragSource) => boolean;
 }
 
 export function FolderRow({
   folder, selected, onClick, canManage, selectMode, count, onOpen, onRename, onDelete, onDownload,
-  downloading, isDropTarget, depth = 0, hasChildren = false, expanded = false,
-  onToggleExpanded, onNewSubfolder,
+  downloading, depth = 0, hasChildren = false, expanded = false, index, dragGroup,
+  reorderable = true, onToggleExpanded, onNewSubfolder, accepts,
 }: FolderRowProps) {
-  const { attributes, listeners, setNodeRef: setSortRef, transform, transition, isDragging } =
-    useSortable({
-      id: `folder-row:${folder.id}`,
-      disabled: !canManage,
-      data: { type: "folder", folderId: folder.id },
-    });
-  const { setNodeRef: setDropRef, isOver } = useDroppable({
-    id: `folder:${folder.id}`,
-    data: { type: "folder-drop", folderId: folder.id },
+  /**
+   * A folder is both a place in the order and a place to put things, which is
+   * why it is the one row with three answers rather than two: its top and
+   * bottom bands reorder it, and its middle swallows what you are carrying.
+   *
+   * It used to be only the second of those — anywhere on a folder meant "put
+   * it inside" — so a folder could never be moved past another folder by
+   * dragging, and a near miss silently filed something away instead.
+   */
+  const { ref, itemProps, dragProps, dropProps, edge, isOver } = useSortableItem({
+    id: `folder-row:${folder.id}`,
+    index,
+    group: dragGroup,
+    disabled: !canManage,
+    data: { kind: "folder", folderId: folder.id },
+    // With no order to write into, a folder is only somewhere to put things.
+    mode: reorderable ? "both" : "into",
+    accepts,
   });
 
-  const setRefs = (node: HTMLDivElement | null) => {
-    setSortRef(node);
-    setDropRef(node);
-  };
-
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
     // Padding rather than margin: the row keeps its full width, so its hover
     // fill and its bottom rule still run the whole way across the list. An
     // indented margin would leave a ragged left edge on every nested row.
     paddingLeft: depth ? `${4 + depth * INDENT_PX}px` : undefined,
   };
 
-  const active = isOver || isDropTarget;
+  const active = isOver && edge === "into";
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         <div
-          ref={setRefs}
+          ref={ref}
           style={style}
-          {...attributes}
-          {...listeners}
+          {...itemProps}
+          {...(canManage ? { ...dragProps, ...dropProps } : {})}
           onClick={onClick}
           onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) onOpen(); }}
           className={`group relative flex cursor-pointer select-none items-center gap-4 border-b border-border px-1 py-3 transition-colors
             ${active ? "bg-accent-strong ring-2 ring-inset ring-rule" : selected ? "bg-accent-strong" : "hover:bg-accent"}
           `}
         >
+          <DropIndicator edge={edge} />
           {(canManage || selectMode) && (
             <Checkbox
               checked={selected}

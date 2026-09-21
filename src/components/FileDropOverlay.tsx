@@ -10,7 +10,7 @@ interface FileDropOverlayProps {
   compact?: boolean;
   /**
    * "upload" — native file drop from the OS (default).
-   * "move"   — internal drag (e.g. dnd-kit moving a resource between folders).
+   * "move"   — internal drag (e.g. a resource being moved between folders).
    */
   variant?: "upload" | "move";
 }
