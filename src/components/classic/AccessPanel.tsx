@@ -1,10 +1,12 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { Modal } from "@/components/classic/Modal";
 import {
-  useDecideAccess, useInviteToRegister, useRegisterMembers, useRegisterPeople,
-  useRegisterRequests, useRemoveMember, useSetMemberRole,
+  useDecideAccess, useDeleteRegister, useInviteToRegister, useRegisterMembers,
+  useRegisterPeople, useRegisterRequests, useRemoveMember, useSetMemberRole,
 } from "@/hooks/classic/useRegisterAccess";
 import { certificateFilename, renderCertificatePdf } from "@/lib/classic/certificate";
 import {
@@ -251,6 +253,77 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
       </p>
 
       <CertificateLogo entry={entry} />
+
+      <DeleteRegister entry={entry} />
+    </>
+  );
+}
+
+/**
+ * The one irreversible thing this tab can do, kept apart from everything
+ * else on it and behind a second, explicit step.
+ *
+ * `window.confirm` is used elsewhere in the register for a reversible undo,
+ * but this deletes every trainee, session, attendance mark, feedback response
+ * and certificate the register holds — a browser dialog that looks the same
+ * as "remove this trainee?" undersells that. It gets its own popup instead,
+ * said in red.
+ */
+function DeleteRegister({ entry }: { entry: RegisterDirectoryEntry }) {
+  const navigate = useNavigate();
+  const [confirming, setConfirming] = useState(false);
+  const deleteRegister = useDeleteRegister();
+
+  const confirm = () => {
+    deleteRegister.mutate(entry.id, {
+      onSuccess: () => {
+        toast.success(`${entry.name} has been deleted`);
+        navigate("/classic_registers");
+      },
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
+
+  return (
+    <>
+      <div className="danger-zone">
+        <div className="row-actions" style={{ justifyContent: "space-between" }}>
+          <div>
+            <strong style={{ color: "#9c3d1c" }}>Delete this register</strong>
+            <p className="helper" style={{ marginTop: 2 }}>
+              Removes {entry.name} for everyone — its trainees, teaching days,
+              attendance, feedback and certificates. This cannot be undone.
+            </p>
+          </div>
+          <button type="button" className="btn clay sm" onClick={() => setConfirming(true)}>
+            Delete register
+          </button>
+        </div>
+      </div>
+
+      {confirming && (
+        <Modal title="Delete this register?" onClose={() => setConfirming(false)}>
+          <div className="notice bad">
+            <strong>This permanently deletes {entry.name}.</strong> Every trainee,
+            teaching day, attendance mark, feedback response and certificate
+            record it holds is deleted with it — for every organiser, not just
+            you. There is no undo and no backup to restore from.
+          </div>
+          <div className="row-actions" style={{ marginTop: 16, justifyContent: "flex-end" }}>
+            <button type="button" className="btn ghost" onClick={() => setConfirming(false)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn clay"
+              disabled={deleteRegister.isPending}
+              onClick={confirm}
+            >
+              {deleteRegister.isPending ? "Deleting…" : `Yes, delete ${entry.name}`}
+            </button>
+          </div>
+        </Modal>
+      )}
     </>
   );
 }

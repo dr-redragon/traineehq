@@ -180,6 +180,9 @@
 .classic-register .grid2 {
   display:grid;grid-template-columns:1fr 1fr;gap:14px
 }
+.classic-register .form-editor-grid {
+  display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start
+}
 .classic-register .row-actions {
   display:flex;gap:8px;flex-wrap:wrap;align-items:center
 }
@@ -671,6 +674,9 @@
     grid-template-columns:1fr
   }
   .classic-register .grid2 {
+    grid-template-columns:1fr
+  }
+  .classic-register .form-editor-grid {
     grid-template-columns:1fr
   }
   .classic-register .inline-form {
