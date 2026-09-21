@@ -1,19 +1,31 @@
 import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Mail, Lock, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import logoWhite from "@/assets/logo-white.png";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import ContactForm from "@/components/ContactForm";
 import { safeDestination } from "@/lib/safeDestination";
+import { rememberSignIn } from "@/lib/sessionPersistence";
 import { PolicyLink } from "@/components/PolicyLink";
+
+/**
+ * The poster panel's foot. Three claims the site already makes on its front
+ * page, set as the design's value-over-label trio rather than a bullet list.
+ */
+const stats = [
+  { value: "30+", label: "Specialties" },
+  { value: "24/7", label: "Any device" },
+  { value: "GDPR", label: "Compliant" },
+];
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -41,101 +53,156 @@ const Login = () => {
     if (error) {
       toast.error(error.message);
     } else {
+      rememberSignIn(keepSignedIn);
       navigate(destination, { replace: true });
     }
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left - branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden flex-col justify-between p-12">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-16">
-            <img src={logoWhite} alt="NW HST Training Hub" className="h-10 w-10" />
-            <h1 className="text-xl font-display font-semibold text-primary-foreground tracking-tight">
-              North West HST Training Hub
-            </h1>
-          </div>
-          <h2 className="text-4xl font-display font-bold text-primary-foreground leading-tight mb-6">
-            Your training,<br />organised.
-          </h2>
-          <p className="text-primary-foreground/70 text-lg max-w-md leading-relaxed">
-            A centralised resource platform for Higher Specialty Trainees across the North West Deanery.
+    <div className="min-h-screen bg-background lg:grid lg:grid-cols-[minmax(0,1fr)_620px]">
+      {/*
+        The poster panel. Ink in both themes — it is the page's one printed
+        surface, not a surface that follows the ground, so it takes the ink
+        ramp directly rather than a ground-relative token.
+      */}
+      <aside className="hidden flex-col justify-between bg-ink-900 p-12 text-ink-100 lg:flex">
+        <div className="flex items-center gap-3">
+          <img src={logoWhite} alt="" className="h-8 w-8" />
+          <span className="font-display text-xl font-extrabold tracking-tight">TraineeHQ</span>
+        </div>
+
+        <div className="max-w-[640px] space-y-7">
+          <h1 className="font-display text-[56px] font-extrabold leading-[0.94] tracking-[-0.035em] text-pretty xl:text-[76px]">
+            Everything for your training year, in one place.
+          </h1>
+          <p className="max-w-[480px] text-pretty text-base leading-relaxed text-ink-400">
+            Curricula, exam preparation, operative videos, key contacts and the regional
+            discussion boards — curated for Higher Specialty Trainees across the North West
+            Deanery.
           </p>
         </div>
-        <p className="relative z-10 text-primary-foreground/40 text-sm">
-          © 2026 North West HST Training Hub. All rights reserved.
-        </p>
-      </div>
 
-      {/* Right - login form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md animate-fade-in">
-          <div className="lg:hidden flex items-center gap-3 mb-10">
-            <img src={logoWhite} alt="NW HST Training Hub" className="h-9 w-9 rounded-md bg-primary p-1" />
-            <h1 className="text-lg font-display font-semibold tracking-tight">North West HST Training Hub</h1>
+        <dl className="grid grid-cols-3 border-t border-ink-100/25">
+          {stats.map((stat) => (
+            <div key={stat.label} className="flex flex-col gap-1.5 pr-5 pt-5">
+              <dt className="font-display text-[34px] font-extrabold leading-none tracking-tight">
+                {stat.value}
+              </dt>
+              <dd className="text-[11.5px] uppercase tracking-[0.12em] text-ink-500">
+                {stat.label}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </aside>
+
+      {/* The form column. */}
+      <div className="flex min-h-screen flex-col">
+        <div className="flex h-[60px] shrink-0 items-center justify-between gap-4 border-b-2 border-border px-6 text-sm text-muted-foreground lg:px-11">
+          <span className="text-xs font-bold uppercase tracking-[0.12em] text-foreground">
+            Sign in
+          </span>
+          <span>
+            <span className="hidden sm:inline">Need an account? </span>
+            <Link
+              to="/request-access"
+              className="font-medium text-accent-deep underline underline-offset-4"
+            >
+              Request access
+            </Link>
+          </span>
+        </div>
+
+        <div className="flex flex-1 animate-fade-in flex-col gap-7 px-6 py-12 lg:px-11 lg:py-[52px]">
+          {/* The wordmark the poster panel carries, for the widths that hide it. */}
+          <div className="flex items-center gap-3 lg:hidden">
+            <img src={logoWhite} alt="" className="h-8 w-8 bg-ink-900 p-1" />
+            <span className="font-display text-lg font-extrabold tracking-tight">TraineeHQ</span>
           </div>
 
-          <h2 className="text-2xl font-display font-bold mb-2">Welcome back</h2>
-          <p className="text-muted-foreground mb-8">Sign in to access your training resources</p>
+          <div className="space-y-2">
+            <h2 className="font-display text-[34px] font-extrabold leading-[1.05] tracking-[-0.025em] sm:text-[38px]">
+              Welcome back
+            </h2>
+            <p className="text-[14.5px] text-muted-foreground">
+              Use the address registered with your deanery.
+            </p>
+          </div>
 
-          <form onSubmit={handleLogin} className="space-y-5">
+          <form onSubmit={handleLogin} className="space-y-[18px]">
             <div className="space-y-2">
               <Label htmlFor="email">Email address</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@nhs.net"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="name@nhs.net"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-11 px-3.5 text-[15px]"
+                required
+              />
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex items-baseline justify-between gap-3">
                 <Label htmlFor="password">Password</Label>
-                <Link to="/forgot-password" className="text-xs text-accent-deep hover:underline">
-                  Forgot password?
+                <Link
+                  to="/forgot-password"
+                  className="text-[13px] text-accent-deep underline underline-offset-4"
+                >
+                  Forgot password
                 </Link>
               </div>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                placeholder="••••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="h-11 px-3.5 text-[15px]"
+                required
+              />
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <div className="flex items-center gap-2.5">
+              <Checkbox
+                id="keep-signed-in"
+                checked={keepSignedIn}
+                onCheckedChange={(checked) => setKeepSignedIn(checked === true)}
+              />
+              <Label htmlFor="keep-signed-in" className="text-sm font-normal">
+                Keep me signed in on this device
+              </Label>
+            </div>
+
+            {/*
+              Modernist sets a full-width button's label flush left rather than
+              centred, with the arrow carried out to the far edge.
+            */}
+            <Button
+              type="submit"
+              className="h-12 w-full justify-between text-[15px]"
+              disabled={isLoading}
+            >
               {isLoading ? "Signing in…" : "Sign in"}
               {!isLoading && <ArrowRight className="h-4 w-4" />}
             </Button>
           </form>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Don't have an account?{" "}
-            <Link to="/request-access" className="text-accent-deep hover:underline font-medium">Request Access</Link>
-          </p>
-
-          <p className="text-center text-xs text-muted-foreground mt-4">
-            By signing in, you agree to our{" "}
-            <PolicyLink kind="privacy" className="text-accent-deep hover:underline" />{" "}
-            and{" "}
-            <PolicyLink kind="terms" className="text-accent-deep hover:underline" />.
-          </p>
-          <div className="mt-8 pt-6 border-t">
-            <ContactForm compact />
+          <div className="mt-auto space-y-1.5 border-t-2 border-foreground pt-[18px]">
+            <p className="text-pretty text-[12.5px] text-muted-foreground">
+              Access is restricted to trainees and educators in the North West deanery. Accounts
+              are approved manually.
+            </p>
+            <div className="flex gap-[18px] text-[12.5px]">
+              <PolicyLink
+                kind="privacy"
+                className="text-accent-deep underline underline-offset-4"
+              />
+              <PolicyLink kind="terms" className="text-accent-deep underline underline-offset-4" />
+            </div>
           </div>
         </div>
       </div>
