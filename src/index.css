@@ -1076,3 +1076,70 @@
     width: 1px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Dragging.
+
+   The rules the drag-and-drop engine (src/lib/dnd) needs from the document
+   rather than from a component: they apply to the page as a whole while
+   something is in the hand, or to elements the engine marks up itself.
+   --------------------------------------------------------------------------- */
+@layer components {
+  /* A handle exists to be dragged, so the browser must not read a touch on it
+     as the start of a scroll. Safe here because a handle is small — the same
+     declaration on a whole row would leave a list that cannot be scrolled. */
+  [data-dnd-handle] {
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: grab;
+  }
+  [data-dnd-handle]:active {
+    cursor: grabbing;
+  }
+
+  /* Rows are pressed and held, which on iOS otherwise raises the selection
+     callout and on every platform starts selecting text. */
+  [data-dnd-item] {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  /* The row left behind. Kept in place at a low opacity rather than removed:
+     the list must not reflow under the pointer mid-drag, or every other row
+     moves while you are trying to aim at one. */
+  [data-dnd-item][data-dragging="true"] {
+    opacity: 0.35;
+  }
+
+  /* While a drag is running. `touch-action: none` on the document is what
+     stops a phone taking the gesture back halfway through; the cursor and
+     selection rules stop a desktop drag from turning into a text selection. */
+  html.dnd-dragging {
+    touch-action: none;
+    overscroll-behavior: contain;
+  }
+  html.dnd-dragging body {
+    cursor: grabbing;
+  }
+  html.dnd-dragging * {
+    -webkit-user-select: none !important;
+    user-select: none !important;
+  }
+
+  /* The thing that follows the pointer. Lifted off the page by a shadow and a
+     hair of scale — around the point it was taken hold of, so the lift itself
+     does not shift it out from under the finger. */
+  .dnd-preview-lift {
+    transform: scale(1.02);
+    box-shadow: 0 18px 40px -12px hsl(var(--foreground) / 0.45);
+    opacity: 0.95;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dnd-preview-lift {
+      transform: none;
+    }
+  }
+}
