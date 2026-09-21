@@ -26,6 +26,7 @@ import { Settings2, Users, Plus, MoreVertical, Pencil, Trash2 } from "lucide-rea
 import { toast } from "sonner";
 import { useCanManageSpecialty } from "@/hooks/useUserRole";
 import { getIcon } from "@/lib/iconMap";
+import { specialtyColorVars } from "@/lib/specialtyColor";
 import { isUuid, orFilterValue } from "@/lib/queryFilters";
 import {
   DndContext, closestCenter,
@@ -331,12 +332,10 @@ const SpecialtyDetail = () => {
         <div className="border-b-2 border-border">
           <div className="px-9 py-8">
           <div className="flex flex-wrap items-end gap-4">
-          <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center"
-            style={{ backgroundColor: `hsl(${color} / 0.12)` }}
-          >
-            <Icon className="h-7 w-7" style={{ color: `hsl(${color})` }} />
-          </div>
+          {/* Drawn plain, like the icon in the dashboard's list. At display
+              scale beside the specialty's name it does not need a panel
+              behind it to be found. */}
+          <Icon className="ds-spec-icon h-10 w-10 shrink-0" style={specialtyColorVars(specialty.color)} />
           <div className="min-w-0">
             <p className="ds-kicker mb-1">Specialty library</p>
             <h1 className="font-display text-[clamp(32px,4vw,46px)] font-extrabold leading-none tracking-[-0.03em]">

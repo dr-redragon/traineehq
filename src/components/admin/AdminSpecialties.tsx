@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Plus, Copy, ChevronRight, ChevronDown, Trash2, Download, Loader2, RotateCcw, Archive } from "lucide-react";
 import { getIcon } from "@/lib/iconMap";
+import { specialtyColorVars } from "@/lib/specialtyColor";
 import { IconColorPicker } from "@/components/IconColorPicker";
 import { toast } from "sonner";
 import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
@@ -595,12 +596,10 @@ export function AdminSpecialties() {
               return (
                 <Card key={spec.id} className="opacity-80">
                   <CardContent className="p-3 flex items-center gap-3">
-                    <div
-                      className="h-9 w-9 rounded-md flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: `hsl(${spec.color ?? "174 60% 40%"} / 0.15)` }}
-                    >
-                      {(() => { const Icon = getIcon(spec.icon_name ?? "Stethoscope"); return <Icon className="h-4 w-4" style={{ color: `hsl(${spec.color ?? "174 60% 40%"})` }} />; })()}
-                    </div>
+                    {(() => {
+                      const Icon = getIcon(spec.icon_name ?? "Stethoscope");
+                      return <Icon className="ds-spec-icon h-5 w-5 shrink-0" style={specialtyColorVars(spec.color)} />;
+                    })()}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium truncate">{spec.short_name}</span>

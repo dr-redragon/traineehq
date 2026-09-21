@@ -5,6 +5,7 @@ import { ChevronRight, Stethoscope } from "lucide-react";
 import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
 import { getIcon } from "@/lib/iconMap";
 import { useDeanery } from "@/contexts/DeaneryContext";
+import { specialtyColorVars } from "@/lib/specialtyColor";
 
 export function SpecialtiesWidget() {
   const { activeDeanery } = useDeanery();
@@ -47,12 +48,11 @@ export function SpecialtiesWidget() {
                   to={`/specialty/${s.id}`}
                   className="group flex items-center gap-4 px-1 py-2.5 transition-colors hover:bg-accent"
                 >
-                  <div
-                    className="flex h-9 w-9 shrink-0 items-center justify-center"
-                    style={{ backgroundColor: `hsl(${color} / 0.12)` }}
-                  >
-                    <SIcon className="h-4 w-4" style={{ color: `hsl(${color})` }} />
-                  </div>
+                  {/* The icon alone, on the page's own ground. A tinted tile
+                      behind it was the last filled shape left in a list made
+                      of rules, and it put a second colour behind a mark that
+                      already carries the specialty's colour. */}
+                  <SIcon className="ds-spec-icon h-5 w-5 shrink-0" style={specialtyColorVars(s.color)} />
                   <div className="min-w-0 flex-1">
                     <h4 className="truncate text-sm font-medium">{s.short_name}</h4>
                     <p className="truncate text-xs text-muted-foreground">{s.name}</p>
@@ -74,9 +74,9 @@ export function SpecialtiesWidget() {
                       to={`/specialty/${child.id}`}
                       // Indented to the parent's text, so the column of names
                       // steps in rather than the row changing shape.
-                      className="group flex items-center gap-4 py-2.5 pl-[52px] pr-1 transition-colors hover:bg-accent"
+                      className="group flex items-center gap-4 py-2.5 pl-10 pr-1 transition-colors hover:bg-accent"
                     >
-                      <CIcon className="h-3.5 w-3.5 shrink-0" style={{ color: `hsl(${cColor})` }} />
+                      <CIcon className="ds-spec-icon h-3.5 w-3.5 shrink-0" style={specialtyColorVars(child.color)} />
                       <span className="min-w-0 flex-1 truncate text-[13px]">{child.short_name}</span>
                       <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground transition-colors group-hover:text-rule" />
                     </Link>

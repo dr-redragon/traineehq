@@ -372,7 +372,27 @@
      It is a class on the list rather than classes on each trigger because the
      triggers are not all written in one place: the reorderable ones come from
      SortableTabTrigger, which renders its own. */
-  .ds-subrail [data-slot="tabs-trigger"] {
+  /**
+ * A specialty's icon, drawn plain in its own colour.
+ *
+ * The colour is stored per specialty and was chosen against a light page, so
+ * several are very dark — one is the exact ink the dark theme uses behind it,
+ * which drew the icon at 1.00:1. A tinted tile used to mask that; with the
+ * icon plain, each theme clamps the lightness instead — a floor on the dark
+ * ground, a ceiling on the light one, since the palest colours are as hard to
+ * see on paper as the darkest are on ink. `min()` and `max()` leave anything
+ * already in range untouched, so only the offenders move and the stored value
+ * is never rewritten.
+ */
+.ds-spec-icon {
+  color: hsl(var(--spec-h) var(--spec-s) min(var(--spec-l), 55%));
+}
+
+.dark .ds-spec-icon {
+  color: hsl(var(--spec-h) var(--spec-s) max(var(--spec-l), 62%));
+}
+
+.ds-subrail [data-slot="tabs-trigger"] {
     display: flex;
     width: 100%;
     align-items: baseline;
