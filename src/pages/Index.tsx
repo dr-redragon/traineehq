@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -24,14 +24,9 @@ import { RegistersWidget } from "@/components/dashboard/RegistersWidget";
 import { RecentResourcesWidget } from "@/components/dashboard/RecentResourcesWidget";
 import { FileBrowserWidget } from "@/components/dashboard/FileBrowserWidget";
 import { FileBrowserWidgetSettings } from "@/components/dashboard/FileBrowserWidgetSettings";
-import {
-  DndContext, closestCenter,
-  type DragEndEvent, DragOverlay, type DragStartEvent, type DragOverEvent,
-  useDroppable,
-} from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { DragProvider, slotForEdge, useDropTarget, type DropEvent } from "@/lib/dnd";
 import { SortableWidget } from "@/components/dashboard/SortableWidget";
-import { useDragSensors } from "@/hooks/useDragSensors";
+import { planWidgetDrop } from "@/lib/dashboardLayout";
 
 const WIDGET_LABELS: Record<WidgetId, string> = {
   announcements: "Announcements",
@@ -44,13 +39,22 @@ const WIDGET_LABELS: Record<WidgetId, string> = {
   contacts: "Key Contacts",
 };
 
+/**
+ * A column of widgets, and somewhere to drop one that belongs at the end of it.
+ *
+ * The rows inside it are their own targets and sit on top of this one, so this
+ * only ever catches the space below them — which is exactly what "put it at the
+ * bottom of this column" should mean, and the only way to fill a column that
+ * has nothing in it yet.
+ */
 function DroppableColumn({ id, children, label }: { id: string; children: React.ReactNode; label: string }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
+  const { setNodeRef, dropProps, isOver } = useDropTarget({ id, mode: "into" });
   return (
     <div className="space-y-2">
       <p className="ds-kicker mb-2">{label}</p>
       <div
         ref={setNodeRef}
+        {...dropProps}
         className={`space-y-2 min-h-[80px] rounded-md border-2 border-dashed p-2 transition-colors ${
           isOver ? "border-rule bg-accent" : "border-border"
         }`}
@@ -65,11 +69,8 @@ const Index = () => {
   const { data: user } = useCurrentUser();
   const { activeDeanery } = useDeanery();
   const [isEditing, setIsEditing] = useState(false);
-  const [activeId, setActiveId] = useState<WidgetId | null>(null);
   const [settingsWidget, setSettingsWidget] = useState<WidgetId | null>(null);
   const { layout, hiddenWidgets, columns, rightColumnWidgets, widgetSettings, savePrefs } = useDashboardPreferences();
-
-  const sensors = useDragSensors();
 
   // The greeting's name comes off the shared profile read rather than a
   // fourth SELECT of the same row.
@@ -104,82 +105,75 @@ const Index = () => {
   // For single-column or non-editing mode with 1 col, use flat list
   const visibleWidgets = allVisible;
 
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as WidgetId);
-  };
+  /**
+   * Where a widget goes when it is let go.
+   *
+   * The drop names a gap — a column and a position in it — and the layout
+   * maths in `planWidgetDrop` turns that into the two lists the dashboard
+   * stores. Nothing here works out an order of its own, which is what keeps
+   * the line you were shown and the arrangement you get the same thing.
+   */
+  const twoColumn = columns === 2 && isEditing;
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    setActiveId(null);
-    const { active, over } = event;
+  const dropWidget = ({ source, over }: DropEvent) => {
     if (!over) return;
+    const moving = source.ids.filter((w): w is WidgetId => allVisible.includes(w as WidgetId));
+    if (!moving.length) return;
 
-    const activeWidget = active.id as WidgetId;
-    const overId = over.id as string;
+    const onColumn = over.id === "col-left" || over.id === "col-right";
+    const column: "left" | "right" = onColumn
+      ? (over.id === "col-right" ? "right" : "left")
+      : ((over.data.column as "left" | "right" | undefined) ?? "left");
+    // A drop on the column itself has no row to measure against: it means the
+    // end of that column.
+    const slot = onColumn
+      ? Number.MAX_SAFE_INTEGER
+      : slotForEdge(over.index ?? 0, over.edge === "into" ? "before" : over.edge);
 
-    if (columns === 2 && isEditing) {
-      const activeInRight = rightColumnWidgets.includes(activeWidget);
-
-      // Dropped on a column container (not on a widget)
-      if (overId === "col-left" || overId === "col-right") {
-        const targetIsRight = overId === "col-right";
-        if (activeInRight === targetIsRight) return; // already there
-        const newRight = targetIsRight
-          ? [...rightColumnWidgets, activeWidget]
-          : rightColumnWidgets.filter((w) => w !== activeWidget);
-        savePrefs.mutate({ right_column_widgets: newRight });
-        return;
-      }
-
-      // Dropped on another widget
-      const overWidget = overId as WidgetId;
-      if (activeWidget === overWidget) return;
-
-      const overInRight = rightColumnWidgets.includes(overWidget);
-
-      if (activeInRight === overInRight) {
-        // Same column reorder
-        const col = activeInRight ? [...rightColumn] : [...leftColumn];
-        const oldIdx = col.indexOf(activeWidget);
-        const newIdx = col.indexOf(overWidget);
-        const reordered = arrayMove(col, oldIdx, newIdx);
-        const newLayout = activeInRight
-          ? [...leftColumn, ...reordered, ...hiddenWidgets]
-          : [...reordered, ...rightColumn, ...hiddenWidgets];
-        savePrefs.mutate({ widget_layout: newLayout });
-      } else {
-        // Cross-column move
-        const newRight = activeInRight
-          ? rightColumnWidgets.filter((w) => w !== activeWidget)
-          : [...rightColumnWidgets, activeWidget];
-
-        const targetCol = overInRight
-          ? allVisible.filter((w) => newRight.includes(w))
-          : allVisible.filter((w) => !newRight.includes(w));
-        const overIdx = targetCol.indexOf(overWidget);
-        const withoutActive = targetCol.filter((w) => w !== activeWidget);
-        withoutActive.splice(overIdx >= 0 ? overIdx : withoutActive.length, 0, activeWidget);
-
-        const otherCol = overInRight
-          ? allVisible.filter((w) => !newRight.includes(w) && w !== activeWidget)
-          : allVisible.filter((w) => newRight.includes(w) && w !== activeWidget);
-
-        const newLayout = [...(overInRight ? otherCol : withoutActive), ...(overInRight ? withoutActive : otherCol), ...hiddenWidgets];
-        savePrefs.mutate({ widget_layout: newLayout, right_column_widgets: newRight });
-      }
-    } else {
-      // Single column reorder
-      if (activeWidget === overId) return;
-      const oldIndex = visibleWidgets.indexOf(activeWidget);
-      const newIndex = visibleWidgets.indexOf(overId as WidgetId);
-      if (oldIndex === -1 || newIndex === -1) return;
-      const newOrder = arrayMove(visibleWidgets, oldIndex, newIndex);
-      const fullLayout = [...newOrder, ...hiddenWidgets];
-      savePrefs.mutate({ widget_layout: fullLayout });
-    }
+    saveLayout(planWidgetDrop({
+      layout,
+      hidden: [...hiddenWidgets, "announcements" as WidgetId],
+      right: rightColumnWidgets,
+      moving,
+      target: { column, slot },
+      columns: twoColumn ? 2 : 1,
+    }));
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    // Used for visual feedback — actual move happens on dragEnd
+  /**
+   * Save, unless the drop changed nothing.
+   *
+   * Letting go of a widget where you picked it up is the commonest drop of
+   * all — it is how you change your mind — and it should cost nothing.
+   */
+  const saveLayout = (write: ReturnType<typeof planWidgetDrop<WidgetId>>) => {
+    const same =
+      write.widget_layout.join() === layout.join() &&
+      write.right_column_widgets.join() === rightColumnWidgets.join();
+    if (same) return;
+    savePrefs.mutate(write);
+  };
+
+  /** The same move, one step at a time, from the arrow keys on a handle. */
+  const moveWidgetBy = (id: string, direction: -1 | 1) => {
+    const widget = id as WidgetId;
+    const inRight = twoColumn && rightColumnWidgets.includes(widget);
+    const column = twoColumn ? (inRight ? rightColumn : leftColumn) : visibleWidgets;
+    const from = column.indexOf(widget);
+    const to = from + direction;
+    if (from === -1 || to < 0 || to >= column.length) return;
+
+    saveLayout(planWidgetDrop({
+      layout,
+      hidden: [...hiddenWidgets, "announcements" as WidgetId],
+      right: rightColumnWidgets,
+      moving: [widget],
+      target: {
+        column: inRight ? "right" : "left",
+        slot: direction === 1 ? to + 1 : to,
+      },
+      columns: twoColumn ? 2 : 1,
+    }));
   };
 
   const toggleWidget = (widgetId: WidgetId) => {
@@ -223,8 +217,15 @@ const Index = () => {
     savePrefs.mutate({ right_column_widgets: newRight });
   };
 
-  const renderEditCard = (widgetId: WidgetId) => (
-    <SortableWidget key={widgetId} id={widgetId} label={WIDGET_LABELS[widgetId]} isEditing>
+  const renderEditCard = (widgetId: WidgetId, index: number, column: "left" | "right") => (
+    <SortableWidget
+      key={widgetId}
+      id={widgetId}
+      label={WIDGET_LABELS[widgetId]}
+      isEditing
+      index={index}
+      column={column}
+    >
       <Card className="border border-dashed border-border">
         <CardContent className="flex items-center justify-between p-3">
           <span className="text-sm font-medium">{WIDGET_LABELS[widgetId]}</span>
@@ -275,13 +276,13 @@ const Index = () => {
         {leftColumn.length === 0 && (
           <p className="py-4 text-xs text-muted-foreground">Drag widgets here</p>
         )}
-        {leftColumn.map((wId) => renderEditCard(wId))}
+        {leftColumn.map((wId, index) => renderEditCard(wId, index, "left"))}
       </DroppableColumn>
       <DroppableColumn id="col-right" label="Right Column">
         {rightColumn.length === 0 && (
           <p className="py-4 text-xs text-muted-foreground">Drag widgets here</p>
         )}
-        {rightColumn.map((wId) => renderEditCard(wId))}
+        {rightColumn.map((wId, index) => renderEditCard(wId, index, "right"))}
       </DroppableColumn>
     </div>
   );
@@ -299,7 +300,8 @@ const Index = () => {
 
   const renderSingleColumn = () => (
     <div className={isEditing ? "space-y-2" : "space-y-6"}>
-      {visibleWidgets.map((wId) => isEditing ? renderEditCard(wId) : renderViewCard(wId))}
+      {visibleWidgets.map((wId, index) =>
+        isEditing ? renderEditCard(wId, index, "left") : renderViewCard(wId))}
     </div>
   );
 
@@ -367,7 +369,8 @@ const Index = () => {
                 <p className="text-sm font-medium">
                   Toggle widgets on or off, and drag a handle to reorder
                   {columns === 2 ? " between columns" : ""}. On a touch screen,
-                  press and hold the handle first.
+                  press and hold the handle first; from the keyboard, tab to a
+                  handle and use the arrow keys.
                 </p>
                 <div className="flex items-center gap-1 border border-border p-0.5">
                   <Button
@@ -411,29 +414,22 @@ const Index = () => {
 
 
         {/* Sortable widgets */}
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragOver={handleDragOver}
+        <DragProvider
+          axis="vertical"
+          onDrop={dropWidget}
+          onKeyboardMove={moveWidgetBy}
+          renderPreview={(source) => (
+            <Card className="border-l-2 border-rule bg-card">
+              <CardContent className="flex items-center justify-between p-3">
+                <span className="text-sm font-medium">{WIDGET_LABELS[source.id as WidgetId]}</span>
+              </CardContent>
+            </Card>
+          )}
         >
-          <SortableContext items={visibleWidgets} strategy={verticalListSortingStrategy}>
-            {columns === 2
-              ? (isEditing ? renderTwoColumnEditing() : renderTwoColumnView())
-              : renderSingleColumn()
-            }
-          </SortableContext>
-          <DragOverlay>
-            {activeId && isEditing ? (
-              <Card className="border-l-2 border-rule shadow-lg">
-                <CardContent className="flex items-center justify-between p-3">
-                  <span className="text-sm font-medium">{WIDGET_LABELS[activeId]}</span>
-                </CardContent>
-              </Card>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+          {columns === 2
+            ? (isEditing ? renderTwoColumnEditing() : renderTwoColumnView())
+            : renderSingleColumn()}
+        </DragProvider>
 
         <FileBrowserWidgetSettings
           open={settingsWidget === "file_browser"}

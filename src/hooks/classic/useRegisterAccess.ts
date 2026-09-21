@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   decideRegisterAccess,
+  deleteRegister,
   fetchRegisterMembers,
   fetchRegisterPeople,
   fetchRegisterRequests,
@@ -86,4 +87,9 @@ export function useInviteToRegister(registerId: string | undefined) {
   return useRegisterAccessMutation(({ email, role }: { email: string; role: RegisterRole }) =>
     inviteToRegister(registerId!, email, role),
   );
+}
+
+/** Deleting the whole register. Not scoped to `registerId` up front: the id travels with the call. */
+export function useDeleteRegister() {
+  return useRegisterAccessMutation((registerId: string) => deleteRegister(registerId));
 }

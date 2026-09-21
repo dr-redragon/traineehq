@@ -1,11 +1,8 @@
 import { useState, useMemo, useRef, useEffect } from "react";
 import {
-  DndContext, DragOverlay, pointerWithin,
-  rectIntersection, useDroppable,
-  type CollisionDetection, type DragEndEvent, type DragOverEvent, type DragStartEvent,
-} from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { useDragSensors } from "@/hooks/useDragSensors";
+  DragProvider, slotForEdge, useDropTarget,
+  type DragSource, type DropEvent,
+} from "@/lib/dnd";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,7 +27,7 @@ import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { UploadProgressBar } from "@/components/UploadProgressBar";
 import { AddResourceDialog } from "@/components/AddResourceDialog";
 import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
-import { planReorder } from "@/lib/resourceOrdering";
+import { planFolderReorder, planReorder } from "@/lib/resourceOrdering";
 import {
   ariaSortFor, nextSort, sortItems, type SortKey, type SortState,
 } from "@/lib/driveSort";
@@ -57,16 +54,10 @@ interface DriveBrowserProps {
   openFolderId?: string | null;
 }
 
-interface DragItem {
-  type: "file" | "folder";
-  id: string;
-}
-
-const collisionDetection: CollisionDetection = (args) => {
-  const pw = pointerWithin(args);
-  if (pw.length > 0) return pw;
-  return rectIntersection(args);
-};
+/** A selection id for a folder. Files are stored under their own id. */
+const folderRowId = (id: string) => `folder-row:${id}`;
+const isFolderRowId = (id: string) => id.startsWith("folder-row:");
+const folderIdOf = (rowId: string) => rowId.replace("folder-row:", "");
 
 export function DriveBrowser({
   subsection, specialtyId, resources, folders, canManage, openFolderId,
@@ -97,8 +88,6 @@ export function DriveBrowser({
   const [lastClickedId, setLastClickedId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false); // "Select" pressed: tapping a row ticks it
 
-  const [activeDrag, setActiveDrag] = useState<DragItem | null>(null);
-  const [activeDropId, setActiveDropId] = useState<string | null>(null);
 
   const [nativeDropping, setNativeDropping] = useState(false);
   const [nativeDropCount, setNativeDropCount] = useState(0);
@@ -119,10 +108,6 @@ export function DriveBrowser({
 
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
-
-  // Rows are the drag target here, so touch activates on a hold rather than on
-  // movement — a swipe across a row has to stay a scroll.
-  const sensors = useDragSensors(6);
 
   /* ---------- Derived data ---------- */
   const currentFolder = useMemo(
@@ -317,7 +302,11 @@ export function DriveBrowser({
   const moveItemsToTarget = async (
     items: { fileIds: string[]; folderIds: string[] },
     target: { folderId: string | null }
-  ) => {
+  ): Promise<number> => {
+    // How many rows actually went somewhere. A drop that asks for what is
+    // already true — and a press-and-release that never moved — must not
+    // announce a move that did not happen.
+    let moved = 0;
     try {
       const destResources = resources.filter(
         (r) => ((r as any).folder_id ?? null) === target.folderId,
@@ -332,6 +321,7 @@ export function DriveBrowser({
           id: fid, folder_id: target.folderId, subheading: null,
           sort_order: nextOrder++,
         });
+        moved += 1;
       }
 
       // Folders move into folders now. The refusals are the ones the tree
@@ -348,115 +338,168 @@ export function DriveBrowser({
           continue;
         }
         await updateFolder.mutateAsync({ id: fid, parentId: target.folderId });
+        moved += 1;
       }
     } catch (e: any) {
       toast.error(e.message ?? "Move failed");
     }
+    return moved;
   };
 
   /* ---------- Drag handlers ---------- */
-  const handleDragStart = (event: DragStartEvent) => {
-    const data = event.active.data.current as any;
-    if (!data) return;
-    const item: DragItem = data.type === "folder"
-      ? { type: "folder", id: data.folderId }
-      : { type: "file", id: data.resourceId };
-    setActiveDrag(item);
-    // If dragged item is not in selection, replace selection
-    const dragSelectionId = item.type === "folder" ? `folder-row:${item.id}` : item.id;
-    if (!selection.has(dragSelectionId)) {
-      setSelection(new Set([dragSelectionId]));
-    }
-  };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    setActiveDropId(event.over ? String(event.over.id) : null);
+  /**
+   * Picking rows up.
+   *
+   * A row that is part of the selection drags the whole selection; a row that
+   * is not becomes the selection, because dragging something you had not
+   * selected and watching four other things move with it is nobody's idea of
+   * what just happened.
+   */
+  const dragGroupFor = (rowId: string) =>
+    selection.has(rowId) ? [...selection] : [rowId];
+
+  const handleDragStart = (source: DragSource) => {
+    if (!selection.has(source.id)) setSelection(new Set([source.id]));
   };
 
   /**
-   * A file dropped onto another file row reorders rather than moves.
+   * Rearranging is only meaningful against the hand-arranged order.
    *
-   * The ordering itself is worked out by planReorder, which is tested; this
-   * only decides what is being dragged and applies the writes it returns.
-   * Returns false when there was nothing to do, so the caller can stay quiet
-   * rather than report a move that did not happen.
+   * While a column sort is on, the positions on screen are a temporary view
+   * over that order, so writing a drop into it would silently rewrite the
+   * arrangement to match the view. The rows stop offering gaps at all in that
+   * state, so this is the backstop rather than the explanation — but if a gap
+   * is ever reached while sorted, it must say so rather than quietly obey.
    */
-  const reorderOntoRow = async (overResourceId: string, activeId: string) => {
-    // Dropping one row onto another means "put it here", and here is only a
-    // place in the hand-arranged order. While a column sort is on, the
-    // positions on screen are not that order, so applying the drop would
-    // silently rewrite it to match a temporary view. Drive solves this by not
-    // letting you drag at all when sorted; saying so is friendlier.
-    if (sort) {
-      toast.info("Turn off sorting to rearrange", {
-        description: "Click the highlighted column heading again to go back to the arranged order.",
-      });
-      return false;
-    }
-
-    // Drag the whole selection when the dragged row is part of it, matching how
-    // a drop onto a group behaves; otherwise just the row under the cursor.
-    const draggingIds = selection.has(activeId)
-      ? [...selection].filter((id) => !id.startsWith("folder-row:"))
-      : [activeId];
-
-    const writes = planReorder(resources, draggingIds, overResourceId);
-    if (!writes.length) return false;
-
-    for (const w of writes) {
-      await updateResourcePlacement.mutateAsync(w);
-    }
+  const refuseWhileSorted = () => {
+    if (!sort) return false;
+    toast.info("Turn off sorting to rearrange", {
+      description: "Click the highlighted column heading again to go back to the arranged order.",
+    });
     return true;
   };
 
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const overId = event.over ? String(event.over.id) : null;
-    setActiveDrag(null);
-    setActiveDropId(null);
-    if (!overId) return;
+  /**
+   * What a drop means.
+   *
+   * Two shapes, and the engine has already decided which: landing on the
+   * middle of a folder, on the list itself or on a breadcrumb is a move *into*
+   * somewhere; landing on a row's edge is a place in an order. Neither is
+   * inferred here from where the drag began — the gap the indicator drew is
+   * the gap that gets written.
+   */
+  const handleDrop = async ({ source, over }: DropEvent) => {
+    if (!over) return;
 
-    // Determine target
-    let target: { folderId: string | null } | null = null;
-    if (overId.startsWith("folder:")) {
-      const folderId = overId.replace("folder:", "");
-      const f = folders.find((x) => x.id === folderId);
-      if (!f) return;
-      target = { folderId };
-    } else if (overId.startsWith("crumb:")) {
-      // Dropped on a breadcrumb: move up to that level. "crumb:root" is the
-      // section itself, which is what a folder with no parent belongs to.
-      const crumb = overId.replace("crumb:", "");
-      target = { folderId: crumb === "root" ? null : crumb };
-    } else if (overId === "section-root") {
-      target = { folderId: currentFolder ? currentFolder.id : null };
-    } else if (resources.some((r) => r.id === overId)) {
-      // Dropped on a file row: reorder within that row's list.
-      const activeId = String(event.active.id);
-      if (activeId === overId) return;
-      try {
-        if (await reorderOntoRow(overId, activeId)) {
-          clearSelection();
-        }
-      } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Reorder failed");
-      }
-      return;
-    } else {
+    const fileIds = source.ids.filter((id) => !isFolderRowId(id));
+    const folderIds = source.ids.filter(isFolderRowId).map(folderIdOf);
+    if (!fileIds.length && !folderIds.length) return;
+
+    if (over.edge === "into") {
+      const target = dropDestination(over.id);
+      if (!target) return;
+      const moved = await moveItemsToTarget({ fileIds, folderIds }, target);
+      if (!moved) return;
+      toast.success(`Moved ${moved} item${moved === 1 ? "" : "s"}`);
+      clearSelection();
       return;
     }
 
-    // Build items to move from selection (drag start already ensures dragged item is selected)
-    const fileIds = [...selection].filter((id) => !id.startsWith("folder-row:"));
-    const folderIds = [...selection]
-      .filter((id) => id.startsWith("folder-row:"))
-      .map((id) => id.replace("folder-row:", ""));
-    if (!fileIds.length && !folderIds.length) return;
+    if (refuseWhileSorted()) return;
 
-    await moveItemsToTarget({ fileIds, folderIds }, target);
-    const total = fileIds.length + folderIds.length;
-    toast.success(`Moved ${total} item${total === 1 ? "" : "s"}`);
-    clearSelection();
+    try {
+      await placeBeside(over.id, over.edge, { fileIds, folderIds });
+      clearSelection();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Reorder failed");
+    }
   };
+
+  /** The folder a drop "into" something names. Null is the section itself. */
+  const dropDestination = (overId: string): { folderId: string | null } | null => {
+    if (isFolderRowId(overId)) {
+      const folderId = folderIdOf(overId);
+      return folders.some((f) => f.id === folderId) ? { folderId } : null;
+    }
+    if (overId.startsWith("crumb:")) {
+      // A breadcrumb moves things back up to that level; "crumb:root" is the
+      // section, which is where a folder with no parent belongs.
+      const crumb = overId.replace("crumb:", "");
+      return { folderId: crumb === "root" ? null : crumb };
+    }
+    if (overId === "section-root") return { folderId: currentFolder?.id ?? null };
+    return null;
+  };
+
+  /**
+   * A drop in the gap above or below a row.
+   *
+   * The row beside the gap says which list is being arranged, and rows of the
+   * other kind travel with it into the folder that list lives in — dragging a
+   * file and a folder together onto a gap should not leave half the selection
+   * behind.
+   */
+  const placeBeside = async (
+    overId: string,
+    edge: "before" | "after",
+    items: { fileIds: string[]; folderIds: string[] },
+  ) => {
+    if (isFolderRowId(overId)) {
+      const overFolderId = folderIdOf(overId);
+      const over = folders.find((f) => f.id === overFolderId);
+      if (!over) return;
+
+      const movable = items.folderIds.filter((id) => {
+        if (canMoveFolder(folders, id, over.parent_folder_id ?? null)) return true;
+        const f = folders.find((x) => x.id === id);
+        toast.error(`"${f?.name ?? "Folder"}" cannot go inside itself`, {
+          description: "Pick a place that is not inside the folder you are moving.",
+        });
+        return false;
+      });
+
+      const writes = planFolderReorder(
+        folders.map((f) => ({
+          id: f.id,
+          parent_folder_id: f.parent_folder_id ?? null,
+          sort_order: f.sort_order ?? 0,
+        })),
+        movable, overFolderId, edge,
+      );
+      for (const w of writes) {
+        await updateFolder.mutateAsync({
+          id: w.id, parentId: w.parent_folder_id, sort_order: w.sort_order,
+        });
+      }
+      if (items.fileIds.length) {
+        await moveItemsToTarget(
+          { fileIds: items.fileIds, folderIds: [] },
+          { folderId: over.parent_folder_id ?? null },
+        );
+      }
+      return;
+    }
+
+    const writes = planReorder(resources, items.fileIds, overId, edge);
+    for (const w of writes) {
+      await updateResourcePlacement.mutateAsync(w);
+    }
+    if (items.folderIds.length) {
+      const over = resources.find((r) => r.id === overId);
+      await moveItemsToTarget(
+        { fileIds: [], folderIds: items.folderIds },
+        { folderId: over?.folder_id ?? null },
+      );
+    }
+  };
+
+  /** Refuses a folder that would end up inside itself, before it lights up. */
+  const acceptsInto = (folderId: string) => (source: DragSource) =>
+    source.ids
+      .filter(isFolderRowId)
+      .map(folderIdOf)
+      .every((id) => canMoveFolder(folders, id, folderId));
 
   /* ---------- Native file/folder OS upload ---------- */
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -666,13 +709,17 @@ export function DriveBrowser({
   const openFolder = (id: string) => { setCurrentFolderId(id); clearSelection(); };
 
   const renderRows = () => (
-    <Section id="section-root" activeDropId={activeDropId} empty={rows.length === 0}>
-      {rows.map((row) =>
+    <Section id="section-root" empty={rows.length === 0}>
+      {rows.map((row, index) =>
         row.kind === "folder" ? (
           <FolderRow
             key={row.id}
             folder={row.folder!}
             depth={row.depth}
+            index={index}
+            dragGroup={dragGroupFor(folderRowId(row.id))}
+            accepts={acceptsInto(row.id)}
+            reorderable={!sort}
             hasChildren={!!row.hasChildren}
             expanded={!!row.expanded}
             onToggleExpanded={() => toggleExpanded(row.id)}
@@ -690,13 +737,15 @@ export function DriveBrowser({
             onDelete={() => setDeleteFolderId(row.id)}
             onDownload={() => handleDownloadFolder(row.folder!)}
             onNewSubfolder={() => { setNewFolderParentId(row.id); setAddFolderOpen(true); }}
-            isDropTarget={activeDropId === `folder:${row.id}`}
           />
         ) : (
           <FileRow
             key={row.id}
             resource={row.file!}
             depth={row.depth}
+            index={index}
+            dragGroup={dragGroupFor(row.id)}
+            reorderable={!sort}
             selected={selection.has(row.id)}
             onClick={(e) => handleRowClick(row.id, e)}
             canManage={canManage}
@@ -715,11 +764,6 @@ export function DriveBrowser({
     </Section>
   );
 
-
-  // Everything currently drawn is draggable, including rows revealed by an
-  // expanded folder — so this follows the flattened list rather than being
-  // worked out a second time and drifting from it.
-  const sortableIds = rows.map((row) => (row.kind === "folder" ? `folder-row:${row.id}` : row.id));
 
   const selectedCount = selection.size;
   const folderDeleteData = deleteFolderId ? folders.find((f) => f.id === deleteFolderId) : null;
@@ -781,7 +825,6 @@ export function DriveBrowser({
           subsectionName={subsection.name}
           path={folderPath(folders, currentFolder?.id ?? null)}
           onNavigate={(id) => { setCurrentFolderId(id); clearSelection(); }}
-          activeDropId={activeDropId}
         />
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
           {visibleIds.length > 0 && (
@@ -888,31 +931,24 @@ export function DriveBrowser({
       )}
 
       {/* Body */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={collisionDetection}
+      <DragProvider
+        axis="vertical"
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-        onDragCancel={() => { setActiveDrag(null); setActiveDropId(null); }}
+        onDrop={handleDrop}
+        renderPreview={(source) => (
+          <DragPreview
+            count={source.ids.length}
+            label={
+              isFolderRowId(source.id)
+                ? folders.find((f) => f.id === folderIdOf(source.id))?.name ?? "Folder"
+                : resources.find((r) => r.id === source.id)?.title ?? "File"
+            }
+            kind={isFolderRowId(source.id) ? "folder" : "file"}
+          />
+        )}
       >
-        <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
-          {renderRows()}
-        </SortableContext>
-        <DragOverlay dropAnimation={null}>
-          {activeDrag ? (
-            <DragPreview
-              count={selection.size > 1 ? selection.size : 1}
-              label={
-                activeDrag.type === "folder"
-                  ? folders.find((f) => f.id === activeDrag.id)?.name ?? "Folder"
-                  : resources.find((r) => r.id === activeDrag.id)?.title ?? "File"
-              }
-              kind={activeDrag.type}
-            />
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+        {renderRows()}
+      </DragProvider>
 
       {/* Bulk action bar */}
       {selectedCount > 0 && (
@@ -1083,19 +1119,20 @@ function SortHeader({
 }
 
 function Section({
-  id, children, activeDropId, empty,
+  id, children, empty,
 }: {
   id: string;
   children?: React.ReactNode;
-  activeDropId: string | null;
   empty: boolean;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id });
-  const active = isOver || activeDropId === id;
+  // The list as a whole. Rows sit on top of it, so this catches only the space
+  // around them — which is what "put it in the folder I am looking at" means.
+  const { setNodeRef, dropProps, isOver: active } = useDropTarget({ id, mode: "into" });
 
   return (
     <div
       ref={setNodeRef}
+      {...dropProps}
       className={`relative rounded-md p-1 min-h-[40px] transition-colors ${active ? "bg-accent ring-1 ring-rule" : ""}`}
     >
       {empty ? (
@@ -1122,17 +1159,16 @@ function Section({
  * heading directly above it.
  */
 function Breadcrumb({
-  subsectionName, path, onNavigate, activeDropId,
+  subsectionName, path, onNavigate,
 }: {
   subsectionName: string;
   path: { id: string; name: string }[];
   onNavigate: (folderId: string | null) => void;
-  activeDropId: string | null;
 }) {
   if (!path.length) return null;
   return (
     <nav aria-label="Folder path" className="flex min-w-0 flex-wrap items-center gap-1 text-sm">
-      <Crumb id="root" label={subsectionName} onClick={() => onNavigate(null)} activeDropId={activeDropId} />
+      <Crumb id="root" label={subsectionName} onClick={() => onNavigate(null)} />
       {path.map((folder, index) => {
         const last = index === path.length - 1;
         return (
@@ -1141,7 +1177,7 @@ function Breadcrumb({
             {last ? (
               <span className="truncate font-semibold" aria-current="page">{folder.name}</span>
             ) : (
-              <Crumb id={folder.id} label={folder.name} onClick={() => onNavigate(folder.id)} activeDropId={activeDropId} />
+              <Crumb id={folder.id} label={folder.name} onClick={() => onNavigate(folder.id)} />
             )}
           </span>
         );
@@ -1151,18 +1187,17 @@ function Breadcrumb({
 }
 
 function Crumb({
-  id, label, onClick, activeDropId,
+  id, label, onClick,
 }: {
   id: string;
   label: string;
   onClick: () => void;
-  activeDropId: string | null;
 }) {
-  const { setNodeRef, isOver } = useDroppable({ id: `crumb:${id}` });
-  const active = isOver || activeDropId === `crumb:${id}`;
+  const { setNodeRef, dropProps, isOver: active } = useDropTarget({ id: `crumb:${id}`, mode: "into" });
   return (
     <button
       ref={setNodeRef}
+      {...dropProps}
       type="button"
       onClick={onClick}
       className={`truncate px-1 transition-colors hover:text-foreground ${active ? "bg-accent text-accent-deep" : "text-muted-foreground"}`}
@@ -1175,7 +1210,10 @@ function Crumb({
 function DragPreview({ count, label, kind }: { count: number; label: string; kind: "file" | "folder" }) {
   return (
     <div className="pointer-events-none">
-      <div className="flex items-center gap-2 rounded-md border-2 border-rule bg-card px-3 py-2 shadow-2xl ring-4 ring-rule max-w-xs">
+      {/* As wide as the row it came from: the preview is positioned by where
+          the row was taken hold of, so one narrower than the row would sit
+          away from the pointer whenever a row was grabbed by its right end. */}
+      <div className="flex items-center gap-2 rounded-md border-2 border-rule bg-card px-3 py-2 shadow-2xl ring-4 ring-rule">
         {kind === "folder" ? <FolderClosed className="h-4 w-4 text-rule" /> : <FileText className="h-4 w-4 text-rule" />}
         <span className="truncate text-sm font-medium">{label}</span>
         {count > 1 && (
