@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createRegister,
+  deleteRegister,
   fetchCreatableDeaneries,
   fetchCreatableSpecialties,
   fetchMyRegisterMemberships,
+  fetchRegisterArchive,
   fetchRegisterDirectory,
   requestRegisterAccess,
+  restoreRegister,
 } from "@/lib/classic/api";
 import { groupDirectory } from "@/lib/classic/directory";
 import { useCurrentUser } from "@/hooks/useUserRole";
@@ -87,6 +90,56 @@ export function useRequestRegisterAccess() {
       queryClient.invalidateQueries({ queryKey: ["classic-register-directory"] });
     },
   });
+}
+
+/**
+ * The registers this person has deleted but can still get back.
+ *
+ * Kept off the directory's own query on purpose: the directory is read on
+ * every visit and by everyone, and this one both writes (the RPC sweeps
+ * expired entries first) and concerns only the handful of people who have
+ * actually deleted something.
+ */
+export function useRegisterArchive() {
+  const { data: user } = useCurrentUser();
+
+  return useQuery({
+    queryKey: ["classic-register-archive", user?.id],
+    queryFn: fetchRegisterArchive,
+    enabled: !!user,
+  });
+}
+
+/**
+ * Restoring and destroying both change what the directory and the
+ * create-a-register form can offer, since an archived register goes on holding
+ * its specialty until it is one or the other.
+ */
+function useArchiveMutation<TArgs>(fn: (args: TArgs) => Promise<unknown>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      for (const key of [
+        "classic-register-archive",
+        "classic-register-directory",
+        "classic-register-creatable-specialties",
+        "my-classic-register-memberships",
+      ]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
+}
+
+export function useRestoreRegister() {
+  return useArchiveMutation((registerId: string) => restoreRegister(registerId));
+}
+
+/** Destroy an archived register now rather than waiting out its fifteen days. */
+export function useDeleteRegisterForever() {
+  return useArchiveMutation((registerId: string) => deleteRegister(registerId));
 }
 
 /**

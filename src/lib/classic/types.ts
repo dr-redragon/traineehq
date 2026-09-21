@@ -42,6 +42,27 @@ export interface RegisterDirectoryEntry {
   my_request: RequestStatus | null;
 }
 
+/**
+ * A row from `classic_register_archive()` — a register that has been deleted
+ * but not yet destroyed.
+ *
+ * `purge_at` is the database's own deadline rather than a window the browser
+ * works out for itself, so the countdown shown to an organiser and the rule
+ * that actually refuses a late restore are the same date.
+ */
+export interface ArchivedRegister {
+  id: string;
+  name: string;
+  slug: string;
+  deanery_name: string;
+  specialty_name: string;
+  archived_at: string;
+  purge_at: string;
+  /** What is in it, so the row is a decision rather than a filename. */
+  trainee_count: number;
+  session_count: number;
+}
+
 export interface RegisterMember {
   register_id: string;
   user_id: string;

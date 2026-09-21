@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  archiveRegister,
   decideRegisterAccess,
-  deleteRegister,
   fetchRegisterMembers,
   fetchRegisterPeople,
   fetchRegisterRequests,
@@ -90,18 +90,20 @@ export function useInviteToRegister(registerId: string | undefined) {
 }
 
 /**
- * Deleting the whole register.
+ * Archiving the whole register — what "delete" now does.
  *
  * Deliberately not `useRegisterAccessMutation`: that one *invalidates* the
- * members, requests and people lists, which would send three RPCs asking about
- * a register that no longer exists while the page is being torn down. Those
- * caches are dropped instead, and only the directory — which has to lose a row
- * — is refetched.
+ * members, requests and people lists, which would send three RPCs asking after
+ * a register the caller can no longer reach while the page is being torn down.
+ * Those caches are dropped instead, and only the lists that genuinely change —
+ * the directory, which loses a row, and the archive, which gains one — are
+ * refetched. The register's own data is left alone in the database; it is the
+ * point of the archive that it survives.
  */
-export function useDeleteRegister() {
+export function useArchiveRegister() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (registerId: string) => deleteRegister(registerId),
+    mutationFn: (registerId: string) => archiveRegister(registerId),
     onSuccess: () => {
       for (const key of [
         "classic-register-members", "classic-register-requests", "classic-register-people",
@@ -110,6 +112,8 @@ export function useDeleteRegister() {
         queryClient.removeQueries({ queryKey: [key] });
       }
       queryClient.invalidateQueries({ queryKey: ["classic-register-directory"] });
+      queryClient.invalidateQueries({ queryKey: ["classic-register-archive"] });
+      queryClient.invalidateQueries({ queryKey: ["my-classic-register-memberships"] });
     },
   });
 }
