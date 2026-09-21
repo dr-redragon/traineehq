@@ -8,12 +8,20 @@ import {
   keepVisible, matchesTerm, toVisibleIdSet,
 } from "@/lib/searchVisibility";
 
-export type SearchKind = "specialty" | "resource" | "contact" | "discussion";
+export type SearchKind = "specialty" | "folder" | "resource" | "contact" | "discussion";
 
 /** A resource with the specialty it hangs off, reached through its subsection. */
 interface ResourceRow {
   id: string;
   title: string;
+  subsection_id: string;
+  subsections: { specialty_id: string; specialties: { short_name: string } };
+}
+
+/** A folder, reached the same way. */
+interface FolderRow {
+  id: string;
+  name: string;
   subsection_id: string;
   subsections: { specialty_id: string; specialties: { short_name: string } };
 }
@@ -32,13 +40,14 @@ export interface SearchHit {
 
 export const KIND_LABELS: Record<SearchKind, string> = {
   specialty: "Specialties",
+  folder: "Folders",
   resource: "Resources",
   contact: "Contacts",
   discussion: "Discussions",
 };
 
 /** The order groups appear in — most specific first. */
-export const KIND_ORDER: SearchKind[] = ["specialty", "resource", "contact", "discussion"];
+export const KIND_ORDER: SearchKind[] = ["specialty", "folder", "resource", "contact", "discussion"];
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -96,6 +105,24 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
     [on, visibleSpecialties, query],
   );
 
+  // Folders are searched as their own kind rather than being folded in with
+  // the files. A folder is where a reader expects to arrive — "the audit
+  // folder" is a place, not a document — and it was the one thing in the drive
+  // the box could not find, because this hook never asked for the table.
+  const folders = useQuery({
+    queryKey: ["search-folders", query, idList],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("resource_folders")
+        .select("id, name, subsection_id, subsections!inner(specialty_id, specialties!inner(short_name))")
+        .ilike("name", `%${query}%`)
+        .in("subsections.specialty_id", idList)
+        .limit(4);
+      return data ?? [];
+    },
+    enabled: on,
+  });
+
   const resources = useQuery({
     queryKey: ["search-resources", query, idList],
     queryFn: async () => {
@@ -152,6 +179,11 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
   // re-applies the same rule to what came back, so a filter that is dropped in
   // a future edit, or an embedded filter that quietly stops applying, narrows
   // the results here instead of widening them on screen.
+  const visibleFolders = keepVisible(
+    (folders.data ?? []) as unknown as FolderRow[],
+    (f) => f.subsections?.specialty_id,
+    visibleIds,
+  );
   const visibleResources = keepVisible(
     (resources.data ?? []) as ResourceRow[],
     (r) => r.subsections?.specialty_id,
@@ -182,6 +214,17 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
       path: `/specialty/${s.id}`,
       color: s.color ?? undefined,
       iconName: s.icon_name,
+    });
+  }
+  for (const f of visibleFolders) {
+    hits.push({
+      key: `folder-${f.id}`,
+      kind: "folder",
+      label: f.name,
+      sublabel: f.subsections?.specialties?.short_name,
+      // `folder` opens it rather than just landing on the section it lives in,
+      // which for a folder is the whole point of the result.
+      path: `/specialty/${f.subsections.specialty_id}?subsection=${f.subsection_id}&folder=${f.id}`,
     });
   }
   for (const r of visibleResources) {
@@ -220,7 +263,7 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
     // The scope counts as fetching too, so the box says "Searching…" while it
     // loads rather than "Nothing matches" against a scope it does not have yet.
     isFetching:
-      scopeFetching || resources.isFetching ||
+      scopeFetching || folders.isFetching || resources.isFetching ||
       contacts.isFetching || discussions.isFetching,
   };
 }

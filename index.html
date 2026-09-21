@@ -22,18 +22,43 @@
     <meta name="twitter:card" content="summary_large_image" />
 
 
-    <!-- The accent scheme, applied before first paint.
+    <!-- The theme and the accent scheme, both applied before first paint.
 
-         Without this the page renders in the default red and then repaints
-         into the chosen colour a frame later, which is the same flash
-         next-themes solves the same way for light/dark. It is inline and
-         synchronous on purpose: a module script would run too late.
+         Inline and synchronous on purpose: a module script would run too late.
 
-         Kept deliberately small and defensive — an unknown or missing value,
-         or storage being unavailable, simply leaves the default in place. The
-         key matches SCHEME_STORAGE_KEY in src/lib/colorSchemes.ts. -->
+         next-themes cannot do the dark half of this on its own here. In a Next
+         app it injects a blocking script into the served HTML; in a Vite SPA
+         the served HTML is a near-empty shell and its script is part of the
+         React tree, so it cannot run until the bundle has downloaded, parsed
+         and mounted. Until then <html> carries no `dark` class and the page
+         paints the light tokens — measured at roughly 800ms of light frames on
+         a 6x-throttled CPU before flipping. That is the "random flicker": the
+         window is imperceptible on a fast machine with a warm cache and very
+         visible on a slow one, so the same person sees it only sometimes.
+
+         next-themes agrees with whatever this sets, so it has nothing to
+         change on mount and there is no second flip. Both halves are
+         deliberately defensive: if storage throws or the value is junk, the
+         default stands rather than the page breaking.
+
+         The keys match: "theme" is next-themes' default storageKey, and
+         SCHEME_STORAGE_KEY lives in src/lib/colorSchemes.ts. -->
     <script>
       (function () {
+        var root = document.documentElement;
+
+        // Light or dark. "system" is the default, matching the ThemeProvider.
+        try {
+          var stored = localStorage.getItem("theme") || "system";
+          var dark = stored === "dark" || (stored === "system" &&
+            window.matchMedia("(prefers-color-scheme: dark)").matches);
+          if (dark) root.classList.add("dark");
+          // Tells the browser to draw its own furniture — scrollbars, form
+          // controls, the canvas behind the page — to match, so those do not
+          // flash white while the rest of the page is already dark.
+          root.style.colorScheme = dark ? "dark" : "light";
+        } catch (e) { /* no storage or no matchMedia: light stands */ }
+
         // Keep in step with DEFAULT_SCHEME in src/lib/colorSchemes.ts. The
         // default has to be named here as well as there: the base :root tokens
         // are the design's own red, so a first-time visitor with nothing stored
@@ -45,7 +70,7 @@
           var s = localStorage.getItem("traineehq-color-scheme");
           if (s && /^[a-z]+$/.test(s)) name = s;
         } catch (e) { /* no storage: the default stands */ }
-        document.documentElement.classList.add("scheme-" + name);
+        root.classList.add("scheme-" + name);
       })();
     </script>
   </head>

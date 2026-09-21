@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/context-menu";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  FolderClosed, FolderOpen,
+  FolderClosed, FolderOpen, ChevronRight, FolderPlus,
   MoreVertical, Trash2, Eye, Pencil, Bookmark, Download, FolderInput,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
@@ -41,8 +41,13 @@ function formatFileSize(bytes?: number | null): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+/** One indent step per level, matching the disclosure arrow's width. */
+const INDENT_PX = 22;
+
 interface BaseRowProps {
   selected: boolean;
+  /** How deep in the tree this row sits. 0 is the current view's own level. */
+  depth?: number;
   onClick: (e: React.MouseEvent) => void;
   canManage: boolean;
   /** Selection mode: checkboxes stay visible and a tap never opens the item. */
@@ -54,14 +59,13 @@ interface BaseRowProps {
 
 interface FileRowProps extends BaseRowProps {
   resource: Tables<"resources">;
-  existingSubheadings: string[];
   onDelete: (id: string) => void;
   onMove: (id: string) => void;
   onDownload: (id: string) => void;
 }
 
 export function FileRow({
-  resource, selected, onClick, canManage, selectMode, existingSubheadings,
+  resource, selected, onClick, canManage, selectMode, depth = 0,
   onDelete, onMove, onDownload,
 }: FileRowProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -80,6 +84,10 @@ export function FileRow({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
+    // Padding rather than margin: the row keeps its full width, so its hover
+    // fill and its bottom rule still run the whole way across the list. An
+    // indented margin would leave a ragged left edge on every nested row.
+    paddingLeft: depth ? `${4 + depth * INDENT_PX}px` : undefined,
   };
 
 
@@ -226,7 +234,7 @@ export function FileRow({
         </ContextMenuContent>
       </ContextMenu>
       <ResourceViewer resource={resource} open={viewerOpen} onOpenChange={setViewerOpen} />
-      {canManage && <EditResourceDialog resource={resource} open={editOpen} onOpenChange={setEditOpen} existingSubheadings={existingSubheadings} />}
+      {canManage && <EditResourceDialog resource={resource} open={editOpen} onOpenChange={setEditOpen} />}
     </>
   );
 }
@@ -236,6 +244,11 @@ export function FileRow({
 interface FolderRowProps extends BaseRowProps {
   folder: Tables<"resource_folders">;
   count: number;
+  /** Whether there is anything inside worth revealing. */
+  hasChildren?: boolean;
+  expanded?: boolean;
+  onToggleExpanded?: () => void;
+  onNewSubfolder?: () => void;
   onOpen: () => void;
   onRename: () => void;
   onDelete: () => void;
@@ -245,7 +258,8 @@ interface FolderRowProps extends BaseRowProps {
 
 export function FolderRow({
   folder, selected, onClick, canManage, selectMode, count, onOpen, onRename, onDelete, onDownload,
-  downloading, isDropTarget,
+  downloading, isDropTarget, depth = 0, hasChildren = false, expanded = false,
+  onToggleExpanded, onNewSubfolder,
 }: FolderRowProps) {
   const { attributes, listeners, setNodeRef: setSortRef, transform, transition, isDragging } =
     useSortable({
@@ -267,6 +281,10 @@ export function FolderRow({
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.4 : 1,
+    // Padding rather than margin: the row keeps its full width, so its hover
+    // fill and its bottom rule still run the whole way across the list. An
+    // indented margin would leave a ragged left edge on every nested row.
+    paddingLeft: depth ? `${4 + depth * INDENT_PX}px` : undefined,
   };
 
   const active = isOver || isDropTarget;
@@ -295,11 +313,33 @@ export function FolderRow({
                 : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
             />
           )}
+            {/* The disclosure arrow. Clicking it opens the folder *in place*,
+                indented under this row; clicking the row itself still goes
+                into the folder as its own view. Two ways in, and the small
+                target is the one that keeps you where you are.
+
+                It stops the click reaching the row, or every peek would also
+                be a navigation. */}
+            <button
+              type="button"
+              aria-label={expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
+              aria-expanded={hasChildren ? expanded : undefined}
+              disabled={!hasChildren}
+              onClick={(e) => { e.stopPropagation(); onToggleExpanded?.(); }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="-my-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-0"
+            >
+              <ChevronRight
+                className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`}
+                aria-hidden
+              />
+            </button>
             {/* A folder keeps its icon where a file does not — it is the one
                 thing in the list you can go *into*, and the TYPE column alone
                 does not make that obvious enough to click. It is drawn plain,
                 without the tinted tile. */}
-            {active
+            {active || expanded
               ? <FolderOpen className="h-4 w-4 shrink-0 text-rule" />
               : <FolderClosed className="h-4 w-4 shrink-0 text-rule" />}
             <div className="min-w-0 flex-1">
@@ -324,6 +364,12 @@ export function FolderRow({
               onClick={(e) => { e.stopPropagation(); onDownload(); }} title="Download folder">
               <Download className="h-3.5 w-3.5" />
             </Button>
+            {canManage && onNewSubfolder && (
+              <Button variant="ghost" size="icon" className="h-7 w-7"
+                onClick={(e) => { e.stopPropagation(); onNewSubfolder(); }} title="New folder inside">
+                <FolderPlus className="h-3.5 w-3.5" />
+              </Button>
+            )}
             {canManage && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>

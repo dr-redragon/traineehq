@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Loader2, MessageSquare, Search, Users, X } from "lucide-react";
+import { FileText, Folder, Loader2, MessageSquare, Search, Users, X } from "lucide-react";
 
 import { getIcon } from "@/lib/iconMap";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import {
 } from "@/hooks/useGlobalSearch";
 
 const KIND_ICONS: Record<Exclude<SearchKind, "specialty">, typeof FileText> = {
+  folder: Folder,
   resource: FileText,
   contact: Users,
   discussion: MessageSquare,

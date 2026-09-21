@@ -29,7 +29,38 @@ describe("the default scheme", () => {
     const html = readFileSync(resolve(process.cwd(), page), "utf8");
     // Unconditional: outside the try, so storage being unavailable still
     // leaves the default on rather than falling through to the base tokens.
-    expect(html).toContain('document.documentElement.classList.add("scheme-" + name);');
+    expect(html).toMatch(/classList\.add\("scheme-" \+ name\);/);
+  });
+});
+
+/**
+ * The other half of the same script, and the other half of the same problem.
+ *
+ * next-themes injects its own blocking script in a Next app; in a Vite SPA its
+ * script is part of the React tree, so it cannot run until the bundle mounts
+ * and the page paints light in the meantime. index.html resolves the theme up
+ * front instead. If that ever goes missing the flash comes back, and a flash
+ * is not something a test suite notices on its own.
+ */
+describe("the pre-paint theme", () => {
+  const html = () => readFileSync(resolve(process.cwd(), "index.html"), "utf8");
+
+  it("reads the key next-themes actually stores under", () => {
+    // ThemeProvider in App.tsx passes no storageKey, so this is the default.
+    expect(html()).toContain('localStorage.getItem("theme")');
+  });
+
+  it("treats a missing choice as system, matching the ThemeProvider default", () => {
+    expect(html()).toContain('|| "system"');
+    expect(html()).toContain('prefers-color-scheme: dark');
+  });
+
+  it("puts the dark class on before the bundle can", () => {
+    expect(html()).toMatch(/classList\.add\("dark"\)/);
+  });
+
+  it("sets color-scheme too, so browser furniture does not flash", () => {
+    expect(html()).toMatch(/style\.colorScheme/);
   });
 });
 
