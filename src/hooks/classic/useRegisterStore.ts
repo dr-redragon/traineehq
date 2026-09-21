@@ -6,7 +6,7 @@ import {
 } from "@/lib/classic/api";
 import { normaliseBlob } from "@/lib/classic/blob";
 import { useCurrentUser } from "@/hooks/useUserRole";
-import type { RegisterBlob } from "@/lib/classic/types";
+import type { RegisterBlob, RegisterStore } from "@/lib/classic/types";
 
 /** An edit, expressed as a pure function so it can be replayed. */
 export type RegisterEdit = (blob: RegisterBlob) => RegisterBlob;
@@ -68,12 +68,32 @@ export function useRegisterStore(registerId: string | undefined) {
       throw new RegisterConflictError("Could not save — the register kept changing underneath.");
     },
 
+    // Apply the edit to the cache immediately, before the round trip that
+    // confirms it. A checkbox that waits for the network before it ticks reads
+    // as broken even when the save is about to succeed; showing the edit at
+    // once and rolling it back only if the save fails is the honest version of
+    // "immediate" for a store that still has to persist elsewhere.
+    onMutate: async (edit: RegisterEdit) => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<RegisterStore | null>(queryKey);
+      if (previous) {
+        queryClient.setQueryData<RegisterStore | null>(queryKey, {
+          ...previous,
+          data: edit(normaliseBlob(previous.data)),
+        });
+      }
+      return { previous };
+    },
+
     // Write the confirmed result straight into the cache. Re-fetching would be
     // a round trip to learn what the save already told us, and would briefly
     // show the old figures while it ran.
     onSuccess: (saved) => queryClient.setQueryData(queryKey, saved),
 
-    onError: (error: Error) => toast.error(error.message),
+    onError: (error: Error, _edit, context) => {
+      if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+      toast.error(error.message);
+    },
   });
 
   const { mutate } = mutation;

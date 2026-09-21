@@ -4,13 +4,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { YearTabs } from "@/components/classic/YearTabs";
 import { ChaseDialog } from "@/components/classic/ChaseDialog";
+import { AttendeeProgressList } from "@/components/classic/AttendeeProgressList";
 import { setAttendance, upsertSession } from "@/lib/classic/blob";
 import { GRADES } from "@/lib/classic/constants";
 import { isPresent } from "@/lib/classic/attendance";
 import { unexplainedAbsentees } from "@/lib/classic/chase";
-import {
-  emailFeedbackLink, fetchSessionStatus, markAttended, publishSession,
-} from "@/lib/classic/liveApi";
+import { fetchSessionStatus, markAttended, publishSession } from "@/lib/classic/liveApi";
 import { describeSync, mergeCheckIns, presentPayloads } from "@/lib/classic/liveSync";
 import {
   ALL_YEARS, availableAcademicYears, defaultAcademicYear, formatMonth,
@@ -50,6 +49,7 @@ export function CheckinPanel({
   const [grade, setGrade] = useState("");
   const [busy, setBusy] = useState(false);
   const [chasing, setChasing] = useState(false);
+  const [autoPublishingId, setAutoPublishingId] = useState<string | null>(null);
 
   const scoped = year === ALL_YEARS || !years.length
     ? sessionsSorted(blob.sessions)
@@ -79,34 +79,32 @@ export function CheckinPanel({
     refetchInterval: 20_000,
   });
 
+  // Every teaching day is published the moment it is created — see
+  // ManagePanel. This only fires for a day that predates that change, so it
+  // gets its QR code without asking anyone to press a "publish" button that
+  // no longer exists.
+  useEffect(() => {
+    if (!active || active.cloudId || autoPublishingId === active.id) return;
+    setAutoPublishingId(active.id);
+    publishSession({
+      registerId: entry.id,
+      title: active.title,
+      sessionDate: `${active.month}-01`,
+      localId: active.id,
+    })
+      .then(({ session }) => {
+        edit((b) => upsertSession(b, { ...active, cloudId: session.id }));
+      })
+      .catch((error: Error) => toast.error(error.message))
+      .finally(() => setAutoPublishingId(null));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.id, active?.cloudId, entry.id]);
+
   const present = active
     ? blob.trainees.filter((t) => isPresent(blob, t.id, active.id))
     : [];
 
   const absentees = unexplainedAbsentees(blob, active);
-
-  /** Publish the teaching day so it has a link and a QR code at all. */
-  const publish = async () => {
-    if (!active) return;
-    setBusy(true);
-    try {
-      const { session } = await publishSession({
-        registerId: entry.id,
-        title: active.title,
-        // The register keeps months, the live day needs a date. The first of
-        // the month is a placeholder the organiser never sees; the day is
-        // identified by its title.
-        sessionDate: `${active.month}-01`,
-        localId: active.id,
-      });
-      edit((b) => upsertSession(b, { ...active, cloudId: session.id }));
-      toast.success("Teaching day published — the QR code is live");
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   /** Merge the live sign-in list and the register's grid, both ways. */
   const sync = async () => {
@@ -141,21 +139,6 @@ export function CheckinPanel({
     setGrade("");
   };
 
-  const sendFeedbackLinks = async () => {
-    if (!active?.cloudId) return;
-    setBusy(true);
-    try {
-      const outcome = await emailFeedbackLink({ sessionId: active.cloudId });
-      toast.success(
-        `Feedback link sent to ${outcome.sent} of ${outcome.considered}.` +
-        (outcome.failures.length ? ` ${outcome.failures.length} could not be sent.` : ""));
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
     <>
       <h2 className="panel-title">Session check-in</h2>
@@ -173,7 +156,9 @@ export function CheckinPanel({
               <img src={qr} alt={`QR code for ${active?.title ?? "the teaching day"}`} width={220} height={220} />
             ) : (
               <div className="empty" style={{ padding: 24 }}>
-                {active ? "Not published yet" : "No teaching day selected"}
+                {!active
+                  ? "No teaching day selected"
+                  : autoPublishingId === active.id ? "Publishing…" : "Not published yet"}
               </div>
             )}
           </div>
@@ -181,7 +166,7 @@ export function CheckinPanel({
             Scan to open the sign-in form for<br />
             <strong>{active ? `${active.title} — ${formatMonth(active.month)}` : "—"}</strong>
           </p>
-          {checkInUrl ? (
+          {checkInUrl && (
             <button
               type="button"
               className="btn ghost sm"
@@ -192,16 +177,6 @@ export function CheckinPanel({
               }}
             >
               Copy form link
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn primary sm"
-              style={{ marginTop: 10 }}
-              disabled={!active || busy}
-              onClick={publish}
-            >
-              {busy ? "Publishing…" : "Publish this day"}
             </button>
           )}
         </div>
@@ -307,8 +282,7 @@ export function CheckinPanel({
             <label className="fld">Live sign-in, feedback &amp; certificates</label>
             {!active?.cloudId ? (
               <p className="helper">
-                Publish this teaching day to give it a QR code, collect feedback
-                and issue certificates.
+                {active ? "Publishing this teaching day…" : "Pick a teaching day above."}
               </p>
             ) : status.isLoading ? (
               <p className="helper">Reading the live list…</p>
@@ -344,19 +318,17 @@ export function CheckinPanel({
                   <button type="button" className="btn ghost sm" disabled={busy} onClick={sync}>
                     {busy ? "Working…" : "Sync sign-ins"}
                   </button>
-                  <button
-                    type="button"
-                    className="btn ghost sm"
-                    disabled={busy || !status.data?.email_configured}
-                    onClick={sendFeedbackLinks}
-                  >
-                    Email the feedback link
-                  </button>
                 </div>
                 <p className="helper">
                   Syncing works both ways: sign-ins from the QR come into the
                   register, and anyone ticked here is added to the live list.
                 </p>
+
+                {status.data && status.data.email_configured && (
+                  <div style={{ marginTop: 16 }}>
+                    <AttendeeProgressList entry={entry} sessionId={active!.cloudId!} status={status.data} />
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -384,7 +356,7 @@ export function CheckinPanel({
                   className="btn clay sm"
                   style={{ marginTop: 12 }}
                   disabled={!active.cloudId}
-                  title={active.cloudId ? undefined : "Publish the teaching day first"}
+                  title={active.cloudId ? undefined : "Publishing the teaching day…"}
                   onClick={() => setChasing(true)}
                 >
                   Ask about the absence

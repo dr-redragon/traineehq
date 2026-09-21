@@ -97,7 +97,7 @@ export default function ClassicRegisterDetail() {
             {tab === "status" && <StatusPanel store={store} />}
           </section>
           <section className={"panel" + (tab === "manage" ? " active" : "")}>
-            {tab === "manage" && <ManagePanel store={store} />}
+            {tab === "manage" && <ManagePanel store={store} entry={entry} />}
           </section>
           {entry.i_am_owner && (
             <section className={"panel" + (tab === "admin" ? " active" : "")}>
