@@ -1,44 +1,78 @@
-import { useEffect } from "react";
+import { lazy, useEffect } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { ThemeProvider } from "next-themes";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
-import Landing from "./pages/Landing";
-import Index from "./pages/Index";
-import Login from "./pages/Login";
-import SpecialtyDetail from "./pages/SpecialtyDetail";
-import KeyContacts from "./pages/KeyContacts";
-import AdminPanel from "./pages/AdminPanel";
-import MyProfile from "./pages/MyProfile";
-import CommunityHub from "./pages/CommunityHub";
-import SpecialtyDiscussion from "./pages/SpecialtyDiscussion";
-import NotFound from "./pages/NotFound";
-import RequestAccess from "./pages/RequestAccess";
-import RegisterDirectory from "./pages/RegisterDirectory";
-import RegisterDetail from "./pages/RegisterDetail";
-import RegisterAccess from "./pages/RegisterAccess";
-import RegisterCheckIn from "./pages/register/CheckIn";
-import RegisterFeedback from "./pages/register/Feedback";
-import RegisterSignIn from "./pages/register/SignIn";
-import ClassicDirectory from "./pages/classic/Directory";
-import ClassicRegisterDetail from "./pages/classic/RegisterDetail";
-import ClassicCheckIn from "./pages/classic/CheckIn";
-import ClassicFeedback from "./pages/classic/Feedback";
-import ClassicSignIn from "./pages/classic/SignIn";
-import ForgotPassword from "./pages/ForgotPassword";
-import ResetPassword from "./pages/ResetPassword";
 import { DeaneryProvider } from "./contexts/DeaneryContext";
 import { RegisterProvider } from "./contexts/RegisterContext";
-import { RegisterLayout } from "./components/register/RegisterLayout";
 import { RequireAuth } from "./components/RequireAuth";
+import { RouteChunk } from "./components/RouteChunk";
 import { GdprConsentNotice } from "./components/GdprConsentNotice";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { ColorSchemeSync } from "./hooks/useColorScheme";
+import { ThemeProvider } from "./hooks/useTheme";
 
-const queryClient = new QueryClient();
+/*
+ * The pages are loaded when they are opened.
+ *
+ * One bundle used to hold all of them, so the sign-in screen downloaded and
+ * parsed the admin panel, both teaching registers, the drag-and-drop file
+ * browser and the PDF, zip and QR libraries that only the certificates use:
+ * 1.4MB of JavaScript to render a form with two fields, and the same 1.4MB
+ * again before the dashboard could ask for its first row. Route by route, a
+ * page costs what that page costs, and the rest arrives while it is being
+ * read.
+ *
+ * Landing and Login are the exceptions, imported directly: they are the first
+ * thing a signed-out visitor sees, and putting them behind a second request
+ * would trade the saving straight back.
+ */
+import Landing from "./pages/Landing";
+import Login from "./pages/Login";
+
+const Index = lazy(() => import("./pages/Index"));
+const SpecialtyDetail = lazy(() => import("./pages/SpecialtyDetail"));
+const KeyContacts = lazy(() => import("./pages/KeyContacts"));
+const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const MyProfile = lazy(() => import("./pages/MyProfile"));
+const CommunityHub = lazy(() => import("./pages/CommunityHub"));
+const SpecialtyDiscussion = lazy(() => import("./pages/SpecialtyDiscussion"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const RequestAccess = lazy(() => import("./pages/RequestAccess"));
+const RegisterDirectory = lazy(() => import("./pages/RegisterDirectory"));
+const RegisterDetail = lazy(() => import("./pages/RegisterDetail"));
+const RegisterAccess = lazy(() => import("./pages/RegisterAccess"));
+const RegisterCheckIn = lazy(() => import("./pages/register/CheckIn"));
+const RegisterFeedback = lazy(() => import("./pages/register/Feedback"));
+const RegisterSignIn = lazy(() => import("./pages/register/SignIn"));
+const ClassicDirectory = lazy(() => import("./pages/classic/Directory"));
+const ClassicRegisterDetail = lazy(() => import("./pages/classic/RegisterDetail"));
+const ClassicCheckIn = lazy(() => import("./pages/classic/CheckIn"));
+const ClassicFeedback = lazy(() => import("./pages/classic/Feedback"));
+const ClassicSignIn = lazy(() => import("./pages/classic/SignIn"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const RegisterLayout = lazy(() =>
+  import("./components/register/RegisterLayout").then((m) => ({ default: m.RegisterLayout })),
+);
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      /**
+       * Every query used to be stale the moment it resolved, so moving between
+       * the dashboard, a specialty and back re-fetched the lot each time and
+       * each page opened on empty widgets again. Half a minute is short enough
+       * that an edit made in another tab shows up on the next visit, and long
+       * enough that ordinary navigation is instant.
+       */
+      staleTime: 30_000,
+      retry: 1,
+    },
+  },
+});
 
 /**
  * Keeps cached data in step with the session.
@@ -82,12 +116,12 @@ function RegisterAliasRedirect() {
 }
 
 const App = () => (
-  // `attribute="class"` is what Tailwind's darkMode: ["class"] reads, and the
-  // .dark palette in index.css has been sitting complete and unreachable since
-  // the beginning. Defaulting to "system" means nobody has to find the toggle
-  // to get the theme their device already asked for.
-  <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-    <QueryClientProvider client={queryClient}>
+  <QueryClientProvider client={queryClient}>
+    {/* Inside the query client, because the light/dark choice is read from the
+        signed-in person's profile rather than from this browser. It puts the
+        `dark` class on <html>, which is what Tailwind's darkMode: ["class"]
+        reads. */}
+    <ThemeProvider>
       <TooltipProvider>
       <DeaneryProvider>
         <AuthCacheSync />
@@ -107,6 +141,10 @@ const App = () => (
           {/* Every page opens at its own beginning. Following a link from
               halfway down one page used to land you halfway down the next. */}
           <ScrollToTop />
+          {/* One boundary around the lot rather than one per route: the
+              fallback is a full-page line either way, and a chunk that fails
+              to load needs the same answer wherever it was going. */}
+          <RouteChunk>
           <Routes>
             {/* Public */}
             <Route path="/" element={<Landing />} />
@@ -219,11 +257,12 @@ const App = () => (
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </RouteChunk>
         </BrowserRouter>
       </DeaneryProvider>
       </TooltipProvider>
-    </QueryClientProvider>
-  </ThemeProvider>
+    </ThemeProvider>
+  </QueryClientProvider>
 );
 
 export default App;

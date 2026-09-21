@@ -2,14 +2,14 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ChevronRight, Stethoscope } from "lucide-react";
-import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
+import { WidgetSection, WidgetEmpty, WidgetSkeleton } from "@/components/dashboard/WidgetSection";
 import { getIcon } from "@/lib/iconMap";
 import { useDeanery } from "@/contexts/DeaneryContext";
 import { specialtyColorVars } from "@/lib/specialtyColor";
 
 export function SpecialtiesWidget() {
   const { activeDeanery } = useDeanery();
-  const { data: specialties } = useQuery({
+  const { data: specialties, isPending } = useQuery({
     queryKey: ["my-specialties", activeDeanery?.id],
     queryFn: async () => {
       let query = supabase.from("specialties").select("*").eq("is_active", true).is("deleted_at", null).order("sort_order");
@@ -21,13 +21,20 @@ export function SpecialtiesWidget() {
     enabled: !!activeDeanery,
   });
 
+  // The query only runs once the deanery is known, so "not started yet" is
+  // still loading as far as the reader is concerned — isPending alone would
+  // have this widget claim the account has no specialties before it has asked.
+  const loading = !activeDeanery || isPending;
+
   const topLevel = specialties?.filter((s) => !(s as any).parent_specialty_id) ?? [];
   const childrenOf = (parentId: string) =>
     specialties?.filter((s) => (s as any).parent_specialty_id === parentId) ?? [];
 
   return (
     <WidgetSection icon={Stethoscope} title="Your Specialties" count={topLevel.length || undefined}>
-      {!specialties?.length ? (
+      {loading ? (
+        <WidgetSkeleton />
+      ) : !specialties?.length ? (
         <WidgetEmpty>No specialties assigned yet. Contact your administrator.</WidgetEmpty>
       ) : (
         // A ruled list, like every other widget on this dashboard.

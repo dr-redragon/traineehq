@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 /**
@@ -57,4 +58,33 @@ export function WidgetSection({
  */
 export function WidgetEmpty({ children }: { children: ReactNode }) {
   return <p className="py-3 text-[13px] text-muted-foreground">{children}</p>;
+}
+
+/**
+ * What a section shows while its rows are still on their way.
+ *
+ * Not the same thing as WidgetEmpty, and that was the bug: a widget whose
+ * query had not resolved rendered "No specialties assigned yet. Contact your
+ * administrator." — a statement of fact about an account, shown for as long as
+ * the request took. On a slow connection the dashboard spent several seconds
+ * telling a trainee with six specialties that they had none. Ruled bars say
+ * "loading" without asserting anything.
+ */
+export function WidgetSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div role="status">
+      <span className="sr-only">Loading…</span>
+      <div className="divide-y divide-border" aria-hidden>
+        {Array.from({ length: rows }, (_, i) => (
+          <div key={i} className="flex items-center gap-4 px-1 py-2.5">
+            <Skeleton className="h-5 w-5 shrink-0" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Skeleton className="h-3.5 w-1/3" />
+              <Skeleton className="h-3 w-1/2" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }

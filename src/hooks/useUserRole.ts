@@ -1,13 +1,32 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+/**
+ * Who is signed in, for keying the queries that belong to them.
+ *
+ * Reads the session rather than calling `auth.getUser()`. getUser is a round
+ * trip to the auth server on every mount, and it sat at the head of the whole
+ * dashboard: nothing that is keyed by user id — the profile, the deanery, and
+ * then every widget that waits on the deanery — could even be requested until
+ * it came back. getSession answers from the stored session, so the first
+ * Postgres request now goes out in the same tick as the page.
+ *
+ * It is not a weaker check. getUser verifies the token server-side, but this
+ * hook is not a security boundary: row-level security is what withholds data,
+ * and it re-verifies the token on every request regardless of what the client
+ * believes. A tampered local session would buy nothing but an empty page.
+ * (getSession still refreshes an expired token before answering.)
+ */
 export function useCurrentUser() {
   return useQuery({
     queryKey: ["current-user"],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      return user;
+      const { data } = await supabase.auth.getSession();
+      return data.session?.user ?? null;
     },
+    // The identity of the signed-in person does not go stale mid-session;
+    // AuthCacheSync in App.tsx clears the cache on sign-in and sign-out.
+    staleTime: Infinity,
   });
 }
 

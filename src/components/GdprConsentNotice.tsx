@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
+import { useProfile, profileQueryKey } from "@/hooks/useProfile";
 import { Button } from "@/components/ui/button";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
@@ -30,20 +31,9 @@ export function GdprConsentNotice() {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
 
-  const { data: profile } = useQuery({
-    queryKey: ["gdpr-consent", user?.id],
-    queryFn: async () => {
-      if (!user) return null;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("gdpr_consent_at")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
+  // One read of the profile row, shared with everything else that needs a
+  // field from it. This used to be its own round trip for one column.
+  const { data: profile } = useProfile();
 
   const acknowledge = useMutation({
     mutationFn: async () => {
@@ -55,7 +45,7 @@ export function GdprConsentNotice() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["gdpr-consent"] });
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
       queryClient.invalidateQueries({ queryKey: ["my-profile"] });
     },
     onError: (e: Error) => toast.error(e.message),

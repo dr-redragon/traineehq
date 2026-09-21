@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Clock, FileText, Video, LinkIcon, BookOpen, CheckSquare, FolderOpen } from "lucide-react";
-import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
+import { WidgetSection, WidgetEmpty, WidgetSkeleton } from "@/components/dashboard/WidgetSection";
 import { Badge } from "@/components/ui/badge";
 import { abbreviatedResourceType } from "@/lib/resourceTypeLabel";
 import { formatRelativeCompact } from "@/lib/relativeDate";
@@ -13,7 +13,7 @@ const typeIcons: Record<string, LucideIcon> = {
 };
 
 export function RecentResourcesWidget() {
-  const { data: recentResources } = useQuery({
+  const { data: recentResources, isPending } = useQuery({
     queryKey: ["recent-resources"],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -27,7 +27,9 @@ export function RecentResourcesWidget() {
 
   return (
     <WidgetSection icon={Clock} title="Recently Added Resources" count={recentResources?.length || undefined}>
-      {!recentResources?.length ? (
+      {isPending ? (
+        <WidgetSkeleton />
+      ) : !recentResources?.length ? (
         <WidgetEmpty>No resources added yet.</WidgetEmpty>
       ) : (
         <div className="divide-y divide-border">
