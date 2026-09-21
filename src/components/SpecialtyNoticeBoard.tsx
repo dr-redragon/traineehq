@@ -5,7 +5,42 @@ import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/RichText";
 import { RichTextArea } from "@/components/RichTextArea";
 import { Plus, Trash2, X, Pencil, Check } from "lucide-react";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
+
+/**
+ * Say what a refused write actually means.
+ *
+ * Row-level security does not explain itself: a blocked update comes back as
+ * an empty result or a policy violation, neither of which tells the person at
+ * the keyboard that they are allowed to write notices but not to change this
+ * one. Left raw, that reads as the feature being broken.
+ */
+function noticeWriteError(e: Error): string {
+  const message = e.message ?? "";
+  if (/row-level security|violates row/i.test(message)) {
+    return "You do not have permission to change this notice.";
+  }
+  return message || "That did not save.";
+}
+
+/**
+ * A row of `specialty_notices`.
+ *
+ * Declared here rather than taken from the generated Supabase types, which
+ * predate the table — the same reason the queries below reach for `as any`.
+ * Regenerating them would remove both.
+ */
+interface Notice {
+  id: string;
+  specialty_id: string;
+  content: string;
+  author_id: string;
+  created_at: string;
+  is_active: boolean;
+}
 
 interface SpecialtyNoticeBoardProps {
   specialtyId: string;
@@ -36,6 +71,7 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
   const [adding, setAdding] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
 
   const { data: currentUser } = useQuery({
@@ -56,7 +92,7 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
         .eq("is_active", true)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as any[];
+      return data as unknown as Notice[];
     },
     enabled: !!specialtyId,
   });
@@ -102,8 +138,9 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
     onSuccess: () => {
       toast.success("Notice removed");
       queryClient.invalidateQueries({ queryKey: ["specialty-notices", specialtyId] });
+      setDeletingId(null);
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => { setDeletingId(null); toast.error(noticeWriteError(e)); },
   });
 
   const updateNotice = useMutation({
@@ -117,7 +154,7 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
       setEditingId(null);
       setEditContent("");
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => toast.error(noticeWriteError(e)),
   });
 
   const timeAgo = (date: string) => {
@@ -169,7 +206,7 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
           own when more than one is running. */}
       {notices?.length ? (
         <div className="divide-y divide-background/20">
-          {notices.map((notice: any) =>
+          {notices.map((notice) =>
             editingId === notice.id ? (
               <div key={notice.id}>
                 {editor(
@@ -200,26 +237,37 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
                   {getAuthorName(notice.author_id)} · {timeAgo(notice.created_at)}
                 </span>
                 {canManage && (
-                  // Held at low contrast until the row is under the cursor, so
-                  // the band reads as a notice rather than as a row of tools.
-                  <span className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                  // Always visible, never hover-only.
+                  //
+                  // These used to fade in with the cursor, which reads well on
+                  // a desktop and does not exist on a phone: `:hover` never
+                  // fires on touch, so the buttons sat at opacity 0 and the
+                  // notices could not be edited or removed at all. Editing
+                  // mode is already an explicit choice — once someone has
+                  // turned it on, hiding the controls until they guess where
+                  // to point is not restraint, it is a dead end.
+                  <span className="flex shrink-0 items-center gap-1">
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label="Edit notice"
-                      className="h-7 w-7 text-background/70 hover:bg-background/15 hover:text-background"
+                      aria-label={`Edit notice: ${notice.content.slice(0, 40)}`}
+                      // 40px on a phone, where this is a fingertip rather than a cursor;
+                      // back to 32 on a pointer, where the band stays compact.
+                      className="h-10 w-10 text-background/80 hover:bg-background/15 hover:text-background sm:h-8 sm:w-8"
                       onClick={() => { setEditingId(notice.id); setEditContent(notice.content); }}
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-4 w-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
-                      aria-label="Remove notice"
-                      className="h-7 w-7 text-background/70 hover:bg-background/15 hover:text-background"
-                      onClick={() => deleteNotice.mutate(notice.id)}
+                      aria-label={`Remove notice: ${notice.content.slice(0, 40)}`}
+                      // 40px on a phone, where this is a fingertip rather than a cursor;
+                      // back to 32 on a pointer, where the band stays compact.
+                      className="h-10 w-10 text-background/80 hover:bg-background/15 hover:text-background sm:h-8 sm:w-8"
+                      onClick={() => setDeletingId(notice.id)}
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </span>
                 )}
@@ -247,6 +295,32 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
               </Button>
             </div>
           )}
+
+      <Dialog open={!!deletingId} onOpenChange={(open) => { if (!open) setDeletingId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Remove this notice?</DialogTitle>
+            <DialogDescription>
+              It will stop showing on this specialty's page. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingId && (
+            <p className="border-l-2 border-rule pl-3 text-sm text-muted-foreground">
+              {notices?.find((n) => n.id === deletingId)?.content}
+            </p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingId(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={deleteNotice.isPending}
+              onClick={() => deletingId && deleteNotice.mutate(deletingId)}
+            >
+              {deleteNotice.isPending ? "Removing…" : "Remove notice"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
