@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Clock, FileText, Video, LinkIcon, BookOpen, CheckSquare, FolderOpen } from "lucide-react";
 import { WidgetSection, WidgetEmpty } from "@/components/dashboard/WidgetSection";
 import { Badge } from "@/components/ui/badge";
+import { abbreviatedResourceType } from "@/lib/resourceTypeLabel";
+import { formatRelativeCompact } from "@/lib/relativeDate";
 import type { LucideIcon } from "lucide-react";
 
 const typeIcons: Record<string, LucideIcon> = {
@@ -44,8 +46,23 @@ export function RecentResourcesWidget() {
                   <h4 className="truncate text-sm font-medium">{r.title}</h4>
                   <p className="text-xs text-muted-foreground">{specName}</p>
                 </div>
-                <Badge variant="secondary" className="shrink-0">{r.resource_type.toUpperCase()}</Badge>
-                <span className="flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+                {/* Below sm: type over date, stacked and small, so the two of
+                    them together cost less width than "DOCUMENT" alone used
+                    to — which is what was squeezing the name into a sliver.
+                    From sm up there is width to spare, so the original badge
+                    and full date stay exactly as they were. */}
+                <div className="flex shrink-0 flex-col items-end gap-0.5 sm:hidden">
+                  <span className="text-[10px] leading-none text-muted-foreground">
+                    {formatRelativeCompact(r.created_at)}
+                  </span>
+                  <span className="text-[10px] uppercase leading-none tracking-wide text-muted-foreground/70">
+                    {abbreviatedResourceType(r.resource_type)}
+                  </span>
+                </div>
+                <Badge variant="secondary" className="hidden shrink-0 sm:inline-flex">
+                  {r.resource_type.toUpperCase()}
+                </Badge>
+                <span className="hidden shrink-0 items-center gap-1 text-xs text-muted-foreground sm:flex">
                   <Clock className="h-3 w-3" />
                   {new Date(r.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
                 </span>

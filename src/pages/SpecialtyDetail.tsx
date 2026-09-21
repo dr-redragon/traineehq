@@ -328,39 +328,51 @@ const SpecialtyDetail = () => {
     <DashboardLayout breadcrumb={`Specialties / ${specialty.short_name}`}>
       <div className="animate-fade-in">
         {/* "Specialty library" over the name at display scale, on the page's
-            own rule — 1B's specialty opening. */}
-        <div className="border-b-2 border-border">
-          <div className="px-9 py-8">
-          <div className="flex flex-wrap items-end gap-4">
-          {/* Drawn plain, like the icon in the dashboard's list. At display
-              scale beside the specialty's name it does not need a panel
-              behind it to be found. */}
-          <Icon className="ds-spec-icon h-10 w-10 shrink-0" style={specialtyColorVars(specialty.color)} />
-          <div className="min-w-0">
-            <p className="ds-kicker mb-1">Specialty library</p>
-            <h1 className="font-display text-[clamp(32px,4vw,46px)] font-extrabold leading-none tracking-[-0.03em]">
-              {specialty.short_name}
-            </h1>
-            <p className="mt-2 text-muted-foreground">{specialty.name}</p>
-          </div>
-          {hasEditRights && (
-            <div className="ml-auto flex shrink-0 items-center gap-2 border border-border px-3 py-1.5">
-              <Switch
-                id="edit-mode"
-                checked={editMode}
-                onCheckedChange={setEditMode}
-                aria-label="Toggle edit mode"
-              />
-              <Label
-                htmlFor="edit-mode"
-                className={cn("text-xs cursor-pointer", editMode ? "text-accent-deep" : "text-muted-foreground")}
-              >
-                {editMode ? "✏️ Editing enabled" : "Editing off"}
-              </Label>
-            </div>
-          )}
-          </div>
+            own rule — 1B's specialty opening.
 
+            The icon sits on the name's own line rather than spanning the
+            whole block above it — "in line with the specialty name" — so it
+            reads as part of the heading rather than a badge floating over
+            three lines of text.
+
+            The edit toggle is positioned out of this flow entirely. It used
+            to share the wrapping flex row with the icon and name, which meant
+            that the moment the row ran out of width — every phone — it
+            dropped to a line of its own and made the banner taller. Taken out
+            with `absolute` it costs no height at all, on any width, because
+            it never participates in the layout its neighbours are wrapping
+            in. It has no border or fill of its own now either: on a banner
+            this quiet, a box around a two-word toggle was the loudest thing
+            in it. */}
+        <div className="border-b-2 border-border">
+          {/* Padded content, in its own div rather than on this outer one —
+              the notice board below is a sibling of this, not a child of it,
+              because it draws full-bleed ink bands and a `px-9` here would
+              trap them the same 36px in from each edge that the text is.
+              (That trap is exactly what happened for one commit: the icon
+              and toggle rework folded this into a single padded div, and the
+              bands quietly stopped reaching the page's own edges until the
+              two were split apart again.) */}
+          <div className="relative px-9 pb-8 pt-6 sm:pb-10 sm:pt-8">
+            {hasEditRights && (
+              <label
+                htmlFor="edit-mode"
+                className="absolute right-4 top-4 flex shrink-0 cursor-pointer items-center gap-1.5 sm:right-9 sm:top-6"
+              >
+                <Switch id="edit-mode" checked={editMode} onCheckedChange={setEditMode} aria-label="Toggle edit mode" />
+                <span className={cn("text-xs", editMode ? "text-accent-deep" : "text-muted-foreground")}>
+                  {editMode ? "Editing" : "View only"}
+                </span>
+              </label>
+            )}
+            <p className="ds-kicker mb-1">Specialty library</p>
+            <div className="flex min-w-0 items-center gap-3 pr-24 sm:pr-32">
+              <Icon className="ds-spec-icon h-8 w-8 shrink-0 sm:h-10 sm:w-10" style={specialtyColorVars(specialty.color)} />
+              <h1 className="min-w-0 truncate font-display text-[clamp(26px,4vw,46px)] font-extrabold leading-none tracking-[-0.03em]">
+                {specialty.short_name}
+              </h1>
+            </div>
+            <p className="mt-2 text-muted-foreground">{specialty.name}</p>
           </div>
 
           {/* The notice board belongs to the specialty, not to its files, so
@@ -368,7 +380,10 @@ const SpecialtyDetail = () => {
               it used to push the files down the page. It is outside the
               banner's padding on purpose: it draws ink bands the full width of
               the page, the same as the dashboard's notice, and a band inset by
-              a gutter on each side would be the box this layout removed. */}
+              a gutter on each side would be the box this layout removed. The
+              `pb-*` just above is the gap between the subtitle and this — a
+              bit more than the plain bottom padding gave it, so the banner
+              does not read as running straight into the first notice. */}
           <SpecialtyNoticeBoard specialtyId={id!} canManage={!!canManage} />
         </div>
 
