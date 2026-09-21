@@ -76,9 +76,8 @@ const Login = () => {
             Everything for your training year, in one place.
           </h1>
           <p className="max-w-[480px] text-pretty text-base leading-relaxed text-ink-400">
-            Curricula, exam preparation, operative videos, key contacts and the regional
-            discussion boards — curated for Higher Specialty Trainees across the North West
-            Deanery.
+            Curricula, exam preparation, operative videos, key contacts and the specialty
+            discussion boards — curated for Higher Specialty Trainees.
           </p>
         </div>
 
@@ -125,7 +124,7 @@ const Login = () => {
               Welcome back
             </h2>
             <p className="text-[14.5px] text-muted-foreground">
-              Use the address registered with your deanery.
+              Use the address your account was registered with.
             </p>
           </div>
 
@@ -136,7 +135,6 @@ const Login = () => {
                 id="email"
                 type="email"
                 autoComplete="email"
-                placeholder="name@nhs.net"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="h-11 px-3.5 text-[15px]"
@@ -193,8 +191,8 @@ const Login = () => {
 
           <div className="mt-auto space-y-1.5 border-t-2 border-foreground pt-[18px]">
             <p className="text-pretty text-[12.5px] text-muted-foreground">
-              Access is restricted to trainees and educators in the North West deanery. Accounts
-              are approved manually.
+              Access is restricted to trainees and educators on the training programme.
+              Accounts are approved manually.
             </p>
             <div className="flex gap-[18px] text-[12.5px]">
               <PolicyLink
