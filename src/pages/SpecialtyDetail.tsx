@@ -28,13 +28,8 @@ import { useCanManageSpecialty } from "@/hooks/useUserRole";
 import { getIcon } from "@/lib/iconMap";
 import { specialtyColorVars } from "@/lib/specialtyColor";
 import { isUuid, orFilterValue } from "@/lib/queryFilters";
-import {
-  DndContext, closestCenter,
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { DragProvider, moveItems, slotForEdge, type DropEvent } from "@/lib/dnd";
 import { SortableTabTrigger } from "@/components/SortableTabTrigger";
-import { useDragSensors } from "@/hooks/useDragSensors";
 
 const SpecialtyDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -100,8 +95,6 @@ const SpecialtyDetail = () => {
       setActiveTab("Key Contacts");
     }
   }, [location.hash]);
-
-  const sensors = useDragSensors();
 
   const { data: specialty, isLoading: specLoading } = useQuery({
     queryKey: ["specialty", id],
@@ -189,8 +182,16 @@ const SpecialtyDetail = () => {
   const reorderSubsections = useMutation({
     mutationFn: async (updates: { id: string; sort_order: number }[]) => {
       for (const u of updates) {
-        await supabase.from("subsections").update({ sort_order: u.sort_order }).eq("id", u.id);
+        const { error } = await supabase
+          .from("subsections").update({ sort_order: u.sort_order }).eq("id", u.id);
+        if (error) throw error;
       }
+    },
+    // The rail was already redrawn in the new order, so a failure has to put
+    // it back rather than leave the screen disagreeing with the database.
+    onError: (error: Error) => {
+      toast.error(error.message ?? "Could not save the new order");
+      queryClient.invalidateQueries({ queryKey: ["subsections", id] });
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["subsections", id] }),
   });
@@ -261,15 +262,40 @@ const SpecialtyDetail = () => {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const handleSubsectionDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !subsections) return;
-    const oldIndex = subsections.findIndex((s) => s.id === active.id);
-    const newIndex = subsections.findIndex((s) => s.id === over.id);
-    const reordered = arrayMove(subsections, oldIndex, newIndex);
-    const updates = reordered.map((s, i) => ({ id: s.id, sort_order: i }));
+  /**
+   * Save the rail in a new order.
+   *
+   * The cache is written first so the rail settles where it was dropped rather
+   * than snapping back until Supabase answers; the mutation's own error path
+   * puts it back if the save fails.
+   */
+  const applySubsectionOrder = (reordered: NonNullable<typeof subsections>) => {
+    if (!subsections) return;
+    const unchanged = reordered.every((sub, i) => sub.id === subsections[i]?.id);
+    if (unchanged) return;
     queryClient.setQueryData(["subsections", id], reordered.map((s, i) => ({ ...s, sort_order: i })));
-    reorderSubsections.mutate(updates);
+    reorderSubsections.mutate(reordered.map((s, i) => ({ id: s.id, sort_order: i })));
+  };
+
+  /** A section dropped in the rail: the gap it was let go over becomes its place. */
+  const handleSubsectionDrop = ({ source, over }: DropEvent) => {
+    if (!over || !subsections) return;
+    const slot = slotForEdge(
+      over.index ?? subsections.findIndex((sub) => sub.id === over.id),
+      over.edge === "into" ? "before" : over.edge,
+    );
+    applySubsectionOrder(moveItems(subsections, source.ids, slot, (sub) => sub.id));
+  };
+
+  /** The same move from the arrow keys, for anyone not using a pointer. */
+  const moveSubsectionBy = (subId: string, direction: -1 | 1) => {
+    if (!subsections) return;
+    const from = subsections.findIndex((sub) => sub.id === subId);
+    const to = from + direction;
+    if (from === -1 || to < 0 || to >= subsections.length) return;
+    applySubsectionOrder(
+      moveItems(subsections, [subId], direction === 1 ? to + 1 : to, (sub) => sub.id),
+    );
   };
 
   const deleteSubData = deleteSubId ? subsections?.find((s) => s.id === deleteSubId) : null;
@@ -455,22 +481,26 @@ const SpecialtyDetail = () => {
 
               <TabsList className="ds-subrail tabs-scrollbar hidden h-auto w-full flex-row items-stretch gap-0 overflow-x-auto border-b-0 p-0 lg:flex lg:flex-col lg:overflow-visible">
                 {canManage && subsections?.length ? (
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSubsectionDragEnd}>
-                    <SortableContext items={subsections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
-                      {subsections.map((sub) => (
-                        <SortableTabTrigger
-                          key={sub.id}
-                          id={sub.id}
-                          value={sub.name}
-                          canDrag
-                          className="w-full"
-                          meta={<span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>}
-                        >
-                          {sub.name}
-                        </SortableTabTrigger>
-                      ))}
-                    </SortableContext>
-                  </DndContext>
+                  <DragProvider
+                    axis="vertical"
+                    onDrop={handleSubsectionDrop}
+                    onKeyboardMove={moveSubsectionBy}
+                  >
+                    {subsections.map((sub, index) => (
+                      <SortableTabTrigger
+                        key={sub.id}
+                        id={sub.id}
+                        index={index}
+                        value={sub.name}
+                        label={sub.name}
+                        canDrag
+                        className="w-full"
+                        meta={<span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>}
+                      >
+                        {sub.name}
+                      </SortableTabTrigger>
+                    ))}
+                  </DragProvider>
                 ) : (
                   subsections?.map((sub) => (
                     <TabsTrigger key={sub.id} value={sub.name}>
