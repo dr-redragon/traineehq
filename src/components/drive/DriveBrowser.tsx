@@ -801,6 +801,27 @@ export function DriveBrowser({
         label={currentFolder ? `Drop into "${currentFolder.name}"` : `Drop into ${subsection.name}`}
       />
 
+      {/* One provider for the toolbar and the list together, because the
+          breadcrumb's crumbs are drop targets too. With the provider around
+          the list alone, opening any folder drew a crumb outside it and the
+          whole page fell over — the root showed no trail, so it never came up
+          until someone clicked in. */}
+      <DragProvider
+        axis="vertical"
+        onDragStart={handleDragStart}
+        onDrop={handleDrop}
+        renderPreview={(source) => (
+          <DragPreview
+            count={source.ids.length}
+            label={
+              isFolderRowId(source.id)
+                ? folders.find((f) => f.id === folderIdOf(source.id))?.name ?? "Folder"
+                : resources.find((r) => r.id === source.id)?.title ?? "File"
+            }
+            kind={isFolderRowId(source.id) ? "folder" : "file"}
+          />
+        )}
+      >
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         {currentFolder && (
@@ -931,23 +952,7 @@ export function DriveBrowser({
       )}
 
       {/* Body */}
-      <DragProvider
-        axis="vertical"
-        onDragStart={handleDragStart}
-        onDrop={handleDrop}
-        renderPreview={(source) => (
-          <DragPreview
-            count={source.ids.length}
-            label={
-              isFolderRowId(source.id)
-                ? folders.find((f) => f.id === folderIdOf(source.id))?.name ?? "Folder"
-                : resources.find((r) => r.id === source.id)?.title ?? "File"
-            }
-            kind={isFolderRowId(source.id) ? "folder" : "file"}
-          />
-        )}
-      >
-        {renderRows()}
+      {renderRows()}
       </DragProvider>
 
       {/* Bulk action bar */}
