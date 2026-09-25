@@ -19,6 +19,8 @@ import {
 } from "@/lib/classic/months";
 import type { ClassicStore } from "@/components/classic/types";
 import type { ClassicRegisterView } from "@/hooks/classic/useRegisterView";
+import { useClassicLiveAttendanceSync } from "@/hooks/classic/useLiveAttendanceSync";
+import { FeedbackResults } from "@/components/classic/FeedbackResults";
 import type { RegisterDirectoryEntry, RegisterSession } from "@/lib/classic/types";
 
 /**
@@ -49,6 +51,7 @@ export function CheckinPanel({
   const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
   // The year and the day are shared with the other tabs through the address bar.
   const { year, setYear, dayId: activeId, setDay: setActiveId } = view;
+  const { pushMark } = useClassicLiveAttendanceSync(blob);
   const [qr, setQr] = useState<string | null>(null);
   const [traineeId, setTraineeId] = useState("");
   const [grade, setGrade] = useState("");
@@ -98,8 +101,14 @@ export function CheckinPanel({
       sessionDate: `${active.month}-01`,
       localId: active.id,
     })
-      .then(({ session }) => {
+      .then(async ({ session }) => {
         edit((b) => upsertSession(b, { ...active, cloudId: session.id }));
+        // Anyone already ticked for the day goes up with it, so the live list
+        // starts out agreeing with the register.
+        const already = presentPayloads(blob, active.id);
+        if (already.length) {
+          await markAttended({ sessionId: session.id, trainees: already }).catch(() => undefined);
+        }
       })
       .catch((error: Error) => toast.error(error.message))
       .finally(() => setAutoPublishingId(null));
@@ -111,6 +120,20 @@ export function CheckinPanel({
     : [];
 
   const absentees = unexplainedAbsentees(blob, active);
+
+  // Ticked in the register but missing from the live list — matched by name,
+  // as the sync itself does. Normally empty, since every mark is pushed as it
+  // is made; it fills when a push failed or predates automatic syncing.
+  const onLiveList = new Set(
+    (status.data?.attendees ?? [])
+      .filter((a) => a.checked_in_at)
+      .map((a) => a.name.trim().toLowerCase()),
+  );
+  const unsynced = active?.cloudId && status.data
+    ? presentPayloads(blob, active.id)
+      .filter((p) => !onLiveList.has(p.name.trim().toLowerCase()))
+      .map((p) => p.name)
+    : [];
 
   /** Merge the live sign-in list and the register's grid, both ways. */
   const sync = async () => {
@@ -141,6 +164,7 @@ export function CheckinPanel({
   const manualCheckIn = () => {
     if (!active || !traineeId) return;
     edit((b) => setAttendance(b, traineeId, active.id, true, grade || undefined));
+    void pushMark(traineeId, active, true, grade || undefined);
     setTraineeId("");
     setGrade("");
   };
@@ -279,7 +303,10 @@ export function CheckinPanel({
                           <button
                             type="button"
                             className="btn ghost sm"
-                            onClick={() => edit((b) => setAttendance(b, t.id, active!.id, false))}
+                            onClick={() => {
+                              edit((b) => setAttendance(b, t.id, active!.id, false));
+                              void pushMark(t.id, active, false);
+                            }}
                           >
                             Undo
                           </button>
@@ -328,6 +355,20 @@ export function CheckinPanel({
                   </div>
                 )}
 
+                {unsynced.length > 0 && (
+                  <div className="notice warn" style={{ marginBottom: 12 }}>
+                    <strong>
+                      {unsynced.length} marked present here {unsynced.length === 1 ? "is" : "are"} not
+                      on the live list yet:
+                    </strong>{" "}
+                    {unsynced.join(", ")}. Until they are, they will not be sent the
+                    feedback form or a certificate.{" "}
+                    <button type="button" className="linkbtn" disabled={busy} onClick={sync}>
+                      Sync now
+                    </button>
+                  </div>
+                )}
+
                 <div className="row-actions">
                   <button type="button" className="btn ghost sm" disabled={busy} onClick={sync}>
                     {busy ? "Working…" : "Sync sign-ins"}
@@ -337,8 +378,10 @@ export function CheckinPanel({
                   </button>
                 </div>
                 <p className="helper">
-                  Syncing works both ways: sign-ins from the QR come into the
-                  register, and anyone ticked here is added to the live list.
+                  Marks made in the register reach the live list on their own.
+                  Syncing is the repair button, and works both ways: sign-ins
+                  from the QR come into the register, and anyone ticked here
+                  who never reached the live list is added to it.
                 </p>
 
                 {status.data && status.data.email_configured && (
@@ -347,6 +390,21 @@ export function CheckinPanel({
                   </div>
                 )}
               </>
+            )}
+          </div>
+
+          <div className="card pad" style={{ marginTop: 18 }}>
+            <label className="fld">Feedback results</label>
+            {!active ? (
+              <p className="helper">Pick a teaching day above.</p>
+            ) : !active.cloudId ? (
+              <p className="helper">Publishing this teaching day…</p>
+            ) : (
+              <FeedbackResults
+                sessionId={active.cloudId}
+                form={status.data?.session.form ?? null}
+                title={`${active.title} — ${formatMonth(active.month)}`}
+              />
             )}
           </div>
 

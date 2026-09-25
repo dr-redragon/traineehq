@@ -99,9 +99,17 @@ export default function ClassicSignIn() {
         <p className="helper" style={{ textAlign: "right" }}>
           <Link to="/forgot-password">Forgot password?</Link>
         </p>
+
+        {/* The same account either way. A signpost for people who think of
+            this as TraineeHQ: they get the page they recognise, and land back
+            on the register afterwards. */}
+        <div className="or-rule"><span>or</span></div>
+        <Link className="btn ghost block" to="/login" state={{ from: destination }}>
+          Sign in with TraineeHQ
+        </Link>
         <p className="helper">
           This is your TraineeHQ account — the same one you use for the rest of
-          the site. No account yet? Ask an owner of the register to add you from
+          the site. No account yet? Ask any of the register's organisers to add you from
           its <strong>Users &amp; access</strong> tab.
         </p>
       </form>

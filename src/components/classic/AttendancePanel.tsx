@@ -10,9 +10,10 @@ import {
   formatMonth, sessionsInYear, sessionsSorted,
 } from "@/lib/classic/months";
 import { buildReport, computeRows, reportSummary, type SortKey } from "@/lib/classic/report";
-import { latestGrade } from "@/lib/classic/attendance";
+import { isPresent, latestGrade } from "@/lib/classic/attendance";
 import type { ClassicStore } from "@/components/classic/types";
 import type { ClassicRegisterView } from "@/hooks/classic/useRegisterView";
+import { useClassicLiveAttendanceSync } from "@/hooks/classic/useLiveAttendanceSync";
 import type { RegisterDirectoryEntry } from "@/lib/classic/types";
 
 /**
@@ -38,6 +39,14 @@ export function AttendancePanel({
   const { blob, edit } = store;
   const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
   const { year, setYear } = view;
+  const { pushMark } = useClassicLiveAttendanceSync(blob);
+
+  /** Flip a mark here, and send the same change to the published teaching day. */
+  const toggle = (traineeId: string, sessionId: string) => {
+    const nowPresent = !isPresent(blob, traineeId, sessionId);
+    edit((b) => toggleAttendance(b, traineeId, sessionId));
+    void pushMark(traineeId, blob.sessions.find((s) => s.id === sessionId), nowPresent);
+  };
   const [search, setSearch] = useState("");
   const [hideNotInProgramme, setHide] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("name");
@@ -171,8 +180,7 @@ export function AttendancePanel({
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={sort}
-              onToggle={(traineeId, sessionId) =>
-                edit((b) => toggleAttendance(b, traineeId, sessionId))}
+              onToggle={toggle}
               emptyMessage={emptyMessage}
             />
             {hidden > 0 && label && (

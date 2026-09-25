@@ -741,3 +741,74 @@
 .classic-register .notice.bad {
   background:#fbeee9;border:1px solid #e0b09a;color:#9c3d1c
 }
+
+/* ---- shell additions ---- */
+/* The masthead's controls — switcher, back link, sign out — sit on the dark
+   moss, so they take light text and a faint light border rather than the
+   paper-coloured ones the page body uses. */
+.classic-register .shell-actions {
+  gap:10px;align-self:center
+}
+.classic-register .btn.on-dark {
+  color:#f6f4ec;border-color:rgba(246,244,236,.35)
+}
+.classic-register .btn.on-dark:hover {
+  color:#fff;border-color:var(--gold);background:rgba(255,255,255,.06)
+}
+.classic-register .register-switch {
+  width:auto;max-width:260px;padding:6px 10px;font-size:13px;
+  background:rgba(255,255,255,.1);color:#f6f4ec;border-color:rgba(246,244,236,.35)
+}
+.classic-register .register-switch option {
+  color:var(--ink);background:#fff
+}
+@media(max-width:560px) {
+  .classic-register .shell-actions {
+    width:100%
+  }
+  .classic-register .register-switch {
+    max-width:none;flex:1 1 100%
+  }
+}
+
+/* One column per teaching day in the attendance table, headed by its month.
+   Narrow and centred so a year of teaching days still fits across a laptop;
+   the dot grows a little so it is a fair target for a finger. */
+.classic-register thead th.sess-col {
+  text-align:center;padding:11px 6px;font-size:10.5px;letter-spacing:.03em
+}
+.classic-register tbody td.sess-col {
+  text-align:center;padding:8px 6px
+}
+.classic-register td.sess-col .dot {
+  width:22px;height:22px;font-size:12px
+}
+
+/* Feedback results on the Check-in tab. */
+.classic-register .fb-bar-row {
+  display:flex;align-items:center;gap:10px;margin:4px 0
+}
+.classic-register .fb-bar-row .fb-score, .classic-register .fb-bar-row .fb-count {
+  width:22px;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right
+}
+.classic-register .fb-bar {
+  flex:1;height:10px;margin-top:0
+}
+.classic-register .fb-comment {
+  border-left:3px solid var(--clay-soft);background:#fff;border-radius:0 8px 8px 0;
+  padding:10px 14px;margin:0 0 8px;font-size:14px;white-space:pre-wrap
+}
+.classic-register td.sess-col .dot {
+  vertical-align:middle
+}
+/* With a column per teaching day the table scrolls sideways on a phone; the
+   trainee's name stays put so each row can still be read. */
+.classic-register .att-table th.name-col, .classic-register .att-table td.name-cell {
+  position:sticky;left:0;z-index:1;background:var(--card)
+}
+.classic-register .att-table th.name-col {
+  background:#eef0e6;z-index:2
+}
+.classic-register .att-table tbody tr:hover td.name-cell {
+  background:#faf8f0
+}

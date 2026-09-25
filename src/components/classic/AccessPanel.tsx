@@ -67,6 +67,16 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
   const [search, setSearch] = useState("");
 
   const pending = (requests ?? []).filter((r) => r.status === "pending");
+  // Every organiser can admit people and add editors; only an owner changes
+  // roles, removes someone else, sets the badge or deletes the register. The
+  // database enforces all of that — this just keeps refused buttons off screen.
+  const iAmOwner = entry.i_am_owner;
+
+  const decideOn = (requestId: string, approve: boolean, name: string) =>
+    decide.mutate({ requestId, approve }, {
+      onSuccess: () => toast.success(approve ? `${name} can now open this register` : "Request refused"),
+      onError: (error: Error) => toast.error(error.message),
+    });
 
   const send = () => {
     const address = email.trim().toLowerCase();
@@ -91,8 +101,9 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
     <>
       <h2 className="panel-title">Users &amp; access</h2>
       <p className="panel-lede">
-        Organiser accounts for this register: who can open it, and which of them
-        can manage this list. Access here is a grant on this register alone — it
+        Organiser accounts for this register: who can open it, and who is asking
+        to. Any organiser can admit a request or add an editor; owners also
+        change roles and remove people. Access here is a grant on this register alone — it
         has nothing to do with anyone's TraineeHQ role, so a trainee may be an
         editor and a TraineeHQ admin may have no access at all. Trainees never
         need an account; they use the QR code and the feedback link.
@@ -114,7 +125,7 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
           <div>
             <select value={role} onChange={(e) => setInviteRole(e.target.value as RegisterRole)}>
               <option value="editor">Editor — records attendance</option>
-              <option value="owner">Owner — also manages access</option>
+              <option value="owner" disabled={!iAmOwner}>Owner — also manages access</option>
             </select>
           </div>
           <div>
@@ -148,14 +159,17 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
                     <button
                       type="button"
                       className="btn primary sm"
-                      onClick={() => decide.mutate({ requestId: request.id, approve: true })}
+                      disabled={decide.isPending || request.user_id === user?.id}
+                      title={request.user_id === user?.id ? "Somebody else has to decide your own request" : undefined}
+                      onClick={() => decideOn(request.id, true, nameOf(person, "They"))}
                     >
                       Admit
                     </button>
                     <button
                       type="button"
                       className="btn ghost sm"
-                      onClick={() => decide.mutate({ requestId: request.id, approve: false })}
+                      disabled={decide.isPending || request.user_id === user?.id}
+                      onClick={() => decideOn(request.id, false, nameOf(person, "They"))}
                     >
                       Refuse
                     </button>
@@ -206,11 +220,13 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
                   </div>
                 </div>
                 <div className="row-actions">
-                  {member.role === "editor" ? (
+                  {iAmOwner && (member.role === "editor" ? (
                     <button
                       type="button"
                       className="btn ghost sm"
-                      onClick={() => setRole.mutate({ userId: member.user_id, role: "owner" })}
+                      onClick={() => setRole.mutate({ userId: member.user_id, role: "owner" }, {
+                        onError: (error: Error) => toast.error(error.message),
+                      })}
                     >
                       Make owner
                     </button>
@@ -220,11 +236,14 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
                       className="btn ghost sm"
                       disabled={lastOwner}
                       title={lastOwner ? "The register's only owner cannot be demoted." : undefined}
-                      onClick={() => setRole.mutate({ userId: member.user_id, role: "editor" })}
+                      onClick={() => setRole.mutate({ userId: member.user_id, role: "editor" }, {
+                        onError: (error: Error) => toast.error(error.message),
+                      })}
                     >
                       Make editor
                     </button>
-                  )}
+                  ))}
+                  {(iAmOwner || isMe) && (
                   <button
                     type="button"
                     className="btn ghost sm"
@@ -235,11 +254,14 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
                         isMe
                           ? "Remove your own access to this register?"
                           : `Remove ${nameOf(person, "this person")}'s access?`)) return;
-                      remove.mutate({ userId: member.user_id });
+                      remove.mutate({ userId: member.user_id }, {
+                        onError: (error: Error) => toast.error(error.message),
+                      });
                     }}
                   >
                     {isMe ? "Leave" : "Remove"}
                   </button>
+                  )}
                 </div>
               </div>
             );
@@ -253,9 +275,9 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
         recorded them.
       </p>
 
-      <CertificateLogo entry={entry} />
+      {iAmOwner && <CertificateLogo entry={entry} />}
 
-      <DeleteRegister entry={entry} />
+      {iAmOwner && <DeleteRegister entry={entry} />}
     </>
   );
 }

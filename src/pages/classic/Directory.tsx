@@ -176,7 +176,7 @@ function ArchiveSection() {
 }
 
 export default function ClassicDirectory() {
-  const { grouped, isLoading } = useGroupedRegisters();
+  const { grouped, isLoading, data: directory } = useGroupedRegisters();
   const { data: role } = useUserRole();
   const requestAccess = useRequestRegisterAccess();
   const createRegister = useCreateRegister();
@@ -221,7 +221,7 @@ export default function ClassicDirectory() {
   };
 
   return (
-    <ClassicShell subtitle="Teaching attendance" homeHref="/classic-registers">
+    <ClassicShell subtitle="Teaching attendance" homeHref="/classic-registers" registers={directory}>
       <h2 className="panel-title">Teaching registers</h2>
       <p className="panel-lede">
         Every specialty in every deanery keeps its own register. Open one you
