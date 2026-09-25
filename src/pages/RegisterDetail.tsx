@@ -1,25 +1,24 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Lock, Users } from "lucide-react";
+import { ArrowLeft, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-import { AttendanceGrid } from "@/components/register/AttendanceGrid";
-import { ManagePanel } from "@/components/register/ManagePanel";
-import { ReportPanel } from "@/components/register/ReportPanel";
-import { StatusPanel } from "@/components/register/StatusPanel";
-import { ExcusalsPanel } from "@/components/register/ExcusalsPanel";
+import { AccessPanel } from "@/components/register/AccessPanel";
+import { AttendancePanel } from "@/components/register/AttendancePanel";
 import { CheckInPanel } from "@/components/register/CheckInPanel";
-import { FeedbackPanel } from "@/components/register/FeedbackPanel";
-import { YearTabs } from "@/components/register/YearTabs";
+import { PeoplePanel } from "@/components/register/PeoplePanel";
+import { ReportPanel } from "@/components/register/ReportPanel";
+import { useRegister } from "@/contexts/RegisterContext";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
+import { useRegisterRequests } from "@/hooks/useRegisterAccess";
 import { useRegisterStore } from "@/hooks/useRegisterStore";
+import { useRegisterView, type RegisterTabId } from "@/hooks/useRegisterView";
 import { useLiveAttendanceSync } from "@/hooks/useLiveAttendanceSync";
-import {
-  ALL_YEARS, availableAcademicYears, defaultAcademicYear, sessionsInYear, sessionsSorted,
-} from "@/lib/register/months";
+import { useCurrentUser } from "@/hooks/useUserRole";
+import { ALL_YEARS } from "@/lib/register/months";
 
 /**
  * A tab in the register's own idiom: a plain label that gains a clay rule when
@@ -27,7 +26,7 @@ import {
  * three pixels of a colour used nowhere else on the page, so which panel is
  * open reads at a glance from across a lecture theatre.
  */
-function RegisterTab({ value, children }: { value: string; children: ReactNode }) {
+function RegisterTab({ value, children }: { value: RegisterTabId; children: ReactNode }) {
   return (
     <TabsTrigger
       value={value}
@@ -44,7 +43,17 @@ function RegisterTab({ value, children }: { value: string; children: ReactNode }
 }
 
 /**
- * One register.
+ * One register, behind four tabs grouped by how the work is done:
+ *
+ *   Attendance       the grid, its headline figures, and the report
+ *   Teaching day     one day, start to finish: QR, check-in, live list,
+ *                    certificates, absences and the feedback that came back
+ *   People           the roster, teaching days, long-term status, excusals
+ *   Access & settings  members, requests, the certificate badge, deleting
+ *
+ * The open tab, the academic year and the teaching day live in the address
+ * bar, so a refresh, the Back button or a pasted link lands in the same place,
+ * and the day picked on one tab is still picked on the next.
  *
  * The membership gate here is a courtesy, not the boundary: row-level security
  * is what withholds the data, and a non-member who edits the URL would get
@@ -66,16 +75,20 @@ export default function RegisterDetail() {
     entry?.i_am_member ? entry.id : undefined, blob,
   );
 
-  const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
-  const [year, setYear] = useState<string | null>(null);
-  const activeYear = year ?? defaultAcademicYear(blob.sessions);
+  const view = useRegisterView(blob.sessions);
 
-  const sessions = useMemo(
-    () => (activeYear === ALL_YEARS
-      ? sessionsSorted(blob.sessions)
-      : sessionsInYear(blob.sessions, activeYear)),
-    [blob.sessions, activeYear],
-  );
+  // Pending requests someone other than the asker can decide: the count the
+  // Access & settings tab wears so they are noticed without going looking.
+  const { data: user } = useCurrentUser();
+  const { data: requests } = useRegisterRequests(entry?.i_am_member ? entry.id : undefined);
+  const waiting = (requests ?? []).filter((r) => r.status === "pending" && r.user_id !== user?.id).length;
+
+  // The register on screen is the one the switcher shows and remembers, however
+  // it was reached — a link, a bookmark, the dashboard.
+  const { setActiveRegisterSlug } = useRegister();
+  useEffect(() => {
+    if (entry?.i_am_member) setActiveRegisterSlug(entry.slug);
+  }, [entry?.i_am_member, entry?.slug, setActiveRegisterSlug]);
 
   if (directoryLoading) {
     return <div className="space-y-3"><Skeleton className="h-8 w-64" /><Skeleton className="h-64 w-full" /></div>;
@@ -120,39 +133,28 @@ export default function RegisterDetail() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-start justify-between gap-3 print:hidden">
-        <div className="min-w-0">
-          <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
-            {entry.specialty_name}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {entry.deanery_name} · {entry.member_count}{" "}
-            {entry.member_count === 1 ? "member" : "members"}
-            {isSaving && (
-              <span className="ml-2 inline-flex items-center gap-1 text-xs">
-                <Loader2 className="h-3 w-3 animate-spin" /> Saving…
-              </span>
-            )}
-          </p>
-        </div>
-        <Button asChild variant="outline" size="sm" className="w-full sm:w-auto">
-          <Link to={`/registers/${entry.slug}/access`}>
-            <Users className="mr-1.5 h-3.5 w-3.5" /> Access
-          </Link>
-        </Button>
+      <div className="print:hidden">
+        <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
+          {entry.specialty_name}
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {entry.deanery_name} · {entry.member_count}{" "}
+          {entry.member_count === 1 ? "member" : "members"}
+          {isSaving && (
+            <span className="ml-2 inline-flex items-center gap-1 text-xs">
+              <Loader2 className="h-3 w-3 animate-spin" /> Saving…
+            </span>
+          )}
+        </p>
       </div>
 
       {storeLoading ? (
         <Skeleton className="h-64 w-full" />
       ) : (
-        <Tabs defaultValue="attendance">
-          {/* Scrolls rather than wrapping or shrinking on a phone: five tabs
-              squeezed into 375px are unreadable and unhittable. Sticky, so the
-              masthead scrolls away but the way between panels does not — a
-              register with thirty trainees on it is a long page.
-
-              Bled to the edges with a negative margin so the rule under the
-              row reaches them, the way the register's own nav bar does. */}
+        <Tabs value={view.tab} onValueChange={(v) => view.setTab(v as RegisterTabId)}>
+          {/* Scrolls rather than wrapping or shrinking on a phone, and sticky, so
+              the masthead scrolls away but the way between panels does not.
+              Bled to the edges so the rule under the row reaches them. */}
           <TabsList
             className={cn(
               "sticky top-0 z-20 -mx-4 flex h-auto w-full justify-start gap-1 overflow-x-auto",
@@ -160,51 +162,56 @@ export default function RegisterDetail() {
             )}
           >
             <RegisterTab value="attendance">Attendance</RegisterTab>
-            <RegisterTab value="manage">Trainees &amp; days</RegisterTab>
-            <RegisterTab value="status">Long-term status</RegisterTab>
-            <RegisterTab value="excused">Excused absences</RegisterTab>
-            <RegisterTab value="checkin">Check-in / QR</RegisterTab>
-            <RegisterTab value="feedback">Feedback</RegisterTab>
-            <RegisterTab value="reports">Reports</RegisterTab>
+            <RegisterTab value="day">Teaching day</RegisterTab>
+            <RegisterTab value="people">People</RegisterTab>
+            <RegisterTab value="access">
+              Access &amp; settings
+              {waiting > 0 && (
+                <span
+                  className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-register-clay px-1.5 text-[10px] font-bold text-white"
+                  aria-label={`${waiting} waiting`}
+                >
+                  {waiting}
+                </span>
+              )}
+            </RegisterTab>
           </TabsList>
 
-          <TabsContent value="attendance" className="mt-4 space-y-4">
-            <YearTabs years={years} value={activeYear} onChange={setYear} />
-            <AttendanceGrid
-              blob={blob}
-              sessions={sessions}
-              onEdit={edit}
-              canEdit
-              onToggle={(traineeId, sessionId, nowPresent) =>
-                void pushMark(traineeId, sessionId, nowPresent)}
-            />
+          <TabsContent value="attendance" className="mt-4">
+            {view.showReport ? (
+              <div className="space-y-4">
+                <Button variant="ghost" size="sm" className="-ml-2 text-xs print:hidden"
+                  onClick={() => view.setShowReport(false)}>
+                  <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to attendance
+                </Button>
+                <ReportPanel
+                  blob={blob}
+                  registerName={`${entry.deanery_name} · ${entry.specialty_name}`}
+                  initialYears={view.year === ALL_YEARS ? view.years : [view.year]}
+                />
+              </div>
+            ) : (
+              <AttendancePanel
+                blob={blob}
+                slug={entry.slug}
+                view={view}
+                onEdit={edit}
+                onToggle={(traineeId, sessionId, nowPresent) =>
+                  void pushMark(traineeId, sessionId, nowPresent)}
+              />
+            )}
           </TabsContent>
 
-          <TabsContent value="manage" className="mt-4">
-            <ManagePanel blob={blob} onEdit={edit} canEdit />
+          <TabsContent value="day" className="mt-4">
+            <CheckInPanel blob={blob} register={entry} view={view} onEdit={edit} />
           </TabsContent>
 
-          <TabsContent value="status" className="mt-4">
-            <StatusPanel blob={blob} onEdit={edit} canEdit />
+          <TabsContent value="people" className="mt-4">
+            <PeoplePanel blob={blob} view={view} onEdit={edit} />
           </TabsContent>
 
-          <TabsContent value="excused" className="mt-4">
-            <ExcusalsPanel blob={blob} onEdit={edit} canEdit />
-          </TabsContent>
-
-          <TabsContent value="checkin" className="mt-4">
-            <CheckInPanel blob={blob} registerId={entry.id} onEdit={edit} />
-          </TabsContent>
-
-          <TabsContent value="feedback" className="mt-4">
-            <FeedbackPanel registerId={entry.id} />
-          </TabsContent>
-
-          <TabsContent value="reports" className="mt-4">
-            <ReportPanel
-              blob={blob}
-              registerName={`${entry.deanery_name} · ${entry.specialty_name}`}
-            />
+          <TabsContent value="access" className="mt-4">
+            <AccessPanel register={entry} />
           </TabsContent>
         </Tabs>
       )}

@@ -1,13 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Download, MessageSquare, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FeedbackFormEditor } from "@/components/register/FeedbackFormEditor";
 import { feedbackCsv } from "@/lib/register/feedbackCsv";
 import { fetchFeedback, fetchLiveSessions } from "@/lib/register/liveApi";
 import type { FeedbackQuestion } from "@/lib/register/types";
@@ -25,10 +22,20 @@ const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.l
  * The questions are read off the session's own stored form rather than a current
  * template, so rewording a question later does not relabel answers given to the
  * old one.
+ *
+ * Shown for whichever teaching day is selected on the Teaching day tab, rather
+ * than behind a day picker of its own.
  */
-export function FeedbackPanel({ registerId }: { registerId: string }) {
-  const [sessionId, setSessionId] = useState("");
-  const [designing, setDesigning] = useState(false);
+export function FeedbackPanel({
+  registerId, liveSessionId, sessionTitle, onEditForm,
+}: {
+  registerId: string;
+  /** The published day to read; null when the selected day is not published. */
+  liveSessionId: string | null;
+  sessionTitle: string;
+  onEditForm: () => void;
+}) {
+  const sessionId = liveSessionId ?? "";
 
   const { data: sessions, isLoading } = useQuery({
     queryKey: ["register-live-sessions", registerId],
@@ -96,65 +103,25 @@ export function FeedbackPanel({ registerId }: { registerId: string }) {
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;
 
-  const designer = (
-    <Dialog open={designing} onOpenChange={setDesigning}>
-      <DialogContent className="max-h-[92vh] max-w-6xl overflow-y-auto">
-        <DialogHeader><DialogTitle>Feedback form</DialogTitle></DialogHeader>
-        <FeedbackFormEditor
-          registerId={registerId}
-          sessionId={sessionId || null}
-          sessionTitle={selected?.title}
-          onClose={() => setDesigning(false)}
-        />
-      </DialogContent>
-    </Dialog>
-  );
-
-  if (!sessions?.length) {
+  if (!sessionId) {
     return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground">
-          No teaching day has been published for check-in yet, so there is no feedback to read.
-          The form itself can still be designed — every day published from now on will start
-          from it.
-        </p>
-        <Button variant="outline" size="sm" onClick={() => setDesigning(true)}>
-          <Pencil className="mr-1.5 h-3.5 w-3.5" /> Design the feedback form
-        </Button>
-        {designer}
-      </div>
+      <p className="text-sm text-muted-foreground">
+        Publish {sessionTitle} to collect feedback on it.
+      </p>
     );
   }
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="w-full sm:max-w-sm sm:flex-1">
-          <Select value={sessionId} onValueChange={setSessionId}>
-            <SelectTrigger><SelectValue placeholder="Choose a teaching day" /></SelectTrigger>
-            <SelectContent>
-              {sessions.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {new Date(s.session_date).toLocaleDateString("en-GB", {
-                    day: "numeric", month: "short", year: "numeric",
-                  })} · {s.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <Button variant="outline" size="sm" onClick={() => setDesigning(true)}>
-          <Pencil className="mr-1.5 h-3.5 w-3.5" />
-          {sessionId ? "Design this day's form" : "Design the form template"}
-        </Button>
-      </div>
-
-      {designer}
-
-      {!sessionId ? null : loadingResponses ? (
+      {loadingResponses ? (
         <Skeleton className="h-40 w-full" />
       ) : !responses?.length ? (
-        <p className="text-sm text-muted-foreground">Nobody has answered for that day yet.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="flex-1 text-sm text-muted-foreground">Nobody has answered for this day yet.</p>
+          <Button variant="outline" size="sm" onClick={onEditForm}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Design this day's form
+          </Button>
+        </div>
       ) : (
         <div className="space-y-6">
           <div className="flex flex-wrap items-center gap-3">

@@ -22,10 +22,20 @@ function pctClass(pct: number | null) {
   return "text-destructive";
 }
 
-export function ReportPanel({ blob, registerName }: { blob: RegisterBlob; registerName: string }) {
+export function ReportPanel({
+  blob, registerName, initialYears,
+}: {
+  blob: RegisterBlob;
+  registerName: string;
+  /** The years ticked to begin with — the ones the attendance grid was showing. */
+  initialYears?: string[];
+}) {
   const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
 
-  const [selected, setSelected] = useState<string[]>(years.slice(-1));
+  const [selected, setSelected] = useState<string[]>(() => {
+    const wanted = (initialYears ?? []).filter((y) => years.includes(y));
+    return wanted.length ? wanted : years.slice(-1);
+  });
   const [layout, setLayout] = useState<ReportLayout>("per");
   const [includeCct, setIncludeCct] = useState(true);
   const [includeIdtOut, setIncludeIdtOut] = useState(true);

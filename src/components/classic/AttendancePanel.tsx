@@ -6,12 +6,13 @@ import { YearTabs } from "@/components/classic/YearTabs";
 import { Modal } from "@/components/classic/Modal";
 import { toggleAttendance } from "@/lib/classic/blob";
 import {
-  ALL_YEARS, academicYearRange, availableAcademicYears, defaultAcademicYear,
+  ALL_YEARS, academicYearRange, availableAcademicYears,
   formatMonth, sessionsInYear, sessionsSorted,
 } from "@/lib/classic/months";
 import { buildReport, computeRows, reportSummary, type SortKey } from "@/lib/classic/report";
 import { latestGrade } from "@/lib/classic/attendance";
 import type { ClassicStore } from "@/components/classic/types";
+import type { ClassicRegisterView } from "@/hooks/classic/useRegisterView";
 import type { RegisterDirectoryEntry } from "@/lib/classic/types";
 
 /**
@@ -28,13 +29,15 @@ import type { RegisterDirectoryEntry } from "@/lib/classic/types";
 export function AttendancePanel({
   entry,
   store,
+  view,
 }: {
   entry: RegisterDirectoryEntry;
   store: ClassicStore;
+  view: ClassicRegisterView;
 }) {
   const { blob, edit } = store;
   const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
-  const [year, setYear] = useState(() => defaultAcademicYear(blob.sessions));
+  const { year, setYear } = view;
   const [search, setSearch] = useState("");
   const [hideNotInProgramme, setHide] = useState(true);
   const [sortKey, setSortKey] = useState<SortKey>("name");

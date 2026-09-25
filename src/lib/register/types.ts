@@ -261,3 +261,21 @@ export interface FeedbackResponse {
   comments: string | null;
   submitted_at: string;
 }
+
+/**
+ * A row from `register_archive()` — a register that has been deleted but not
+ * yet destroyed. `purge_at` is the database's own deadline, so the countdown an
+ * organiser sees and the rule that refuses a late restore are the same date.
+ */
+export interface ArchivedRegister {
+  id: string;
+  name: string;
+  slug: string;
+  deanery_name: string;
+  specialty_name: string;
+  archived_at: string;
+  purge_at: string;
+  /** What is in it, so the row is a decision rather than a filename. */
+  trainee_count: number;
+  session_count: number;
+}

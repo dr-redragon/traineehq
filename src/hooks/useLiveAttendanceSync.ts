@@ -59,7 +59,7 @@ export function useLiveAttendanceSync(registerId: string | undefined, blob: Regi
         queryClient.invalidateQueries({ queryKey: ["register-session-status", live.id] });
       } catch {
         toast.error("Saved here, but the live sign-in list could not be reached", {
-          description: "Use “Re-sync sign-ins” on the Check-in tab to repair it.",
+          description: "Use “Re-sync sign-ins” on the Teaching day tab to repair it.",
         });
       }
     },

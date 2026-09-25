@@ -14,10 +14,11 @@ import { unexplainedAbsentees } from "@/lib/classic/chase";
 import { fetchSessionStatus, markAttended, publishSession } from "@/lib/classic/liveApi";
 import { describeSync, mergeCheckIns, presentPayloads } from "@/lib/classic/liveSync";
 import {
-  ALL_YEARS, availableAcademicYears, defaultAcademicYear, formatMonth,
+  ALL_YEARS, availableAcademicYears, formatMonth,
   sessionsInYear, sessionsSorted,
 } from "@/lib/classic/months";
 import type { ClassicStore } from "@/components/classic/types";
+import type { ClassicRegisterView } from "@/hooks/classic/useRegisterView";
 import type { RegisterDirectoryEntry, RegisterSession } from "@/lib/classic/types";
 
 /**
@@ -37,15 +38,17 @@ import type { RegisterDirectoryEntry, RegisterSession } from "@/lib/classic/type
 export function CheckinPanel({
   entry,
   store,
+  view,
 }: {
   entry: RegisterDirectoryEntry;
   store: ClassicStore;
+  view: ClassicRegisterView;
 }) {
   const { blob, edit } = store;
   const queryClient = useQueryClient();
   const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
-  const [year, setYear] = useState(() => defaultAcademicYear(blob.sessions));
-  const [activeId, setActiveId] = useState<string>("");
+  // The year and the day are shared with the other tabs through the address bar.
+  const { year, setYear, dayId: activeId, setDay: setActiveId } = view;
   const [qr, setQr] = useState<string | null>(null);
   const [traineeId, setTraineeId] = useState("");
   const [grade, setGrade] = useState("");

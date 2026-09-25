@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import type {
+  ArchivedRegister,
   CreatableDeanery,
   CreatableSpecialty,
   RegisterAccessRequest,
@@ -34,6 +35,7 @@ interface UntypedQuery extends UntypedResult {
   is(column: string, value: unknown): UntypedQuery;
   order(column: string, options?: { ascending?: boolean }): UntypedQuery;
   maybeSingle(): UntypedQuery;
+  delete(): UntypedQuery;
 }
 
 const untyped = supabase as unknown as {
@@ -255,6 +257,44 @@ export async function removeRegisterMember(registerId: string, userId: string): 
     _register_id: registerId,
     _user_id: userId,
   });
+  raise(error);
+}
+
+/**
+ * Put a register in the archive: out of the directory, out of everyone's way,
+ * and recoverable whole until the date this returns.
+ */
+export async function archiveRegister(registerId: string): Promise<string> {
+  const { data, error } = await untyped.rpc("archive_register", { _register_id: registerId });
+  raise(error);
+  return data as string;
+}
+
+/** Take it back out again. Refused by the database once the window has closed. */
+export async function restoreRegister(registerId: string): Promise<void> {
+  const { error } = await untyped.rpc("restore_register", { _register_id: registerId });
+  raise(error);
+}
+
+/**
+ * The archived registers this person owns. The RPC sweeps expired entries
+ * before it answers, so anything returned here can still be restored.
+ */
+export async function fetchRegisterArchive(): Promise<ArchivedRegister[]> {
+  const { data, error } = await untyped.rpc("register_archive");
+  raise(error);
+  return (data ?? []) as ArchivedRegister[];
+}
+
+/**
+ * Destroy an archived register now, without waiting out its fifteen days.
+ *
+ * RLS ("owners delete their archived register") requires `archived_at` to be
+ * set, so this cannot reach a live register. Everything hanging off
+ * `registers` cascades with it; there is no undo.
+ */
+export async function deleteRegister(registerId: string): Promise<void> {
+  const { error } = await untyped.from("registers").delete().eq("id", registerId);
   raise(error);
 }
 

@@ -132,8 +132,8 @@ export function ChaseAbsencesDialog({
                 <strong>
                   {withoutEmail.length} will not be emailed — no address on file:
                 </strong>{" "}
-                {withoutEmail.map((t) => t.name).join(", ")}. Add their emails under{" "}
-                <em>Trainees &amp; days</em>, then reopen this to include them.
+                {withoutEmail.map((t) => t.name).join(", ")}. Add their emails on{" "}
+                the <em>People</em> tab, then reopen this to include them.
               </AlertDescription>
             </Alert>
           )}

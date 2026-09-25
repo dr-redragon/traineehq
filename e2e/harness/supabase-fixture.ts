@@ -125,6 +125,115 @@ const CONTACTS = [
   { id: "ct-5", name: "Mr Silas Verity", role: "Cataract Service Lead", organisation: "Eye Hospital", email: "eye@example.invalid", phone: null, category: "Education", specialty_id: "sp-9", notes: null, archived: false },
 ];
 
+// ---------------------------------------------------------------- register --
+// One teaching register with two academic years of teaching days, so the
+// attendance tab has figures, "All years" has more than one table, and the
+// teaching day tab has a published day with sign-ins and feedback.
+const REGISTER = {
+  id: "reg-1", name: "NW · Otolaryngology", slug: "north-west-ent",
+  deanery_name: DEANERY.name, specialty_name: "Otolaryngology", member_count: 3,
+  i_am_member: true, i_am_owner: true, certificate_logo_path: null, my_request: null,
+};
+
+const REGISTER_DIRECTORY = [
+  REGISTER,
+  { ...REGISTER, id: "reg-2", name: "NW · Urology", slug: "north-west-urology",
+    specialty_name: "Urology", member_count: 2 },
+  { ...REGISTER, id: "reg-3", name: "NW · General Surgery", slug: "north-west-gen-surg",
+    specialty_name: "General Surgery", member_count: 4, i_am_member: false, i_am_owner: false },
+];
+
+const REG_TRAINEES = [
+  ["t-1", "Aisha Karim", "ST5"], ["t-2", "Ben Lowther", "ST4"], ["t-3", "Chloe Mensah", "ST6"],
+  ["t-4", "Dev Patel", "ST3"], ["t-5", "Ellie Norris", "ST7"], ["t-6", "Farid Qureshi", "ST5"],
+  ["t-7", "Grace O'Neill", "ST4"], ["t-8", "Harry Ibe", "ST8"],
+].map(([id, name, grade]) => ({ id, name, grade, email: `${id}@example.invalid` }));
+
+const REG_SESSIONS = [
+  ["s-1", "2024-10", "Otology"], ["s-2", "2024-12", "Rhinology"], ["s-3", "2025-03", "Head & neck"],
+  ["s-4", "2025-06", "Paediatric ENT"], ["s-5", "2025-09", "Airway"], ["s-6", "2025-11", "Facial plastics"],
+  ["s-7", "2026-01", "Skull base"], ["s-8", "2026-03", "Laryngology"], ["s-9", "2026-05", "Emergency ENT"],
+].map(([id, month, title]) => ({ id, month, title }));
+
+// A deterministic spread of attendance: most people at most days.
+const REG_ATTENDANCE: Record<string, { grade: string }> = {};
+REG_TRAINEES.forEach((t, ti) => REG_SESSIONS.forEach((s, si) => {
+  if ((ti * 3 + si * 5) % 7 !== 0) REG_ATTENDANCE[`${t.id}|${s.id}`] = { grade: t.grade };
+}));
+
+const REGISTER_STORE = {
+  register_id: REGISTER.id, version: 12, updated_at: "2026-05-20T09:00:00Z", updated_by: "u-1",
+  data: {
+    trainees: REG_TRAINEES,
+    sessions: REG_SESSIONS,
+    attendance: REG_ATTENDANCE,
+    excused: [{ id: "x-1", trainee: "t-2", session: "s-8", reason: "Annual leave", ts: "1767225600000" }],
+    status: [
+      { id: "st-1", trainee: "t-8", type: "cct", start: null, end: "2025-08" },
+      { id: "st-2", trainee: "t-4", type: "mat", start: "2026-01", end: "2026-06" },
+    ],
+  },
+};
+
+const LIVE_SESSION = {
+  id: "live-9", register_id: REGISTER.id, title: "Emergency ENT", session_date: "2026-05-14",
+  location: "Manchester Royal Infirmary", local_id: "s-9",
+  form: { questions: [
+    { id: "overall", type: "scale", text: "Overall, how useful was the day?" },
+    { id: "q-1", type: "scale", text: "Relevance to your curriculum" },
+  ] },
+};
+
+const REG_ATTENDEES = REG_TRAINEES.filter((t) => REG_ATTENDANCE[`${t.id}|s-9`]).map((t, i) => ({
+  id: `a-${t.id}`, name: t.name, email: t.email, grade: t.grade,
+  checked_in_at: "2026-05-14T09:05:00Z",
+  feedback_completed: i % 3 !== 2,
+  certificate_sent_at: i % 3 === 0 ? "2026-05-15T10:00:00Z" : null,
+}));
+
+const REG_FEEDBACK = REG_ATTENDEES.filter((a) => a.feedback_completed).map((a, i) => ({
+  id: `f-${i}`, session_id: LIVE_SESSION.id, overall_rating: 5 - (i % 3),
+  answers: { "q-1": 4 + (i % 2) }, comments: i === 0 ? "Great hands-on airway stations." : "",
+  submitted_at: "2026-05-14T17:00:00Z",
+}));
+
+const REGISTER_MEMBERS = [
+  { register_id: REGISTER.id, user_id: "u-1", role: "owner", granted_by: null, granted_at: "2025-08-01T09:00:00Z" },
+  { register_id: REGISTER.id, user_id: "u-2", role: "editor", granted_by: "u-1", granted_at: "2025-09-01T09:00:00Z" },
+  { register_id: REGISTER.id, user_id: "u-3", role: "editor", granted_by: "u-1", granted_at: "2025-10-01T09:00:00Z" },
+  { register_id: "reg-2", user_id: "u-1", role: "owner", granted_by: null, granted_at: "2025-08-01T09:00:00Z" },
+];
+
+const REGISTER_REQUESTS = [
+  { id: "rq-1", register_id: REGISTER.id, user_id: "u-4", status: "pending",
+    reason: "I run the Liverpool teaching days.", created_at: "2026-09-20T09:00:00Z",
+    decided_by: null, decided_at: null, decision_note: null },
+];
+
+const REGISTER_ARCHIVE = [
+  { id: "reg-9", name: "NW · Plastic Surgery", slug: "north-west-plastics", deanery_name: DEANERY.name,
+    specialty_name: "Plastic Surgery", archived_at: "2026-09-21T09:00:00Z",
+    purge_at: "2026-10-06T09:00:00Z", trainee_count: 11, session_count: 6 },
+];
+
+const REGISTER_RPC: Record<string, unknown> = {
+  register_directory: REGISTER_DIRECTORY,
+  register_archive: REGISTER_ARCHIVE,
+  register_people: PROFILES.map(({ user_id, first_name, last_name, email }) => ({ user_id, first_name, last_name, email })),
+};
+
+/** What the register-api edge function answers, by action. */
+function registerApi(body: { action?: string }) {
+  if (body.action === "session-status") {
+    return {
+      session: LIVE_SESSION, attendees: REG_ATTENDEES,
+      feedback_count: REG_FEEDBACK.length,
+      email_configured: true, email_sandbox: false, email_from: "register@example.invalid",
+    };
+  }
+  return {};
+}
+
 const TABLES: Record<string, unknown[]> = {
   deaneries: [DEANERY],
   specialties: SPECIALTIES,
@@ -141,6 +250,11 @@ const TABLES: Record<string, unknown[]> = {
   ],
   profiles: PROFILES,
   contacts: CONTACTS,
+  register_stores: [REGISTER_STORE],
+  register_members: REGISTER_MEMBERS,
+  register_access_requests: REGISTER_REQUESTS,
+  register_sessions: [LIVE_SESSION],
+  register_feedback: REG_FEEDBACK,
   user_roles: [{ user_id: "u-1", role: "admin" }],
   announcements: [
     { id: "a-1", title: "ARCP submissions close on 30 September", content: "Evidence uploaded after the deadline will not be seen by the panel. If you are short of a WBA, speak to your educational supervisor this week rather than on the day.", is_active: true, created_at: "2026-09-14T09:00:00Z", deanery_id: DEANERY.id },
@@ -362,7 +476,7 @@ export const supabase = {
     Promise.resolve(
       name === "get_profile_display_names"
         ? { data: PROFILES.map(({ user_id, first_name, last_name }) => ({ user_id, first_name, last_name })), error: null }
-        : { data: null, error: null },
+        : { data: REGISTER_RPC[name] ?? null, error: null },
     ),
   auth: {
     getUser: () => Promise.resolve({ data: { user: USER }, error: null }),
@@ -379,6 +493,10 @@ export const supabase = {
       upload: () => Promise.resolve({ data: null, error: null }),
       remove: () => Promise.resolve({ data: null, error: null }),
     }),
+  },
+  functions: {
+    invoke: (name: string, { body }: { body?: { action?: string } } = {}) =>
+      Promise.resolve({ data: name === "register-api" ? registerApi(body ?? {}) : {}, error: null }),
   },
   channel: () => ({ on: () => ({ subscribe: () => ({}) }), subscribe: () => ({}) }),
   removeChannel: () => undefined,

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { ChaseAbsencesDialog } from "@/components/register/ChaseAbsencesDialog";
 import { FeedbackFormEditor } from "@/components/register/FeedbackFormEditor";
+import { FeedbackPanel } from "@/components/register/FeedbackPanel";
 import { LiveDayCard } from "@/components/register/LiveDayCard";
 import { YearTabs } from "@/components/register/YearTabs";
 import { useLiveAttendanceSync } from "@/hooks/useLiveAttendanceSync";
@@ -21,13 +22,10 @@ import { gradeAt, isPresent } from "@/lib/register/attendance";
 import { setAttendance } from "@/lib/register/blob";
 import { splitByEmail, unexplainedAbsentees } from "@/lib/register/chase";
 import { GRADES } from "@/lib/register/constants";
-import {
-  ALL_YEARS, academicYearOf, availableAcademicYears, defaultAcademicYear, formatMonth,
-  sessionsInYear, sessionsSorted,
-} from "@/lib/register/months";
-import { useRegister } from "@/contexts/RegisterContext";
+import { ALL_YEARS, academicYearOf, formatMonth } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
-import type { RegisterBlob } from "@/lib/register/types";
+import type { RegisterView } from "@/hooks/useRegisterView";
+import type { RegisterBlob, RegisterDirectoryEntry } from "@/lib/register/types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -44,15 +42,20 @@ import { cn } from "@/lib/utils";
  * both directions: a QR sign-in writes the grid through
  * `register_record_checkin()`, and every mark made here — or in the attendance
  * grid — is pushed to the live list through `mark-attended`.
+ *
+ * The feedback that comes back afterwards is read here too, for the same day:
+ * the year and the teaching day are the register's shared selection, kept in
+ * the address bar, so they stay picked across tabs and survive a refresh.
  */
 export function CheckInPanel({
-  blob, registerId, onEdit,
+  blob, register, view, onEdit,
 }: {
   blob: RegisterBlob;
-  registerId: string;
+  register: RegisterDirectoryEntry;
+  view: RegisterView;
   onEdit: (edit: RegisterEdit) => void;
 }) {
-  const { activeRegister } = useRegister();
+  const registerId = register.id;
   const { publishedFor, pushMark, pushAllPresent } = useLiveAttendanceSync(registerId, blob);
 
   const [manualTrainee, setManualTrainee] = useState("");
@@ -60,34 +63,16 @@ export function CheckInPanel({
   const [chasing, setChasing] = useState(false);
   const [editingForm, setEditingForm] = useState(false);
 
-  const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
-  const [year, setYear] = useState<string | null>(null);
-  const activeYear = year ?? defaultAcademicYear(blob.sessions);
+  const { years, year: activeYear, sessions: scoped, day: active } = view;
 
-  const scoped = useMemo(
-    () => (activeYear === ALL_YEARS
-      ? sessionsSorted(blob.sessions)
-      : sessionsInYear(blob.sessions, activeYear)),
-    [blob.sessions, activeYear],
-  );
-
-  const [activeId, setActiveId] = useState<string | null>(null);
-  // The newest day in the chosen year, which is nearly always the one being
-  // run. Reset when the year changes so the new scope picks its own.
-  const active = scoped.find((s) => s.id === activeId) ?? scoped[scoped.length - 1];
-
-  /** Changing day closes anything that was open about the last one. */
-  const chooseDay = (id: string | null) => {
-    setActiveId(id);
+  // Changing day — here, or on another tab — closes anything that was open
+  // about the last one.
+  useEffect(() => {
     setChasing(false);
     setEditingForm(false);
     setManualTrainee("");
     setManualGrade("");
-  };
-
-  useEffect(() => {
-    setActiveId((current) => (scoped.some((s) => s.id === current) ? current : null));
-  }, [scoped]);
+  }, [active?.id]);
 
   const live = active ? publishedFor(active.id) : undefined;
 
@@ -149,7 +134,7 @@ export function CheckInPanel({
   if (!blob.sessions.length) {
     return (
       <p className="text-sm text-muted-foreground">
-        Add a teaching day under <strong>Trainees &amp; days</strong> first — publishing one is
+        Add a teaching day on the <strong>People</strong> tab first — publishing one is
         what creates its sign-in link.
       </p>
     );
@@ -163,7 +148,7 @@ export function CheckInPanel({
         sign-in list stay in step.
       </p>
 
-      <YearTabs years={years} value={activeYear} onChange={(y) => { setYear(y); chooseDay(null); }} />
+      <YearTabs years={years} value={activeYear} onChange={view.setYear} />
 
       <div className="grid gap-4 lg:grid-cols-[300px,1fr] lg:items-start">
         {/* --------------------------------------------------------- the QR */}
@@ -237,7 +222,7 @@ export function CheckInPanel({
                       )}
                       <button
                         type="button"
-                        onClick={() => chooseDay(s.id)}
+                        onClick={() => view.setDay(s.id)}
                         aria-pressed={active?.id === s.id}
                         className={cn(
                           "flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors",
@@ -324,6 +309,7 @@ export function CheckInPanel({
               key={active.id}
               blob={blob}
               registerId={registerId}
+              register={register}
               session={active}
               live={live}
               onEdit={onEdit}
@@ -379,7 +365,7 @@ export function CheckInPanel({
                     </Button>
                     {!withEmail.length && (
                       <p className="text-[11px] text-muted-foreground">
-                        None of them have an email on file yet — add one under Trainees &amp; days.
+                        None of them have an email on file yet — add one on the People tab.
                       </p>
                     )}
                     {!live && !!withEmail.length && (
@@ -389,6 +375,21 @@ export function CheckInPanel({
                     )}
                   </>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ------------------------------------------- what came back */}
+          {active && (
+            <Card>
+              <CardContent className="space-y-3 p-4">
+                <Label className="text-xs">Feedback results</Label>
+                <FeedbackPanel
+                  registerId={registerId}
+                  liveSessionId={live?.id ?? null}
+                  sessionTitle={`${formatMonth(active.month, "en-GB")} · ${active.title}`}
+                  onEditForm={() => setEditingForm(true)}
+                />
               </CardContent>
             </Card>
           )}
@@ -403,7 +404,7 @@ export function CheckInPanel({
           session={active}
           liveSessionId={live.id}
           registerId={registerId}
-          registerName={activeRegister?.name}
+          registerName={register.name}
           sandboxFrom={status?.email_sandbox ? status.email_from : null}
         />
       )}

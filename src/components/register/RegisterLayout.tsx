@@ -1,4 +1,4 @@
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, BookOpen, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -22,10 +22,23 @@ import { RegisterMasthead } from "@/components/register/RegisterMasthead";
  */
 export function RegisterLayout() {
   const { activeRegister, myRegisters, setActiveRegisterSlug } = useRegister();
+  const navigate = useNavigate();
+  const { search } = useLocation();
   useRegisterTheme();
 
+  /**
+   * Switching register opens it. The tab comes along — somebody on the
+   * Teaching day tab of one register wants the same tab of the next — but the
+   * year and the teaching day do not, since they belong to the register left.
+   */
+  const switchTo = (slug: string) => {
+    setActiveRegisterSlug(slug);
+    const tab = new URLSearchParams(search).get("tab");
+    navigate(`/registers/${slug}${tab ? `?tab=${encodeURIComponent(tab)}` : ""}`);
+  };
+
   const switcher = (className: string) => (
-    <Select value={activeRegister?.slug ?? undefined} onValueChange={setActiveRegisterSlug}>
+    <Select value={activeRegister?.slug ?? undefined} onValueChange={switchTo}>
       <SelectTrigger
         className={`${className} border-white/25 bg-white/10 text-register-deep-foreground focus:ring-register-gold [&>svg]:opacity-70`}
       >
