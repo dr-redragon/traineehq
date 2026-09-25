@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ClassicShell, type ClassicTab } from "@/components/classic/ClassicShell";
 import { AttendancePanel } from "@/components/classic/AttendancePanel";
@@ -9,6 +8,7 @@ import { ManagePanel } from "@/components/classic/ManagePanel";
 import { AccessPanel } from "@/components/classic/AccessPanel";
 import { useRegisterDirectory } from "@/hooks/classic/useRegisters";
 import { useRegisterStore } from "@/hooks/classic/useRegisterStore";
+import { useClassicRegisterView, type ClassicTabId } from "@/hooks/classic/useRegisterView";
 
 /**
  * One register, behind the six tabs the standalone ENT register had.
@@ -26,13 +26,22 @@ import { useRegisterStore } from "@/hooks/classic/useRegisterStore";
  *
  * "Users & access" is owners-only, exactly as the original hid its admin tab
  * from organisers who were not administrators.
+ *
+ * The open tab, the academic year and the teaching day are kept in the
+ * address bar (see useClassicRegisterView), so a refresh or a shared link
+ * lands in the same place and the chosen day follows from tab to tab.
  */
 export default function ClassicRegisterDetail() {
   const { slug } = useParams<{ slug: string }>();
   const { data: directory, isLoading: directoryLoading } = useRegisterDirectory();
   const entry = directory?.find((r) => r.slug === slug);
   const store = useRegisterStore(entry?.id);
-  const [tab, setTab] = useState("dash");
+  const allowedTabs: ClassicTabId[] = [
+    "attendance", "checkin", "excused", "status", "manage",
+    ...(entry?.i_am_owner ? ["access" as const] : []),
+  ];
+  const view = useClassicRegisterView(store.blob.sessions, allowedTabs);
+  const tab = view.tab;
 
   if (directoryLoading) {
     return (
@@ -59,12 +68,12 @@ export default function ClassicRegisterDetail() {
   }
 
   const tabs: ClassicTab[] = [
-    { id: "dash", label: "Attendance" },
+    { id: "attendance", label: "Attendance" },
     { id: "checkin", label: "Check-in / QR" },
     { id: "excused", label: "Excused absences" },
     { id: "status", label: "Long-term status" },
     { id: "manage", label: "Trainees & sessions" },
-    ...(entry.i_am_owner ? [{ id: "admin", label: "Users & access" }] : []),
+    ...(entry.i_am_owner ? [{ id: "access", label: "Users & access" }] : []),
   ];
 
   const count = store.blob.trainees.length;
@@ -78,20 +87,20 @@ export default function ClassicRegisterDetail() {
       note={note}
       tabs={tabs}
       activeTab={tab}
-      onTabChange={setTab}
+      onTabChange={view.setTab}
     >
       {store.error ? (
         <div className="notice bad">{store.error.message}</div>
       ) : (
         <>
-          <section className={"panel" + (tab === "dash" ? " active" : "")}>
-            {tab === "dash" && <AttendancePanel entry={entry} store={store} />}
+          <section className={"panel" + (tab === "attendance" ? " active" : "")}>
+            {tab === "attendance" && <AttendancePanel entry={entry} store={store} view={view} />}
           </section>
           <section className={"panel" + (tab === "checkin" ? " active" : "")}>
-            {tab === "checkin" && <CheckinPanel entry={entry} store={store} />}
+            {tab === "checkin" && <CheckinPanel entry={entry} store={store} view={view} />}
           </section>
           <section className={"panel" + (tab === "excused" ? " active" : "")}>
-            {tab === "excused" && <ExcusedPanel store={store} />}
+            {tab === "excused" && <ExcusedPanel store={store} view={view} />}
           </section>
           <section className={"panel" + (tab === "status" ? " active" : "")}>
             {tab === "status" && <StatusPanel store={store} />}
@@ -100,8 +109,8 @@ export default function ClassicRegisterDetail() {
             {tab === "manage" && <ManagePanel store={store} entry={entry} />}
           </section>
           {entry.i_am_owner && (
-            <section className={"panel" + (tab === "admin" ? " active" : "")}>
-              {tab === "admin" && <AccessPanel entry={entry} />}
+            <section className={"panel" + (tab === "access" ? " active" : "")}>
+              {tab === "access" && <AccessPanel entry={entry} />}
             </section>
           )}
         </>

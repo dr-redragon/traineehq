@@ -3,10 +3,11 @@ import { YearTabs } from "@/components/classic/YearTabs";
 import { addExcusal, removeExcusal } from "@/lib/classic/blob";
 import { EXCUSAL_REASONS, OTHER_REASON } from "@/lib/classic/constants";
 import {
-  ALL_YEARS, availableAcademicYears, defaultAcademicYear, formatMonth,
+  ALL_YEARS, availableAcademicYears, formatMonth,
   sessionsInYear, sessionsSorted,
 } from "@/lib/classic/months";
 import type { ClassicStore } from "@/components/classic/types";
+import type { ClassicRegisterView } from "@/hooks/classic/useRegisterView";
 
 /**
  * Excused absences — the tab that makes the adjusted figure fair.
@@ -16,19 +17,23 @@ import type { ClassicStore } from "@/components/classic/types";
  * reasons are a fixed list rather than free text because they are counted across
  * a cohort, and "on call" / "On-Call" / "oncall" would otherwise be three
  * different reasons.
+ *
+ * The session in the form starts on the teaching day picked on the other tabs,
+ * and picking one here carries back to them.
  */
-export function ExcusedPanel({ store }: { store: ClassicStore }) {
+export function ExcusedPanel({ store, view }: { store: ClassicStore; view: ClassicRegisterView }) {
   const { blob, edit } = store;
   const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
-  const [year, setYear] = useState(() => defaultAcademicYear(blob.sessions));
+  const { year, setYear } = view;
   const [traineeId, setTraineeId] = useState("");
-  const [sessionId, setSessionId] = useState("");
   const [reason, setReason] = useState<string>(EXCUSAL_REASONS[0]);
   const [otherReason, setOtherReason] = useState("");
 
   const sessions = year === ALL_YEARS || !years.length
     ? sessionsSorted(blob.sessions)
     : sessionsInYear(blob.sessions, year);
+
+  const sessionId = sessions.some((s) => s.id === view.dayId) ? view.dayId : "";
 
   const trainees = [...blob.trainees].sort((a, b) => a.name.localeCompare(b.name));
 
@@ -42,7 +47,6 @@ export function ExcusedPanel({ store }: { store: ClassicStore }) {
     if (!traineeId || !sessionId || !text) return;
     edit((b) => addExcusal(b, traineeId, sessionId, text));
     setTraineeId("");
-    setSessionId("");
     setReason(EXCUSAL_REASONS[0]);
     setOtherReason("");
   };
@@ -72,7 +76,7 @@ export function ExcusedPanel({ store }: { store: ClassicStore }) {
           </div>
           <div>
             <label className="fld">Session</label>
-            <select value={sessionId} onChange={(e) => setSessionId(e.target.value)}>
+            <select value={sessionId} onChange={(e) => view.setDay(e.target.value)}>
               <option value="">Session…</option>
               {sessions.map((s) => (
                 <option key={s.id} value={s.id}>{formatMonth(s.month)} — {s.title}</option>

@@ -34,6 +34,10 @@ import KeyContacts from "@/pages/KeyContacts";
 import MyProfile from "@/pages/MyProfile";
 import AdminPanel from "@/pages/AdminPanel";
 import Landing from "@/pages/Landing";
+import RegisterDirectory from "@/pages/RegisterDirectory";
+import RegisterDetail from "@/pages/RegisterDetail";
+import { RegisterLayout } from "@/components/register/RegisterLayout";
+import { RegisterProvider } from "@/contexts/RegisterContext";
 import "@/index.css";
 
 const params = new URLSearchParams(window.location.search);
@@ -58,12 +62,20 @@ const PATHS: Record<string, string> = {
   profile: "/profile",
   admin: "/admin",
   landing: "/",
+  registers: "/registers",
+  register: "/registers/north-west-ent",
 };
 
 // `&id=` swaps the row a page opens on, so a reviewer can look at any
 // specialty or board rather than only the one wired into PATHS.
 const rowId = params.get("id");
-const start = (PATHS[page] ?? PATHS.dashboard).replace(/(sp-1)$/, rowId ?? "$1");
+// `&tab=`, `&year=` and `&day=` pass through to a register, whose place is
+// kept in its query string.
+const registerQuery = new URLSearchParams(
+  [...params].filter(([key]) => ["tab", "year", "day", "view"].includes(key)),
+).toString();
+const start = (PATHS[page] ?? PATHS.dashboard).replace(/(sp-1)$/, rowId ?? "$1")
+  + (page === "register" && registerQuery ? `?${registerQuery}` : "");
 
 /**
  * A row of page links pinned to the bottom of the preview.
@@ -129,6 +141,10 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/profile" element={<MyProfile />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/" element={<Landing />} />
+              <Route path="/registers" element={<RegisterProvider><RegisterLayout /></RegisterProvider>}>
+                <Route index element={<RegisterDirectory />} />
+                <Route path=":slug" element={<RegisterDetail />} />
+              </Route>
             </Routes>
           </MemoryRouter>
           <Switcher />

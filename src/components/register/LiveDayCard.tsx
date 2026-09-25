@@ -21,10 +21,10 @@ import {
 } from "@/lib/register/certificate";
 import { registerLogoUrl } from "@/lib/register/logo";
 import { supabase } from "@/integrations/supabase/client";
-import { useRegister } from "@/contexts/RegisterContext";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import type {
-  LiveSession, RegisterAttendee, RegisterBlob, RegisterSession, SendOutcome,
+  LiveSession, RegisterAttendee, RegisterBlob, RegisterDirectoryEntry, RegisterSession,
+  SendOutcome,
 } from "@/lib/register/types";
 
 /** The first of the month, as a sensible default for a day in that month. */
@@ -41,10 +41,12 @@ const ukDate = (value: string) =>
  * afterwards — rather than as one undifferentiated row of controls.
  */
 export function LiveDayCard({
-  blob, registerId, session, live, onEdit, onPublished, pushAllPresent, onEditForm,
+  blob, registerId, register, session, live, onEdit, onPublished, pushAllPresent, onEditForm,
 }: {
   blob: RegisterBlob;
   registerId: string;
+  /** Whose name and badge go on the certificates. */
+  register: RegisterDirectoryEntry;
   /** The day in the register blob. */
   session: RegisterSession;
   /** Its published counterpart, once there is one. */
@@ -55,7 +57,6 @@ export function LiveDayCard({
   onEditForm: () => void;
 }) {
   const queryClient = useQueryClient();
-  const { activeRegister } = useRegister();
 
   const [date, setDate] = useState(firstOf(session.month));
   const [location, setLocation] = useState("");
@@ -66,6 +67,7 @@ export function LiveDayCard({
   const [sending, setSending] = useState<"all" | "some" | null>(null);
   const [issuing, setIssuing] = useState<string | null>(null);
   const [emailingCerts, setEmailingCerts] = useState(false);
+  const [sendingCert, setSendingCert] = useState<string | null>(null);
 
   const { data: status, isFetching, refetch } = useQuery({
     queryKey: ["register-session-status", live?.id],
@@ -166,12 +168,12 @@ export function LiveDayCard({
 
   const detailsFor = (attendee: RegisterAttendee) => ({
     traineeName: attendee.name,
-    registerName: activeRegister?.name ?? "Teaching register",
-    deaneryName: activeRegister?.deanery_name ?? "",
+    registerName: register.name,
+    deaneryName: register.deanery_name,
     sessionTitle: live?.title ?? session.title,
     sessionDate: live?.session_date ?? "",
     location: live?.location ?? null,
-    logoUrl: registerLogoUrl(activeRegister?.certificate_logo_path),
+    logoUrl: registerLogoUrl(register.certificate_logo_path),
   });
 
   /**
@@ -202,6 +204,50 @@ export function LiveDayCard({
    * should not cost the other nineteen their certificates, and the organiser
    * wants to know which one failed.
    */
+  /** Render one person's certificate and have the register email it to them. */
+  const emailCertificateTo = async (attendee: RegisterAttendee) => {
+    if (!live) return;
+    const bytes = await renderCertificatePdf(detailsFor(attendee));
+    const { data, error } = await supabase.functions.invoke("register-certificate", {
+      body: {
+        session_id: live.id, attendee_id: attendee.id, pdf_base64: bytesToBase64(bytes),
+      },
+    });
+    // A refusal arrives as a non-2xx whose body is on the Response the error
+    // carries; without reading it the organiser is told only that the
+    // function returned a non-2xx status code.
+    if (error) {
+      const carried = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
+      const detail = await carried?.json?.().catch(() => null);
+      throw new Error(detail?.error ?? "Could not send it");
+    }
+    const refusal = data as { error?: string } | null;
+    if (refusal?.error) throw new Error(refusal.error);
+  };
+
+  /**
+   * Send — or send again — one person's certificate. A lost email, a changed
+   * address, or somebody who needs it for a portfolio today are all reasons to
+   * resend, so an earlier send does not stop it. Sending before they have
+   * given feedback skips the usual gate, so that asks first.
+   */
+  const sendCertificate = async (attendee: RegisterAttendee) => {
+    if (!attendee.feedback_completed && !window.confirm(
+      `${attendee.name} has not given feedback yet. Send their certificate anyway?`)) return;
+    setSendingCert(attendee.id);
+    try {
+      await emailCertificateTo(attendee);
+      toast.success(attendee.certificate_sent_at
+        ? `Certificate re-sent to ${attendee.name}.`
+        : `Certificate sent to ${attendee.name}.`);
+      await refetch();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not send it");
+    } finally {
+      setSendingCert(null);
+    }
+  };
+
   const emailCertificates = async () => {
     if (!live) return;
     const eligible = attendees.filter((a) => a.feedback_completed && !a.certificate_sent_at);
@@ -216,22 +262,7 @@ export function LiveDayCard({
 
     for (const attendee of eligible) {
       try {
-        const bytes = await renderCertificatePdf(detailsFor(attendee));
-        const { data, error } = await supabase.functions.invoke("register-certificate", {
-          body: {
-            session_id: live.id, attendee_id: attendee.id, pdf_base64: bytesToBase64(bytes),
-          },
-        });
-        // A refusal arrives as a non-2xx whose body is on the Response the error
-        // carries; without reading it the organiser is told only that the
-        // function returned a non-2xx status code.
-        if (error) {
-          const carried = (error as { context?: { json?: () => Promise<{ error?: string }> } }).context;
-          const detail = await carried?.json?.().catch(() => null);
-          throw new Error(detail?.error ?? "Could not send it");
-        }
-        const refusal = data as { error?: string } | null;
-        if (refusal?.error) throw new Error(refusal.error);
+        await emailCertificateTo(attendee);
         sent++;
       } catch (e) {
         failures.push(`${attendee.name}: ${e instanceof Error ? e.message : "failed"}`);
@@ -505,6 +536,20 @@ export function LiveDayCard({
                     onClick={() => downloadCertificate(a)}
                   >
                     <Award className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                    disabled={sendingCert !== null || emailingCerts || !status?.email_configured}
+                    title={a.certificate_sent_at
+                      ? `Email ${a.name} their certificate again`
+                      : `Email ${a.name} their certificate now`}
+                    aria-label={`${a.certificate_sent_at ? "Resend" : "Send"} the certificate to ${a.name}`}
+                    onClick={() => sendCertificate(a)}
+                  >
+                    {sendingCert === a.id
+                      ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      : <Mail className="h-3.5 w-3.5 sm:mr-1" />}
+                    <span className="hidden sm:inline">{a.certificate_sent_at ? "Resend" : "Send"}</span>
                   </Button>
                   {a.feedback_completed && (
                     <Button

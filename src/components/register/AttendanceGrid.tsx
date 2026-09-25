@@ -25,8 +25,16 @@ function pctClass(pct: number | null) {
   return "text-destructive";
 }
 
+/** The filter and sort a grid is shown with, when its parent owns them. */
+export interface GridOptions {
+  search: string;
+  hideNotInProgramme: boolean;
+  sortKey: SortKey;
+  sortDir: 1 | -1;
+}
+
 export function AttendanceGrid({
-  blob, sessions, onEdit, canEdit, onToggle,
+  blob, sessions, onEdit, canEdit, onToggle, options, onSort, bare = false, emptyMessage,
 }: {
   blob: RegisterBlob;
   sessions: RegisterSession[];
@@ -38,11 +46,26 @@ export function AttendanceGrid({
    * live sign-in list and the grid drift apart the moment anybody uses either.
    */
   onToggle?: (traineeId: string, sessionId: string, nowPresent: boolean) => void;
+  /**
+   * Search, filter and sort owned by the parent — the attendance tab shows one
+   * grid per academic year under a single set of controls, and all of them
+   * have to answer to it. Left out, the grid keeps its own.
+   */
+  options?: GridOptions;
+  onSort?: (key: SortKey) => void;
+  /** Just the table: no search row, legend or footnote. */
+  bare?: boolean;
+  emptyMessage?: string;
 }) {
-  const [search, setSearch] = useState("");
-  const [hideNotInProgramme, setHideNotInProgramme] = useState(true);
-  const [sortKey, setSortKey] = useState<SortKey>("name");
-  const [sortDir, setSortDir] = useState<1 | -1>(1);
+  const [ownSearch, setSearch] = useState("");
+  const [ownHide, setHideNotInProgramme] = useState(true);
+  const [ownSortKey, setSortKey] = useState<SortKey>("name");
+  const [ownSortDir, setSortDir] = useState<1 | -1>(1);
+
+  const search = options?.search ?? ownSearch;
+  const hideNotInProgramme = options?.hideNotInProgramme ?? ownHide;
+  const sortKey = options?.sortKey ?? ownSortKey;
+  const sortDir = options?.sortDir ?? ownSortDir;
 
   // The one cell showing its details, and the button it belongs to — the
   // popover is positioned against that. At most one is open, so the grid
@@ -76,6 +99,7 @@ export function AttendanceGrid({
   };
 
   const sortBy = (key: SortKey) => {
+    if (onSort) { onSort(key); return; }
     if (key === sortKey) setSortDir((d) => (d === 1 ? -1 : 1));
     else { setSortKey(key); setSortDir(key === "name" ? 1 : -1); }
   };
@@ -87,24 +111,26 @@ export function AttendanceGrid({
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-3">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search trainees"
-          className="h-8 w-full text-xs sm:w-56"
-        />
-        <Label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
-          <Checkbox
-            checked={hideNotInProgramme}
-            onCheckedChange={(v) => setHideNotInProgramme(v === true)}
+      {!bare && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search trainees"
+            className="h-8 w-full text-xs sm:w-56"
           />
-          Hide trainees not in programme
-        </Label>
-        {hidden > 0 && (
-          <span className="text-xs text-muted-foreground">{hidden} hidden</span>
-        )}
-      </div>
+          <Label className="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox
+              checked={hideNotInProgramme}
+              onCheckedChange={(v) => setHideNotInProgramme(v === true)}
+            />
+            Hide trainees not in programme
+          </Label>
+          {hidden > 0 && (
+            <span className="text-xs text-muted-foreground">{hidden} hidden</span>
+          )}
+        </div>
+      )}
 
       {/* A register can run a dozen teaching days; the table scrolls inside its
           own box rather than pushing the page sideways on a phone. */}
@@ -260,15 +286,24 @@ export function AttendanceGrid({
 
         {rows.length === 0 && (
           <p className="px-3 py-8 text-center text-sm text-muted-foreground">
-            {blob.trainees.length === 0
-              ? "No trainees yet — add some under Trainees & sessions."
+            {emptyMessage ?? (blob.trainees.length === 0
+              ? "No trainees yet — add some on the People tab."
               : sessions.length === 0
                 ? "No teaching days in this year yet."
-                : "No trainees match."}
+                : "No trainees match.")}
           </p>
         )}
       </div>
 
+      {!bare && <AttendanceLegend />}
+    </div>
+  );
+}
+
+/** What the marks mean, and what the two percentages count. */
+export function AttendanceLegend() {
+  return (
+    <>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
         {(["present", "excused", "absent", "na"] as const).map((state) => (
           <span key={state} className="inline-flex items-center gap-1.5">
@@ -290,6 +325,6 @@ export function AttendanceGrid({
         absences, from the denominator. <strong>Raw</strong> counts every teaching day in the
         year. An adjusted figure of “—” means none of these days were ever theirs to attend.
       </p>
-    </div>
+    </>
   );
 }

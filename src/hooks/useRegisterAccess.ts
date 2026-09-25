@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  archiveRegister,
   decideRegisterAccess,
   fetchRegisterMembers,
   fetchRegisterPeople,
@@ -86,4 +87,27 @@ export function useInviteToRegister(registerId: string | undefined) {
   return useRegisterAccessMutation(({ email, role }: { email: string; role: RegisterRole }) =>
     inviteToRegister(registerId!, email, role),
   );
+}
+
+/**
+ * Delete a register — which archives it for fifteen days rather than
+ * destroying it. Its cached contents are dropped rather than refetched: the
+ * register has gone from under everyone, and a refetch would only be refused.
+ */
+export function useArchiveRegister() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (registerId: string) => archiveRegister(registerId),
+    onSuccess: () => {
+      for (const key of [
+        "register-members", "register-requests", "register-people", "register-store",
+        "register-session-status", "register-live-sessions", "register-form",
+      ]) {
+        queryClient.removeQueries({ queryKey: [key] });
+      }
+      for (const key of ["register-directory", "register-archive", "my-register-memberships"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
 }

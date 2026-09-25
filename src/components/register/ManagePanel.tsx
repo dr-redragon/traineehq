@@ -118,7 +118,7 @@ export function ManagePanel({
   return (
     <div className="space-y-10">
       {/* -------------------------------------------------------- trainees -- */}
-      <section className="space-y-3">
+      <section id="people-trainees" className="scroll-mt-16 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold">Trainees</h2>
@@ -166,8 +166,8 @@ export function ManagePanel({
                 <CollapsibleContent className="mt-2">
                   <div className="divide-y rounded-lg border opacity-80">{former.map(row)}</div>
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    They stay in every past year's figures. Change or clear the status on the
-                    Long-term status tab to bring somebody back into the roster.
+                    They stay in every past year's figures. Change or clear the status in the
+                    Long-term status section below to bring somebody back into the roster.
                   </p>
                 </CollapsibleContent>
               </Collapsible>
@@ -177,7 +177,7 @@ export function ManagePanel({
       </section>
 
       {/* -------------------------------------------------------- sessions -- */}
-      <section className="space-y-3">
+      <section id="people-days" className="scroll-mt-16 space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold">Teaching days</h2>

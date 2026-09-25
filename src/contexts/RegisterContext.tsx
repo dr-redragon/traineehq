@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import type { RegisterDirectoryEntry } from "@/lib/register/types";
@@ -69,7 +69,9 @@ export function RegisterProvider({ children }: { children: ReactNode }) {
     });
   }, [myRegisters, user?.id]);
 
-  const setActiveRegisterSlug = (slug: string) => {
+  // Stable, because the register page calls it from an effect whenever the
+  // register on screen changes.
+  const setActiveRegisterSlug = useCallback((slug: string) => {
     setActiveSlug(slug);
     if (!user?.id) return;
     try {
@@ -77,7 +79,7 @@ export function RegisterProvider({ children }: { children: ReactNode }) {
     } catch {
       // As above: a register that is not remembered next time is survivable.
     }
-  };
+  }, [user?.id]);
 
   const activeRegister = myRegisters.find((r) => r.slug === activeSlug) ?? null;
 

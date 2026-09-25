@@ -9,11 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { YearTabs } from "@/components/register/YearTabs";
 import { addExcusal, removeExcusal } from "@/lib/register/blob";
 import { EXCUSAL_REASONS, OTHER_REASON } from "@/lib/register/constants";
-import {
-  ALL_YEARS, academicYearOf, availableAcademicYears, defaultAcademicYear,
-  formatMonth, sessionsInYear, sessionsSorted,
-} from "@/lib/register/months";
+import { ALL_YEARS, academicYearOf, formatMonth } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
+import type { RegisterView } from "@/hooks/useRegisterView";
 import type { RegisterBlob } from "@/lib/register/types";
 
 /**
@@ -26,21 +24,23 @@ import type { RegisterBlob } from "@/lib/register/types";
  * reachable without hunting through the roster.
  *
  * Scoped to an academic year like every other year-aware view, so the list is
- * the current year's excusals rather than every one ever recorded.
+ * the current year's excusals rather than every one ever recorded. The year and
+ * the teaching day are the register's shared selection: the day picked on the
+ * Teaching day tab is the one this form starts on, and picking one here
+ * carries back there.
  */
 export function ExcusalsPanel({
-  blob, onEdit, canEdit,
+  blob, view, onEdit, canEdit,
 }: {
   blob: RegisterBlob;
+  view: RegisterView;
   onEdit: (edit: RegisterEdit) => void;
   canEdit: boolean;
 }) {
-  const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
-  const [year, setYear] = useState<string | null>(null);
-  const activeYear = year ?? defaultAcademicYear(blob.sessions);
+  const { years, year: activeYear } = view;
 
   const [traineeId, setTraineeId] = useState("");
-  const [sessionId, setSessionId] = useState("");
+  const sessionId = view.day?.id ?? "";
   const [reason, setReason] = useState<string>(EXCUSAL_REASONS[0]);
   const [otherReason, setOtherReason] = useState("");
 
@@ -51,12 +51,8 @@ export function ExcusalsPanel({
 
   // Newest first, as in the original — an organiser is nearly always looking for
   // something they logged recently.
-  const sessions = useMemo(() => {
-    const list = activeYear === ALL_YEARS
-      ? sessionsSorted(blob.sessions)
-      : sessionsInYear(blob.sessions, activeYear);
-    return [...list].reverse();
-  }, [blob.sessions, activeYear]);
+  // Newest first: the day being excused from is nearly always a recent one.
+  const sessions = useMemo(() => [...view.sessions].reverse(), [view.sessions]);
 
   const excusals = useMemo(() => {
     const bySession = new Map(blob.sessions.map((s) => [s.id, s]));
@@ -100,7 +96,7 @@ export function ExcusalsPanel({
         adjusted attendance.
       </p>
 
-      <YearTabs years={years} value={activeYear} onChange={setYear} />
+      <YearTabs years={years} value={activeYear} onChange={view.setYear} />
 
       {canEdit && (
         <Card>
@@ -119,7 +115,7 @@ export function ExcusalsPanel({
 
             <div className="space-y-1.5">
               <Label htmlFor="ex-session" className="text-xs">Teaching day</Label>
-              <Select value={sessionId} onValueChange={setSessionId}>
+              <Select value={sessionId} onValueChange={view.setDay}>
                 <SelectTrigger id="ex-session">
                   <SelectValue placeholder={sessions.length ? "Choose" : "None this year"} />
                 </SelectTrigger>

@@ -1,11 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createRegister,
+  deleteRegister,
   fetchCreatableDeaneries,
   fetchCreatableSpecialties,
   fetchMyRegisterMemberships,
+  fetchRegisterArchive,
   fetchRegisterDirectory,
   requestRegisterAccess,
+  restoreRegister,
 } from "@/lib/register/api";
 import { groupDirectory } from "@/lib/register/directory";
 import { useCurrentUser } from "@/hooks/useUserRole";
@@ -108,4 +111,51 @@ export function useMyRegisterMemberships() {
     queryFn: fetchMyRegisterMemberships,
     enabled: !!user,
   });
+}
+
+/**
+ * The registers this person has deleted but can still get back. Kept off the
+ * directory's own query: this one writes (the RPC sweeps expired entries first)
+ * and concerns only the few people who have actually deleted something.
+ */
+export function useRegisterArchive() {
+  const { data: user } = useCurrentUser();
+
+  return useQuery({
+    queryKey: ["register-archive", user?.id],
+    queryFn: fetchRegisterArchive,
+    enabled: !!user,
+  });
+}
+
+/**
+ * Restoring and destroying both change what the directory and the
+ * create-a-register form can offer, since an archived register goes on holding
+ * its specialty until it is one or the other.
+ */
+function useArchiveMutation<TArgs>(fn: (args: TArgs) => Promise<unknown>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () => {
+      for (const key of [
+        "register-archive",
+        "register-directory",
+        "register-creatable-specialties",
+        "my-register-memberships",
+      ]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
+    },
+  });
+}
+
+export function useRestoreRegister() {
+  return useArchiveMutation((registerId: string) => restoreRegister(registerId));
+}
+
+/** Destroy an archived register now rather than waiting out its fifteen days. */
+export function useDeleteRegisterForever() {
+  return useArchiveMutation((registerId: string) => deleteRegister(registerId));
 }
