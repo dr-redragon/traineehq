@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { chaseAbsences } from "@/lib/register/liveApi";
+import { todayIso } from "@/lib/register/months";
 import {
   EMAIL_PATTERN, defaultChaseBody, defaultChaseSubject, splitByEmail, unexplainedAbsentees,
 } from "@/lib/register/chase";
@@ -52,7 +53,7 @@ export function ChaseAbsencesDialog({
   /** Set while mail still goes out from the provider's shared test address. */
   sandboxFrom?: string | null;
 }) {
-  const absent = useMemo(() => unexplainedAbsentees(blob, session), [blob, session]);
+  const absent = useMemo(() => unexplainedAbsentees(blob, session, todayIso()), [blob, session]);
   const { withEmail, withoutEmail } = useMemo(() => splitByEmail(absent), [absent]);
 
   const [subject, setSubject] = useState("");

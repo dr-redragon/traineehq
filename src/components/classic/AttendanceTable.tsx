@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { pctColor } from "@/components/classic/pctColor";
-import { formatMonth } from "@/lib/classic/months";
+import { formatMonth, sessionWhen } from "@/lib/classic/months";
 import { activeStatusType } from "@/lib/classic/eligibility";
 import { gradeAt, latestGrade } from "@/lib/classic/attendance";
 import { STATUS_SHORT } from "@/lib/classic/statusText";
@@ -8,13 +8,15 @@ import type { AttendanceRow, SortKey } from "@/lib/classic/report";
 import type { RegisterBlob, RegisterSession } from "@/lib/classic/types";
 
 const STATE_SYMBOL: Record<string, string> = {
-  present: "✓", excused: "e", na: "–", absent: "",
+  present: "✓", excused: "e", na: "–", absent: "", upcoming: "",
 };
 const STATE_LABEL: Record<string, string> = {
   present: "Attended", excused: "Excused", na: "Not eligible", absent: "Missed",
+  upcoming: "Not held yet",
 };
 const STATE_DOT: Record<string, string> = {
   Attended: "s-present", Excused: "s-excused", Missed: "s-absent", "Not eligible": "s-na",
+  "Not held yet": "s-na",
 };
 
 interface CellDetail {
@@ -83,7 +85,7 @@ export function AttendanceTable({
     sessionId: cell.session.id,
     name: row.trainee.name,
     session: cell.session.title,
-    month: formatMonth(cell.session.month),
+    month: sessionWhen(cell.session),
     state: STATE_LABEL[cell.state],
     grade: cell.state === "present" ? gradeAt(blob, row.trainee.id, cell.session.id) : "",
     eligible: cell.state !== "na",
@@ -102,7 +104,7 @@ export function AttendanceTable({
                   readable without hovering, and a phone cannot hover. */}
               {sessions.map((s) => (
                 <th key={s.id} className="no-sort sess-col" title={s.title}>
-                  {formatMonth(s.month)}
+                  {sessionWhen(s)}
                 </th>
               ))}
               <th onClick={() => onSort("att")}>Att/Elig {arrow("att")}</th>
@@ -167,9 +169,11 @@ export function AttendanceTable({
                       {row.attended}/{row.adjDenom > 0 ? row.adjDenom : row.eligible}
                     </td>
                     <td>
-                      <span className="pct" style={{ color: pctColor(row.rawPct) }}>{row.rawPct}%</span>
+                      <span className="pct" style={{ color: pctColor(row.total ? row.rawPct : null) }}>
+                        {row.total ? `${row.rawPct}%` : "—"}
+                      </span>
                       <div className="pct-bar">
-                        <span style={{ width: `${row.rawPct}%`, background: pctColor(row.rawPct) }} />
+                        <span style={{ width: `${row.total ? row.rawPct : 0}%`, background: pctColor(row.rawPct) }} />
                       </div>
                     </td>
                     <td>
@@ -205,6 +209,11 @@ export function AttendanceTable({
             <span className={`pop-state ${STATE_DOT[pop.state]}`} />
             {pop.name} — {pop.state}{pop.grade ? ` · ${pop.grade}` : ""}
           </div>
+          {pop.state === "Not held yet" && (
+            <div className="pop-note">
+              This teaching day has not happened yet, so it counts neither way until it has.
+            </div>
+          )}
           {pop.eligible ? (
             <div className="pop-actions">
               <button type="button" onClick={() => setPop(null)}>Close</button>

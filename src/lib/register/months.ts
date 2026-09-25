@@ -154,6 +154,12 @@ export function sessionWhen(session: Pick<RegisterSession, "date" | "month">): s
   return session.date ? formatDay(session.date) : formatMonth(session.month, "en-GB");
 }
 
+/** Today as 'YYYY-MM-DD', on the local calendar — what "not happened yet" is judged against. */
+export function todayIso(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 /** Every academic year that has at least one teaching day, oldest first. */
 export function availableAcademicYears(sessions: RegisterSession[]): string[] {
   return [...new Set(sessions.map((s) => academicYearOf(s.month)))].sort();

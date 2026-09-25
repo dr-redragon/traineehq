@@ -7,7 +7,7 @@ import { Modal } from "@/components/classic/Modal";
 import { toggleAttendance } from "@/lib/classic/blob";
 import {
   ALL_YEARS, academicYearRange, availableAcademicYears,
-  formatMonth, sessionsInYear, sessionsSorted,
+  sessionsInYear, sessionsSorted, sessionWhen, todayIso,
 } from "@/lib/classic/months";
 import { buildReport, computeRows, reportSummary, type SortKey } from "@/lib/classic/report";
 import { isPresent, latestGrade } from "@/lib/classic/attendance";
@@ -58,7 +58,8 @@ export function AttendancePanel({
     else { setSortKey(key); setSortDir(1); }
   };
 
-  const options = { search, hideNotInProgramme, sortKey, sortDir };
+  // Today, so teaching days that have not happened yet count neither way.
+  const options = { search, hideNotInProgramme, sortKey, sortDir, asOf: todayIso() };
 
   // One block per academic year when "All years" is picked, newest first; a
   // single block when one year is chosen.
@@ -73,8 +74,10 @@ export function AttendancePanel({
   const meanAdjusted = eligible.length
     ? Math.round(eligible.reduce((s, r) => s + (r.adjPct || 0), 0) / eligible.length)
     : 0;
-  const meanRaw = scopeRows.length
-    ? Math.round(scopeRows.reduce((s, r) => s + r.rawPct, 0) / scopeRows.length)
+  // Rows with nothing counted yet — every day still to come — have no raw figure.
+  const counted = scopeRows.filter((r) => r.total > 0);
+  const meanRaw = counted.length
+    ? Math.round(counted.reduce((s, r) => s + r.rawPct, 0) / counted.length)
     : 0;
   const atFull = eligible.filter((r) => r.adjPct === 100).length;
   const below60 = eligible.filter((r) => r.adjPct !== null && r.adjPct < 60).length;
@@ -94,7 +97,7 @@ export function AttendancePanel({
     const header = [
       "Trainee", "Grade", "Attended", "Eligible", "Excused",
       "Adjusted denominator", "Raw %", "Adjusted %",
-      ...scopeSessions.map((s) => `${formatMonth(s.month)} — ${s.title}`),
+      ...scopeSessions.map((s) => `${sessionWhen(s)} — ${s.title}`),
     ];
     const lines = [header.map(cell).join(",")];
     for (const row of scopeRows) {
@@ -102,9 +105,12 @@ export function AttendancePanel({
         row.trainee.name,
         latestGrade(blob, row.trainee.id, scopeSessions),
         row.attended, row.eligible, row.excused, row.adjDenom,
-        row.rawPct, row.adjPct === null ? "" : row.adjPct,
+        row.total ? row.rawPct : "", row.adjPct === null ? "" : row.adjPct,
         ...row.cells.map((c) =>
-          ({ present: "Attended", excused: "Excused", na: "Not eligible", absent: "Missed" })[c.state]),
+          ({
+            present: "Attended", excused: "Excused", na: "Not eligible", absent: "Missed",
+            upcoming: "Not held yet",
+          })[c.state]),
       ].map(cell).join(","));
     }
 
@@ -198,6 +204,7 @@ export function AttendancePanel({
         <span><span className="dot absent" /> Missed</span>
         <span><span className="dot excused">e</span> Excused</span>
         <span><span className="dot na">–</span> Not eligible (leave / pre-start / post-CCT)</span>
+        <span><span className="dot upcoming" /> Not held yet (counts neither way)</span>
       </div>
 
       {reportOpen && (
@@ -327,7 +334,7 @@ function ReportDialog({
             disabled={chosen.length === 0}
             onClick={() =>
               setReport(buildReport(store.blob, {
-                years: chosen, layout, includeCct, includeIdtOut, hideNoEligible,
+                years: chosen, layout, includeCct, includeIdtOut, hideNoEligible, asOf: todayIso(),
               }))}
           >
             Generate

@@ -812,3 +812,9 @@
 .classic-register .att-table tbody tr:hover td.name-cell {
   background:#faf8f0
 }
+
+/* A teaching day that has not happened yet: an empty dashed box, counted
+   neither way until it has. */
+.classic-register .dot.upcoming {
+  background:transparent;border:1px dashed #bdb7a4;color:var(--muted)
+}

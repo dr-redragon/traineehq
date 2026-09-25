@@ -8,12 +8,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { availableAcademicYears, academicYearRange, sessionWhen } from "@/lib/register/months";
+import { availableAcademicYears, academicYearRange, sessionWhen, todayIso } from "@/lib/register/months";
 import { buildReport, reportSummary, type ReportLayout } from "@/lib/register/report";
 import type { RegisterBlob } from "@/lib/register/types";
 import { cn } from "@/lib/utils";
 
-const MARK: Record<string, string> = { present: "✓", excused: "E", absent: "·", na: "–" };
+const MARK: Record<string, string> = { present: "✓", excused: "E", absent: "·", na: "–", upcoming: "" };
 
 function pctClass(pct: number | null) {
   if (pct === null) return "text-muted-foreground";
@@ -47,7 +47,9 @@ export function ReportPanel({
   const [generated, setGenerated] = useState(false);
 
   const report = useMemo(
-    () => buildReport(blob, { years: selected, layout, includeCct, includeIdtOut, hideNoEligible }),
+    () => buildReport(blob, {
+      years: selected, layout, includeCct, includeIdtOut, hideNoEligible, asOf: todayIso(),
+    }),
     [blob, selected, layout, includeCct, includeIdtOut, hideNoEligible],
   );
 
@@ -275,8 +277,8 @@ export function ReportPanel({
                             {row.attended}/{row.adjDenom > 0 ? row.adjDenom : row.eligible}
                           </td>
                           {raw && (
-                            <td className={cn("px-2 py-1.5 text-right tabular-nums", pctClass(row.rawPct))}>
-                              {row.rawPct}%
+                            <td className={cn("px-2 py-1.5 text-right tabular-nums", pctClass(row.total ? row.rawPct : null))}>
+                              {row.total ? `${row.rawPct}%` : "—"}
                             </td>
                           )}
                           {adj && (

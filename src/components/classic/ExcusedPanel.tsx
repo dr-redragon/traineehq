@@ -3,7 +3,7 @@ import { YearTabs } from "@/components/classic/YearTabs";
 import { addExcusal, removeExcusal } from "@/lib/classic/blob";
 import { EXCUSAL_REASONS, OTHER_REASON } from "@/lib/classic/constants";
 import {
-  ALL_YEARS, availableAcademicYears, formatMonth,
+  ALL_YEARS, availableAcademicYears, sessionWhen,
   sessionsInYear, sessionsSorted,
 } from "@/lib/classic/months";
 import type { ClassicStore } from "@/components/classic/types";
@@ -79,7 +79,7 @@ export function ExcusedPanel({ store, view }: { store: ClassicStore; view: Class
             <select value={sessionId} onChange={(e) => view.setDay(e.target.value)}>
               <option value="">Session…</option>
               {sessions.map((s) => (
-                <option key={s.id} value={s.id}>{formatMonth(s.month)} — {s.title}</option>
+                <option key={s.id} value={s.id}>{sessionWhen(s)} — {s.title}</option>
               ))}
             </select>
           </div>
@@ -124,7 +124,7 @@ export function ExcusedPanel({ store, view }: { store: ClassicStore; view: Class
                 <div>
                   <div className="li-main">{nameOf(excusal.trainee)}</div>
                   <div className="li-sub">
-                    {session ? `${formatMonth(session.month)} — ${session.title}` : "Session removed"}
+                    {session ? `${sessionWhen(session)} — ${session.title}` : "Session removed"}
                     {" · "}{excusal.reason}
                   </div>
                 </div>

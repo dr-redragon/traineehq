@@ -155,7 +155,7 @@ const REG_SESSIONS = [
   ["s-1", "2024-10", "Otology", ""], ["s-2", "2024-12-04", "Rhinology"], ["s-3", "2025-03-12", "Head & neck"],
   ["s-4", "2025-06-18", "Paediatric ENT"], ["s-5", "2025-09-10", "Airway"], ["s-6", "2025-11-05", "Facial plastics"],
   ["s-7", "2026-01-14", "Skull base"], ["s-8", "2026-03-04", "Laryngology"], ["s-10", "2026-03-25", "Voice clinic"],
-  ["s-9", "2026-05-14", "Emergency ENT"],
+  ["s-9", "2026-05-14", "Emergency ENT"], ["s-11", "2026-11-18", "Tracheostomy care"],
 ].map(([id, when, title]) => (when.length === 10
   ? { id, month: when.slice(0, 7), date: when, title }
   : { id, month: when, title }));
@@ -301,7 +301,7 @@ const TABLES: Record<string, unknown[]> = {
   classic_register_stores: [CLASSIC_STORE],
   classic_register_members: REGISTER_MEMBERS,
   classic_register_access_requests: REGISTER_REQUESTS,
-  classic_register_sessions: [LIVE_SESSION],
+  classic_register_sessions: LIVE_SESSIONS,
   classic_register_feedback: REG_FEEDBACK,
   user_roles: [{ user_id: "u-1", role: "admin" }],
   announcements: [

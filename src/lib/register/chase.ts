@@ -1,4 +1,4 @@
-import { isEligible, isExcused } from "./eligibility";
+import { isEligible, isExcused, isUpcoming } from "./eligibility";
 import { isPresent } from "./attendance";
 import { sessionWhen } from "./months";
 import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
@@ -22,8 +22,10 @@ import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
 export function unexplainedAbsentees(
   blob: RegisterBlob,
   session: RegisterSession | undefined,
+  /** Today, 'YYYY-MM-DD'. A day that has not happened yet has no absences to chase. */
+  asOf?: string,
 ): RegisterTrainee[] {
-  if (!session) return [];
+  if (!session || isUpcoming(session, asOf)) return [];
   return blob.trainees
     .filter((t) => isEligible(blob, t.id, session.month))
     .filter((t) => !isPresent(blob, t.id, session.id))

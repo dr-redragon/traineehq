@@ -155,6 +155,11 @@ export function AttendanceCellPopover({
             </Button>
             <Button size="sm" variant="outline" onClick={close}>Close</Button>
           </div>
+          {state === "upcoming" && (
+            <p className="mt-2.5 text-xs text-muted-foreground">
+              This teaching day has not happened yet, so it counts neither way until it has.
+            </p>
+          )}
           {state === "excused" && (
             <p className="mt-2.5 text-xs text-muted-foreground">
               Excused — this teaching day is already out of their denominator. Marking them

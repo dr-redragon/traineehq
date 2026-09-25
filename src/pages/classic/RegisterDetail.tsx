@@ -9,6 +9,7 @@ import { AccessPanel } from "@/components/classic/AccessPanel";
 import { useRegisterDirectory } from "@/hooks/classic/useRegisters";
 import { useRegisterStore } from "@/hooks/classic/useRegisterStore";
 import { useClassicRegisterView } from "@/hooks/classic/useRegisterView";
+import { useClassicAutoPublishDays } from "@/hooks/classic/useAutoPublishDays";
 import { useRegisterRequests } from "@/hooks/classic/useRegisterAccess";
 import { useCurrentUser } from "@/hooks/useUserRole";
 
@@ -41,6 +42,12 @@ export default function ClassicRegisterDetail() {
   const entry = directory?.find((r) => r.slug === slug);
   const store = useRegisterStore(entry?.id);
   const view = useClassicRegisterView(store.blob.sessions);
+
+  // Every teaching day gets its check-in page and QR code on its own —
+  // including ones recorded before that was automatic.
+  useClassicAutoPublishDays(
+    entry?.i_am_member ? entry.id : undefined, store.blob, store.edit, !store.isLoading,
+  );
 
   // Requests somebody other than the asker can decide, counted on the tab so
   // they are noticed without going looking.

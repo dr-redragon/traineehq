@@ -24,7 +24,7 @@ import { gradeAt, isPresent } from "@/lib/register/attendance";
 import { setAttendance, upsertSession } from "@/lib/register/blob";
 import { splitByEmail, unexplainedAbsentees } from "@/lib/register/chase";
 import { GRADES } from "@/lib/register/constants";
-import { ALL_YEARS, academicYearOf, sessionWhen } from "@/lib/register/months";
+import { ALL_YEARS, academicYearOf, sessionWhen, todayIso } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import type { RegisterView } from "@/hooks/useRegisterView";
 import type { RegisterBlob, RegisterDirectoryEntry } from "@/lib/register/types";
@@ -153,7 +153,7 @@ export function CheckInPanel({
 
   // ------------------------------------------------------------ absentees --
 
-  const absent = useMemo(() => unexplainedAbsentees(blob, active), [blob, active]);
+  const absent = useMemo(() => unexplainedAbsentees(blob, active, todayIso()), [blob, active]);
   const { withEmail, withoutEmail } = useMemo(() => splitByEmail(absent), [absent]);
 
   if (!blob.sessions.length) {

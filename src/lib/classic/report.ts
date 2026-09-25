@@ -1,5 +1,5 @@
 import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
-import { cellState, isOnLeave, type CellState } from "./eligibility";
+import { cellState, isOnLeave, isUpcoming, type CellState } from "./eligibility";
 import { academicYearOf, academicYearRange, sessionsInYear, sessionsSorted } from "./months";
 
 /**
@@ -49,6 +49,12 @@ export function computeRow(
   blob: RegisterBlob,
   trainee: RegisterTrainee,
   sessions: RegisterSession[],
+  /**
+   * Today, 'YYYY-MM-DD'. Teaching days after it count neither way — not in the
+   * total, not eligible, not missed — unless the trainee is already ticked for
+   * one. Left out, every day counts, as in the original register.
+   */
+  asOf?: string,
 ): AttendanceRow {
   let attended = 0;
   let total = 0;
@@ -57,8 +63,9 @@ export function computeRow(
   const cells: AttendanceCell[] = [];
 
   for (const session of sessions) {
-    const state = cellState(blob, trainee.id, session);
+    const state = cellState(blob, trainee.id, session, asOf);
     cells.push({ session, state });
+    if (isUpcoming(session, asOf) && state !== "present") continue;
     total++;
     if (state === "na") continue;
     eligible++;
@@ -83,6 +90,13 @@ export function computeRow(
 
 export type SortKey = "name" | "att" | "raw" | "adj";
 
+/**
+ * Was this trainee in the programme for any of these teaching days? Read off
+ * the cells rather than the eligible count, so a scope of days that have not
+ * happened yet does not hide the whole cohort.
+ */
+const inProgramme = (row: AttendanceRow) => row.cells.some((c) => c.state !== "na");
+
 export interface RowOptions {
   /** Case-insensitive substring match on the trainee's name. */
   search?: string;
@@ -91,6 +105,8 @@ export interface RowOptions {
   sortKey?: SortKey;
   /** 1 ascending, -1 descending. */
   sortDir?: 1 | -1;
+  /** Today, so days not yet held count neither way. See `computeRow`. */
+  asOf?: string;
 }
 
 export interface RowResult {
@@ -114,19 +130,19 @@ export function computeRows(
   sessions: RegisterSession[],
   options: RowOptions = {},
 ): RowResult {
-  const { search = "", hideNotInProgramme = false, sortKey = "name", sortDir = 1 } = options;
+  const { search = "", hideNotInProgramme = false, sortKey = "name", sortDir = 1, asOf } = options;
 
   const needle = search.trim().toLowerCase();
   let rows = blob.trainees
     .filter((t) => t.name.toLowerCase().includes(needle))
-    .map((t) => computeRow(blob, t, sessions));
+    .map((t) => computeRow(blob, t, sessions, asOf));
 
   let hidden = 0;
   if (hideNotInProgramme && sessions.length) {
     const cutoff = sessions[sessions.length - 1].month;
     const onLeave = (r: AttendanceRow) => isOnLeave(blob, r.trainee.id, cutoff);
-    hidden = rows.filter((r) => r.eligible === 0 && !onLeave(r)).length;
-    rows = rows.filter((r) => r.eligible > 0 || onLeave(r));
+    hidden = rows.filter((r) => !inProgramme(r) && !onLeave(r)).length;
+    rows = rows.filter((r) => inProgramme(r) || onLeave(r));
   }
 
   rows.sort((a, b) => {
@@ -180,6 +196,8 @@ export interface ReportOptions {
    * Anyone on maternity or OOP leave is kept regardless — see `buildReport`.
    */
   hideNoEligible?: boolean;
+  /** Today, so days not yet held count neither way. See `computeRow`. */
+  asOf?: string;
 }
 
 export interface ReportSection {
@@ -243,13 +261,13 @@ export function buildReport(blob: RegisterBlob, options: ReportOptions): Report 
   const keep = (rows: AttendanceRow[], sessions: RegisterSession[]) => {
     if (!hideNoEligible || !sessions.length) return rows;
     const cutoff = sessions[sessions.length - 1].month;
-    return rows.filter((r) => r.eligible > 0 || isOnLeave(blob, r.trainee.id, cutoff));
+    return rows.filter((r) => inProgramme(r) || isOnLeave(blob, r.trainee.id, cutoff));
   };
 
   const section = (
     title: string, subtitle: string, sessions: RegisterSession[],
   ): ReportSection => {
-    const rows = keep(trainees.map((t) => computeRow(blob, t, sessions)), sessions);
+    const rows = keep(trainees.map((t) => computeRow(blob, t, sessions, options.asOf)), sessions);
     return {
       title, subtitle, sessions,
       rows: [...rows].sort((a, b) => a.trainee.name.localeCompare(b.trainee.name)),
@@ -277,7 +295,7 @@ export function buildReport(blob: RegisterBlob, options: ReportOptions): Report 
     }
   }
 
-  const overall = keep(trainees.map((t) => computeRow(blob, t, inScope)), inScope);
+  const overall = keep(trainees.map((t) => computeRow(blob, t, inScope, options.asOf)), inScope);
 
   return { sections, overall, sessions: inScope, years: selected };
 }
