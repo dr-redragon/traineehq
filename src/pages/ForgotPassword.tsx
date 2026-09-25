@@ -1,13 +1,17 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { Mail, ArrowLeft, ArrowRight } from "lucide-react";
-import logoWhite from "@/assets/logo-white.png";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PolicyLink } from "@/components/PolicyLink";
+import { PortalShell, portalField, portalKicker, portalLabel } from "@/components/PortalShell";
 
+/**
+ * Asking for a reset link, in the same register as the door it is reached from.
+ */
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -28,97 +32,73 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden flex-col justify-between p-12">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-16">
-            <img src={logoWhite} alt="NW HST Training Hub" className="h-10 w-10" />
-            <h1 className="text-xl font-display font-semibold text-primary-foreground tracking-tight">
-              North West HST Training Hub
-            </h1>
-          </div>
-          <h2 className="text-4xl font-display font-bold text-primary-foreground leading-tight mb-6">
-            Reset your<br />password.
-          </h2>
-          <p className="text-primary-foreground/70 text-lg max-w-md leading-relaxed">
-            We'll send you a link to reset your password and get back to your training resources.
+    <PortalShell
+      footerLinks={
+        <>
+          <PolicyLink kind="privacy" className="text-accent-deep underline underline-offset-4" />
+          <PolicyLink kind="terms" className="text-accent-deep underline underline-offset-4" />
+          <Link to="/contact" className="text-accent-deep underline underline-offset-4">
+            Contact us
+          </Link>
+        </>
+      }
+    >
+      <div className="space-y-1.5">
+        <span className={portalKicker}>Account</span>
+        <h2 className="font-display text-[clamp(26px,6.5vw,34px)] font-extrabold leading-[1.04] tracking-[-0.03em]">
+          Reset your password
+        </h2>
+      </div>
+
+      {sent ? (
+        <div className="space-y-4 border-2 border-foreground p-6">
+          <h3 className="font-display text-2xl font-extrabold tracking-tight">Check your email</h3>
+          <p className="text-pretty text-sm text-muted-foreground">
+            A reset link is on its way to <strong className="text-foreground">{email}</strong>.
+            Open it to set a new password.
           </p>
+          <Button asChild variant="outline" className="h-11 w-full">
+            <Link to="/">Back to sign in</Link>
+          </Button>
         </div>
-        <p className="relative z-10 text-primary-foreground/40 text-sm">
-          © 2026 North West HST Training Hub. All rights reserved.
-        </p>
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-sm border border-rule" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-sm border border-rule" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-sm bg-accent" />
-      </div>
+      ) : (
+        <>
+          <p className="text-pretty text-[14.5px] text-muted-foreground">
+            Enter your email address and we&apos;ll send you a link to set a new one.
+          </p>
 
-      {/* Right form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md animate-fade-in">
-          <div className="lg:hidden flex items-center gap-3 mb-10">
-            <img src={logoWhite} alt="NW HST Training Hub" className="h-9 w-9 rounded-md bg-primary p-1" />
-            <h1 className="text-lg font-display font-semibold tracking-tight">North West HST Training Hub</h1>
-          </div>
-
-          {sent ? (
-            <div className="text-center space-y-4">
-              <div className="h-16 w-16 rounded-sm bg-accent flex items-center justify-center mx-auto mb-4">
-                <Mail className="h-8 w-8 text-rule" />
-              </div>
-              <h2 className="text-2xl font-display font-bold">Check your email</h2>
-              <p className="text-muted-foreground">
-                We've sent a password reset link to <strong>{email}</strong>. Click the link in the email to set a new password.
-              </p>
-              <Link to="/" className="inline-flex items-center gap-2 text-sm text-accent-deep hover:underline font-medium mt-4">
-                <ArrowLeft className="h-4 w-4" /> Back to sign in
-              </Link>
+          <form onSubmit={handleSubmit} className="space-y-[18px]">
+            <div className="space-y-2">
+              <Label htmlFor="email" className={portalLabel}>Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className={portalField}
+                required
+              />
             </div>
-          ) : (
-            <>
-              <h2 className="text-2xl font-display font-bold mb-2">Forgot password?</h2>
-              <p className="text-muted-foreground mb-8">
-                Enter your email address and we'll send you a link to reset your password.
-              </p>
 
-              <form onSubmit={handleSubmit} className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="name@nhs.net"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
+            <Button
+              type="submit"
+              className="h-12 w-full justify-between text-[15px]"
+              disabled={isLoading}
+            >
+              {isLoading ? "Sending…" : "Send reset link"}
+              {!isLoading && <ArrowRight className="h-4 w-4" />}
+            </Button>
+          </form>
 
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? "Sending…" : "Send reset link"}
-                  {!isLoading && <ArrowRight className="h-4 w-4" />}
-                </Button>
-              </form>
-
-              <p className="text-center text-sm text-muted-foreground mt-6">
-                <Link to="/" className="inline-flex items-center gap-1 text-accent-deep hover:underline font-medium">
-                  <ArrowLeft className="h-3 w-3" /> Back to sign in
-                </Link>
-              </p>
-
-              <p className="text-center text-sm text-muted-foreground mt-3">
-                Don't have an account?{" "}
-                <Link to="/request-access" className="text-accent-deep hover:underline font-medium">Request Access</Link>
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+          <p className="text-[13px] text-muted-foreground">
+            <Link to="/" className="text-accent-deep underline underline-offset-4">
+              Back to sign in
+            </Link>
+          </p>
+        </>
+      )}
+    </PortalShell>
   );
 };
 
