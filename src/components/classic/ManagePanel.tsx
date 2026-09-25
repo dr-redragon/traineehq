@@ -1,16 +1,17 @@
 import { useState } from "react";
 import { toast } from "sonner";
-import { MonthInput } from "@/components/classic/MonthInput";
+import { Modal } from "@/components/classic/Modal";
 import {
   newId, removeSession, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/classic/blob";
 import { GRADES } from "@/lib/classic/constants";
 import { isFormerTrainee } from "@/lib/classic/eligibility";
-import { formatMonth, sessionsSorted } from "@/lib/classic/months";
+import { formatMonth, sessionsSorted, sessionWhen } from "@/lib/classic/months";
 import { latestGrade } from "@/lib/classic/attendance";
-import { publishSession } from "@/lib/classic/liveApi";
 import type { ClassicStore } from "@/components/classic/types";
-import type { RegisterDirectoryEntry, RegisterTrainee } from "@/lib/classic/types";
+import type { RegisterDirectoryEntry, RegisterSession, RegisterTrainee } from "@/lib/classic/types";
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * Trainees & sessions — the two lists everything else is built from.
@@ -21,17 +22,18 @@ import type { RegisterDirectoryEntry, RegisterTrainee } from "@/lib/classic/type
  * deleted: their attendance is still part of the years they were here, and
  * deleting them would silently rewrite those years' figures.
  */
-export function ManagePanel({ store, entry }: { store: ClassicStore; entry: RegisterDirectoryEntry }) {
+export function ManagePanel({ store }: { store: ClassicStore; entry: RegisterDirectoryEntry }) {
   const { blob, edit } = store;
 
   const [name, setName] = useState("");
   const [grade, setGrade] = useState("");
   const [email, setEmail] = useState("");
-  const [month, setMonth] = useState("");
+  const [date, setDate] = useState("");
+  const [location, setLocation] = useState("");
+  const [editingDay, setEditingDay] = useState<RegisterSession | null>(null);
   const [title, setTitle] = useState("");
   const [showFormer, setShowFormer] = useState(false);
   const [editing, setEditing] = useState<RegisterTrainee | null>(null);
-  const [publishing, setPublishing] = useState(false);
 
   const sorted = [...blob.trainees].sort((a, b) => a.name.localeCompare(b.name));
   const current = sorted.filter((t) => !isFormerTrainee(blob, t.id));
@@ -54,25 +56,15 @@ export function ManagePanel({ store, entry }: { store: ClassicStore; entry: Regi
    * "publish" step to skip or forget. The QR code and the check-in link are
    * just what a published day looks like, so creating it does both at once.
    */
-  const addSession = async () => {
-    if (!month || !title.trim()) return;
-    const id = newId();
-    const sessionTitle = title.trim();
-    setPublishing(true);
-    try {
-      const { session } = await publishSession({
-        registerId: entry.id,
-        title: sessionTitle,
-        sessionDate: `${month}-01`,
-        localId: id,
-      });
-      edit((b) => upsertSession(b, { id, month, title: sessionTitle, cloudId: session.id }));
-      setMonth(""); setTitle("");
-    } catch (error) {
-      toast.error((error as Error).message);
-    } finally {
-      setPublishing(false);
-    }
+  // The teaching day goes into the register; its check-in page and QR code
+  // follow on their own a moment later (useClassicAutoPublishDays).
+  const addSession = () => {
+    if (!ISO_DATE.test(date) || !title.trim()) return;
+    edit((b) => upsertSession(b, {
+      id: newId(), title: title.trim(), date, month: date.slice(0, 7),
+      location: location.trim(),
+    }));
+    setDate(""); setTitle(""); setLocation("");
   };
 
   const backup = () => {
@@ -183,24 +175,43 @@ export function ManagePanel({ store, entry }: { store: ClassicStore; entry: Regi
 
         <div className="card pad">
           <label className="fld">Add teaching session</label>
-          <div className="inline-form" style={{ gridTemplateColumns: ".9fr 1.4fr auto" }}>
-            <div><MonthInput value={month} onChange={setMonth} /></div>
+          <div className="inline-form" style={{ gridTemplateColumns: "1.4fr .9fr" }}>
             <div>
               <input
                 placeholder="Title e.g. Paediatric ENT WYT"
+                aria-label="Title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
               />
             </div>
             <div>
-              <button type="button" className="btn primary" disabled={publishing} onClick={addSession}>
-                {publishing ? "Publishing…" : "Add"}
+              <input type="date" aria-label="Date" value={date} onChange={(e) => setDate(e.target.value)} />
+            </div>
+          </div>
+          <div className="inline-form" style={{ gridTemplateColumns: "1fr auto", marginTop: 8 }}>
+            <div>
+              <input
+                placeholder="Location (optional)"
+                aria-label="Location"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+              />
+            </div>
+            <div>
+              <button
+                type="button"
+                className="btn primary"
+                disabled={!title.trim() || !ISO_DATE.test(date)}
+                onClick={addSession}
+              >
+                Add
               </button>
             </div>
           </div>
           <p className="helper">
-            Adding a teaching day publishes it immediately — its QR code and
-            check-in link are ready as soon as it appears below.
+            Give each teaching day its exact date — a month can hold as many as
+            it needs. Its QR code and check-in link are set up on their own as
+            soon as it appears below.
           </p>
 
           <div style={{ marginTop: 8, maxHeight: 380, overflow: "auto" }}>
@@ -212,22 +223,33 @@ export function ManagePanel({ store, entry }: { store: ClassicStore; entry: Regi
                   <div>
                     <div className="li-main">{session.title}</div>
                     <div className="li-sub">
-                      {formatMonth(session.month)}
-                      {session.cloudId ? " · published for check-in" : ""}
+                      {sessionWhen(session)}
+                      {session.location ? ` · ${session.location}` : ""}
+                      {session.cloudId ? " · live for check-in" : " · setting up…"}
                     </div>
+                    {!session.date && (
+                      <div className="li-sub" style={{ color: "var(--clay)" }}>
+                        No exact date — use Edit to add it
+                      </div>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    className="btn ghost sm"
-                    onClick={() => {
-                      if (!window.confirm(
-                        `Delete “${session.title}”? Every attendance mark and excusal ` +
-                        `recorded against it goes too.`)) return;
-                      edit((b) => removeSession(b, session.id));
-                    }}
-                  >
-                    Delete
-                  </button>
+                  <div className="row-actions">
+                    <button type="button" className="btn ghost sm" onClick={() => setEditingDay(session)}>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost sm"
+                      onClick={() => {
+                        if (!window.confirm(
+                          `Delete “${session.title}”? Every attendance mark and excusal ` +
+                          `recorded against it goes too.`)) return;
+                        edit((b) => removeSession(b, session.id));
+                      }}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))
             )}
@@ -252,6 +274,14 @@ export function ManagePanel({ store, entry }: { store: ClassicStore; entry: Regi
           </div>
         </div>
       </div>
+
+      {editingDay && (
+        <EditDayDialog
+          session={editingDay}
+          onClose={() => setEditingDay(null)}
+          onSave={(updated) => { edit((b) => upsertSession(b, updated)); setEditingDay(null); }}
+        />
+      )}
 
       {editing && (
         <EditTraineeDialog
@@ -322,5 +352,64 @@ function EditTraineeDialog({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * A teaching day's title, date and place. Saving updates its live check-in
+ * page too — useClassicAutoPublishDays notices the change and republishes.
+ */
+function EditDayDialog({
+  session,
+  onClose,
+  onSave,
+}: {
+  session: RegisterSession;
+  onClose: () => void;
+  onSave: (session: RegisterSession) => void;
+}) {
+  const [title, setTitle] = useState(session.title);
+  const [date, setDate] = useState(session.date ?? "");
+  const [location, setLocation] = useState(session.location ?? "");
+  const valid = !!title.trim() && ISO_DATE.test(date);
+
+  return (
+    <Modal
+      title="Edit teaching day"
+      onClose={onClose}
+      footer={
+        <>
+          <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>
+          <button
+            type="button"
+            className="btn primary"
+            disabled={!valid}
+            onClick={() => onSave({
+              ...session, title: title.trim(), date, month: date.slice(0, 7), location: location.trim(),
+            })}
+          >
+            Save
+          </button>
+        </>
+      }
+    >
+      <div className="field">
+        <label className="fld">Title</label>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="field">
+        <label className="fld">Date</label>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        {!session.date && (
+          <p className="helper">
+            Recorded with only its month ({formatMonth(session.month)}). Give it its exact date to save.
+          </p>
+        )}
+      </div>
+      <div className="field" style={{ marginBottom: 0 }}>
+        <label className="fld">Location (optional)</label>
+        <input value={location} onChange={(e) => setLocation(e.target.value)} />
+      </div>
+    </Modal>
   );
 }

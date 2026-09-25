@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { pctColor } from "@/components/classic/pctColor";
-import { formatMonth } from "@/lib/classic/months";
+import { formatMonth, sessionWhen } from "@/lib/classic/months";
 import { activeStatusType } from "@/lib/classic/eligibility";
 import { gradeAt, latestGrade } from "@/lib/classic/attendance";
 import { STATUS_SHORT } from "@/lib/classic/statusText";
@@ -8,13 +8,15 @@ import type { AttendanceRow, SortKey } from "@/lib/classic/report";
 import type { RegisterBlob, RegisterSession } from "@/lib/classic/types";
 
 const STATE_SYMBOL: Record<string, string> = {
-  present: "✓", excused: "e", na: "–", absent: "",
+  present: "✓", excused: "e", na: "–", absent: "", upcoming: "",
 };
 const STATE_LABEL: Record<string, string> = {
   present: "Attended", excused: "Excused", na: "Not eligible", absent: "Missed",
+  upcoming: "Not held yet",
 };
 const STATE_DOT: Record<string, string> = {
   Attended: "s-present", Excused: "s-excused", Missed: "s-absent", "Not eligible": "s-na",
+  "Not held yet": "s-na",
 };
 
 interface CellDetail {
@@ -83,7 +85,7 @@ export function AttendanceTable({
     sessionId: cell.session.id,
     name: row.trainee.name,
     session: cell.session.title,
-    month: formatMonth(cell.session.month),
+    month: sessionWhen(cell.session),
     state: STATE_LABEL[cell.state],
     grade: cell.state === "present" ? gradeAt(blob, row.trainee.id, cell.session.id) : "",
     eligible: cell.state !== "na",
@@ -92,12 +94,19 @@ export function AttendanceTable({
   return (
     <>
       <div className="table-wrap">
-        <table>
+        <table className="att-table">
           <thead>
             <tr>
-              <th onClick={() => onSort("name")}>Trainee {arrow("name")}</th>
+              <th className="name-col" onClick={() => onSort("name")}>Trainee {arrow("name")}</th>
               <th className="no-sort">Status</th>
-              <th className="no-sort">Sessions</th>
+              {/* One labelled column per teaching day rather than a row of
+                  unlabelled dots: which month a mark belongs to has to be
+                  readable without hovering, and a phone cannot hover. */}
+              {sessions.map((s) => (
+                <th key={s.id} className="no-sort sess-col" title={s.title}>
+                  {sessionWhen(s)}
+                </th>
+              ))}
               <th onClick={() => onSort("att")}>Att/Elig {arrow("att")}</th>
               <th onClick={() => onSort("raw")}>Raw % {arrow("raw")}</th>
               <th onClick={() => onSort("adj")}>Adjusted % {arrow("adj")}</th>
@@ -105,7 +114,7 @@ export function AttendanceTable({
           </thead>
           <tbody>
             {rows.length === 0 || sessions.length === 0 ? (
-              <tr><td colSpan={6}><div className="empty">{emptyMessage}</div></td></tr>
+              <tr><td colSpan={5 + sessions.length}><div className="empty">{emptyMessage}</div></td></tr>
             ) : (
               rows.map((row) => {
                 const status = activeStatusType(blob, row.trainee.id, cutoff);
@@ -128,44 +137,43 @@ export function AttendanceTable({
                         <span className="badge active">Active</span>
                       )}
                     </td>
-                    <td>
-                      <div className="sess-cells">
-                        {row.cells.map((cell) => {
-                          const detail = detailFor(row, cell);
-                          return (
-                            <span
-                              key={cell.session.id}
-                              className={`dot ${cell.state}`}
-                              onMouseEnter={(e) =>
-                                setTip({ x: e.clientX, y: e.clientY, detail })}
-                              onMouseMove={(e) =>
-                                setTip({ x: e.clientX, y: e.clientY, detail })}
-                              onMouseLeave={() => setTip(null)}
-                              onPointerDown={(e) => { touched.current = e.pointerType === "touch"; }}
-                              onClick={() => {
-                                // No mouse behind the tap: explain first, and
-                                // let a second, deliberate tap inside the
-                                // popover be what changes anything.
-                                if (touched.current) {
-                                  setPop(detail);
-                                  return;
-                                }
-                                if (detail.eligible) onToggle(detail.traineeId, detail.sessionId);
-                              }}
-                            >
-                              {STATE_SYMBOL[cell.state]}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
+                    {row.cells.map((cell) => {
+                      const detail = detailFor(row, cell);
+                      return (
+                        <td key={cell.session.id} className="sess-col">
+                          <span
+                            className={`dot ${cell.state}`}
+                            onMouseEnter={(e) =>
+                              setTip({ x: e.clientX, y: e.clientY, detail })}
+                            onMouseMove={(e) =>
+                              setTip({ x: e.clientX, y: e.clientY, detail })}
+                            onMouseLeave={() => setTip(null)}
+                            onPointerDown={(e) => { touched.current = e.pointerType === "touch"; }}
+                            onClick={() => {
+                              // No mouse behind the tap: explain first, and
+                              // let a second, deliberate tap inside the
+                              // popover be what changes anything.
+                              if (touched.current) {
+                                setPop(detail);
+                                return;
+                              }
+                              if (detail.eligible) onToggle(detail.traineeId, detail.sessionId);
+                            }}
+                          >
+                            {STATE_SYMBOL[cell.state]}
+                          </span>
+                        </td>
+                      );
+                    })}
                     <td style={{ fontVariantNumeric: "tabular-nums" }}>
                       {row.attended}/{row.adjDenom > 0 ? row.adjDenom : row.eligible}
                     </td>
                     <td>
-                      <span className="pct" style={{ color: pctColor(row.rawPct) }}>{row.rawPct}%</span>
+                      <span className="pct" style={{ color: pctColor(row.total ? row.rawPct : null) }}>
+                        {row.total ? `${row.rawPct}%` : "—"}
+                      </span>
                       <div className="pct-bar">
-                        <span style={{ width: `${row.rawPct}%`, background: pctColor(row.rawPct) }} />
+                        <span style={{ width: `${row.total ? row.rawPct : 0}%`, background: pctColor(row.rawPct) }} />
                       </div>
                     </td>
                     <td>
@@ -201,6 +209,11 @@ export function AttendanceTable({
             <span className={`pop-state ${STATE_DOT[pop.state]}`} />
             {pop.name} — {pop.state}{pop.grade ? ` · ${pop.grade}` : ""}
           </div>
+          {pop.state === "Not held yet" && (
+            <div className="pop-note">
+              This teaching day has not happened yet, so it counts neither way until it has.
+            </div>
+          )}
           {pop.eligible ? (
             <div className="pop-actions">
               <button type="button" onClick={() => setPop(null)}>Close</button>

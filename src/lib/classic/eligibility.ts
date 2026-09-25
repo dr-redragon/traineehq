@@ -13,7 +13,19 @@ import { isPresent } from "./attendance";
  * Months are 'YYYY-MM' strings throughout, which compare correctly as text.
  */
 
-export type CellState = "present" | "excused" | "absent" | "na";
+export type CellState = "present" | "excused" | "absent" | "na" | "upcoming";
+
+/**
+ * Has this teaching day not happened yet, as at `asOf` ('YYYY-MM-DD')?
+ *
+ * A dated day is upcoming until its date — the day itself counts. A day with
+ * only a month is upcoming until that month starts. Without `asOf` nothing is
+ * upcoming, which is how the original register behaved.
+ */
+export function isUpcoming(session: Pick<RegisterSession, "month" | "date">, asOf?: string): boolean {
+  if (!asOf) return false;
+  return session.date ? session.date > asOf : session.month > asOf.slice(0, 7);
+}
 
 export function statusFor(blob: RegisterBlob, traineeId: string): RegisterStatus[] {
   return blob.status.filter((s) => s.trainee === traineeId);
@@ -75,15 +87,23 @@ export function isExcused(blob: RegisterBlob, traineeId: string, sessionId: stri
   return blob.excused.some((e) => e.trainee === traineeId && e.session === sessionId);
 }
 
-/** How one trainee/session cell reads. Ineligibility outranks everything else. */
+/**
+ * How one trainee/session cell reads. Ineligibility outranks everything else.
+ *
+ * A day that has not happened yet reads "upcoming" rather than "missed" — it
+ * is nobody's absence until it has been and gone. A tick or an excusal made in
+ * advance still shows as itself.
+ */
 export function cellState(
   blob: RegisterBlob,
   traineeId: string,
   session: RegisterSession,
+  asOf?: string,
 ): CellState {
   if (!isEligible(blob, traineeId, session.month)) return "na";
   if (isPresent(blob, traineeId, session.id)) return "present";
   if (isExcused(blob, traineeId, session.id)) return "excused";
+  if (isUpcoming(session, asOf)) return "upcoming";
   return "absent";
 }
 

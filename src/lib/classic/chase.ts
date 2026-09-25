@@ -1,6 +1,6 @@
-import { isEligible, isExcused } from "./eligibility";
+import { isEligible, isExcused, isUpcoming } from "./eligibility";
 import { isPresent } from "./attendance";
-import { formatMonth } from "./months";
+import { sessionWhen } from "./months";
 import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
 
 /**
@@ -22,8 +22,10 @@ import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
 export function unexplainedAbsentees(
   blob: RegisterBlob,
   session: RegisterSession | undefined,
+  /** Today, 'YYYY-MM-DD'. A day that has not happened yet has no absences to chase. */
+  asOf?: string,
 ): RegisterTrainee[] {
-  if (!session) return [];
+  if (!session || isUpcoming(session, asOf)) return [];
   return blob.trainees
     .filter((t) => isEligible(blob, t.id, session.month))
     .filter((t) => !isPresent(blob, t.id, session.id))
@@ -42,7 +44,7 @@ export function splitByEmail(absent: RegisterTrainee[]) {
 }
 
 export function defaultChaseSubject(session: RegisterSession): string {
-  return `Attendance query — ${session.title} (${formatMonth(session.month, "en-GB")})`;
+  return `Attendance query — ${session.title} (${sessionWhen(session)})`;
 }
 
 /**
@@ -56,7 +58,7 @@ export function defaultChaseBody(session: RegisterSession, registerName?: string
   return [
     "Hello,",
     `Our records show you were not at ${session.title} on ` +
-      `${formatMonth(session.month, "en-GB")}. Please could you reply with the reason, so we can ` +
+      `${sessionWhen(session)}. Please could you reply with the reason, so we can ` +
       "update the register?",
     "If you were there and we have missed you, just say so and we will correct it.",
     `Many thanks,\n${registerName ?? "The teaching programme"}`,

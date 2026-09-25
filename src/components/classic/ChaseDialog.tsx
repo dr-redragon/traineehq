@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Modal } from "@/components/classic/Modal";
 import { chaseAbsences } from "@/lib/classic/liveApi";
 import { defaultChaseBody, defaultChaseSubject, splitByEmail } from "@/lib/classic/chase";
-import { formatMonth } from "@/lib/classic/months";
+import { sessionWhen } from "@/lib/classic/months";
 import type { RegisterSession, RegisterTrainee } from "@/lib/classic/types";
 
 /**
@@ -106,7 +106,7 @@ export function ChaseDialog({
       <div className="chase-preview">
         <div className="hdr">
           <strong>{subject}</strong><br />
-          {session.title} · {formatMonth(session.month)}
+          {session.title} · {sessionWhen(session)}
         </div>
         {body.split(/\n{2,}/).map((paragraph, i) => <p key={i}>{paragraph}</p>)}
       </div>

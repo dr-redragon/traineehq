@@ -17,6 +17,7 @@ import { useRegisterRequests } from "@/hooks/useRegisterAccess";
 import { useRegisterStore } from "@/hooks/useRegisterStore";
 import { useRegisterView, type RegisterTabId } from "@/hooks/useRegisterView";
 import { useLiveAttendanceSync } from "@/hooks/useLiveAttendanceSync";
+import { useAutoPublishDays } from "@/hooks/useAutoPublishDays";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import { ALL_YEARS } from "@/lib/register/months";
 
@@ -76,6 +77,10 @@ export default function RegisterDetail() {
   );
 
   const view = useRegisterView(blob.sessions);
+
+  // Every teaching day gets its check-in page and QR code on its own —
+  // including ones recorded before that was automatic.
+  useAutoPublishDays(entry?.i_am_member ? entry.id : undefined, blob, edit, !storeLoading);
 
   // Pending requests someone other than the asker can decide: the count the
   // Access & settings tab wears so they are noticed without going looking.

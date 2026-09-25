@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,7 +33,11 @@ export function StatusPanel({
   onEdit: (edit: RegisterEdit) => void;
   canEdit: boolean;
 }) {
-  const [draft, setDraft] = useState<Draft | null>(null);
+  // The form is always open at the top; this is what it holds when nobody is
+  // part-way through anything.
+  const blank: Draft = { type: "mat" };
+  const [draft, setDraft] = useState<Draft>(blank);
+  const reset = () => setDraft(blank);
   const [confirm, setConfirm] = useState<RegisterStatus | null>(null);
 
   const trainees = [...blob.trainees].sort((a, b) => a.name.localeCompare(b.name));
@@ -51,36 +55,24 @@ export function StatusPanel({
       start: draft.start || null,
       end: draft.end || null,
     }));
-    setDraft(null);
+    reset();
   };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <p className="max-w-2xl text-sm text-muted-foreground">
-          Set when a trainee completes training (CCT), goes on maternity or paternity leave,
-          out of programme, or transfers between deaneries. Teaching days outside their
-          active window are marked <strong>not eligible</strong> and count towards neither
-          attendance nor the total.
-        </p>
-        {canEdit && !draft && (
-          <Button size="sm" className="w-full sm:w-auto" onClick={() => setDraft({ type: "mat" })}>
-            <Plus className="mr-1.5 h-4 w-4" /> Add status
-          </Button>
-        )}
-      </div>
-
-      {draft && (
+      {canEdit && (
         <Card>
           <CardContent className="space-y-3 p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold">
                 {draft.id ? `Editing ${nameOf(draft.trainee ?? "")}` : "New status"}
               </p>
+              {draft.id && (
               <Button size="icon" variant="ghost" className="h-7 w-7"
-                aria-label="Cancel" onClick={() => setDraft(null)}>
+                aria-label="Cancel" onClick={reset}>
                 <X className="h-4 w-4" />
               </Button>
+              )}
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
@@ -143,11 +135,22 @@ export function StatusPanel({
               <Button size="sm" onClick={save} disabled={!draft.trainee || !draft.type}>
                 {draft.id ? "Save status" : "Add status"}
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setDraft(null)}>Cancel</Button>
+              {(draft.id || draft.trainee) && (
+                <Button size="sm" variant="outline" onClick={reset}>
+                  {draft.id ? "Cancel edit" : "Clear"}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
       )}
+
+      <p className="max-w-2xl text-xs text-muted-foreground">
+        Set when a trainee completes training (CCT), goes on maternity or paternity leave, out
+        of programme, or transfers between deaneries. Teaching days outside their active window
+        are marked <strong>not eligible</strong> and count towards neither attendance nor the
+        total.
+      </p>
 
       {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">

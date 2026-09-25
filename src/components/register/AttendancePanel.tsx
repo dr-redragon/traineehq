@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { AttendanceGrid, AttendanceLegend, type GridOptions } from "@/components/register/AttendanceGrid";
 import { YearTabs } from "@/components/register/YearTabs";
 import { latestGrade } from "@/lib/register/attendance";
-import { academicYearRange, ALL_YEARS, formatMonth, sessionsInYear } from "@/lib/register/months";
+import { academicYearRange, ALL_YEARS, sessionsInYear, sessionWhen, todayIso } from "@/lib/register/months";
 import { computeRows, type SortKey } from "@/lib/register/report";
 import type { RegisterView } from "@/hooks/useRegisterView";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 const CSV_STATE = {
   present: "Attended", excused: "Excused", na: "Not eligible", absent: "Missed",
+  upcoming: "Not held yet",
 } as const;
 
 const csvCell = (value: string | number) => {
@@ -60,7 +61,7 @@ export function AttendancePanel({
     : [{ label: null as string | null, sessions }];
 
   const { rows, hidden } = useMemo(
-    () => computeRows(blob, sessions, options),
+    () => computeRows(blob, sessions, { ...options, asOf: todayIso() }),
     [blob, sessions, options],
   );
 
@@ -69,7 +70,8 @@ export function AttendancePanel({
     const mean = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : null);
     return {
       meanAdjusted: mean(eligible.map((r) => r.adjPct ?? 0)),
-      meanRaw: mean(rows.map((r) => r.rawPct)),
+      // Rows with nothing counted yet — every day still to come — have no raw figure.
+      meanRaw: mean(rows.filter((r) => r.total > 0).map((r) => r.rawPct)),
       atFull: eligible.filter((r) => r.adjPct === 100).length,
       below60: eligible.filter((r) => r.adjPct !== null && r.adjPct < 60).length,
     };
@@ -79,7 +81,7 @@ export function AttendancePanel({
     const header = [
       "Trainee", "Grade", "Attended", "Eligible", "Excused",
       "Adjusted denominator", "Raw %", "Adjusted %",
-      ...sessions.map((s) => `${formatMonth(s.month, "en-GB")} — ${s.title}`),
+      ...sessions.map((s) => `${sessionWhen(s)} — ${s.title}`),
     ];
     const lines = [header.map(csvCell).join(",")];
     for (const row of rows) {
@@ -87,7 +89,7 @@ export function AttendancePanel({
         row.trainee.name,
         latestGrade(blob, row.trainee.id, sessions),
         row.attended, row.eligible, row.excused, row.adjDenom,
-        row.rawPct, row.adjPct === null ? "" : row.adjPct,
+        row.total ? row.rawPct : "", row.adjPct === null ? "" : row.adjPct,
         ...row.cells.map((c) => CSV_STATE[c.state]),
       ].map(csvCell).join(","));
     }

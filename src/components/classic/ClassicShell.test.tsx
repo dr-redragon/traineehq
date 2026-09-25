@@ -58,12 +58,27 @@ describe("ClassicShell", () => {
     expect(onTabChange).toHaveBeenCalledWith("checkin");
   });
 
-  it("offers a way back to TraineeHQ rather than a log out", () => {
-    // The standalone register ended its masthead with "Log out" because it had
-    // its own accounts. Here the account is the TraineeHQ one, so logging out
-    // from a register page would sign the person out of the entire site.
+  it("offers the way back to TraineeHQ and a Sign out, as the live register does", () => {
     renderShell();
     expect(screen.getByRole("link", { name: "Back to TraineeHQ" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.queryByRole("button", { name: /log out/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sign out" })).toBeInTheDocument();
+  });
+
+  it("offers a switcher only once there are two registers to switch between", () => {
+    const entry = {
+      id: "r1", name: "NW · ENT", slug: "nw-ent", deanery_name: "North West", specialty_name: "ENT",
+      member_count: 2, i_am_member: true, i_am_owner: true, certificate_logo_path: null, my_request: null,
+    };
+    const { unmount } = renderShell({ registers: [entry], currentSlug: "nw-ent" });
+    expect(screen.queryByRole("combobox", { name: "Switch register" })).toBeNull();
+    unmount();
+
+    renderShell({
+      registers: [entry, { ...entry, id: "r2", slug: "nw-uro", specialty_name: "Urology" }],
+      currentSlug: "nw-ent",
+    });
+    const select = screen.getByRole("combobox", { name: "Switch register" });
+    expect(select).toHaveValue("nw-ent");
+    expect(screen.getByRole("option", { name: "North West · Urology" })).toBeInTheDocument();
   });
 });

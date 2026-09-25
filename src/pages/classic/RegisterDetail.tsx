@@ -8,7 +8,10 @@ import { ManagePanel } from "@/components/classic/ManagePanel";
 import { AccessPanel } from "@/components/classic/AccessPanel";
 import { useRegisterDirectory } from "@/hooks/classic/useRegisters";
 import { useRegisterStore } from "@/hooks/classic/useRegisterStore";
-import { useClassicRegisterView, type ClassicTabId } from "@/hooks/classic/useRegisterView";
+import { useClassicRegisterView } from "@/hooks/classic/useRegisterView";
+import { useClassicAutoPublishDays } from "@/hooks/classic/useAutoPublishDays";
+import { useRegisterRequests } from "@/hooks/classic/useRegisterAccess";
+import { useCurrentUser } from "@/hooks/useUserRole";
 
 /**
  * One register, behind the six tabs the standalone ENT register had.
@@ -24,8 +27,10 @@ import { useClassicRegisterView, type ClassicTabId } from "@/hooks/classic/useRe
  * keeps the shape of the register it was copied from — feedback and reporting
  * live where they lived, inside Check-in and Attendance respectively.
  *
- * "Users & access" is owners-only, exactly as the original hid its admin tab
- * from organisers who were not administrators.
+ * "Users & access" is open to every organiser, as the live register's Access
+ * tab is: any of them can admit a request or add an editor, which the database
+ * has always allowed. What stays owners-only inside it — roles, removing other
+ * people, the certificate badge, deleting the register — is hidden from editors.
  *
  * The open tab, the academic year and the teaching day are kept in the
  * address bar (see useClassicRegisterView), so a refresh or a shared link
@@ -36,16 +41,25 @@ export default function ClassicRegisterDetail() {
   const { data: directory, isLoading: directoryLoading } = useRegisterDirectory();
   const entry = directory?.find((r) => r.slug === slug);
   const store = useRegisterStore(entry?.id);
-  const allowedTabs: ClassicTabId[] = [
-    "attendance", "checkin", "excused", "status", "manage",
-    ...(entry?.i_am_owner ? ["access" as const] : []),
-  ];
-  const view = useClassicRegisterView(store.blob.sessions, allowedTabs);
+  const view = useClassicRegisterView(store.blob.sessions);
+
+  // Every teaching day gets its check-in page and QR code on its own —
+  // including ones recorded before that was automatic.
+  useClassicAutoPublishDays(
+    entry?.i_am_member ? entry.id : undefined, store.blob, store.edit, !store.isLoading,
+  );
+
+  // Requests somebody other than the asker can decide, counted on the tab so
+  // they are noticed without going looking.
+  const { data: user } = useCurrentUser();
+  const { data: requests } = useRegisterRequests(entry?.i_am_member ? entry.id : undefined);
+  const waiting = (requests ?? [])
+    .filter((r) => r.status === "pending" && r.user_id !== user?.id).length;
   const tab = view.tab;
 
   if (directoryLoading) {
     return (
-      <ClassicShell subtitle="Teaching attendance">
+      <ClassicShell subtitle="Teaching attendance" registers={directory} currentSlug={slug}>
         <div className="card"><div className="empty">Loading the register…</div></div>
       </ClassicShell>
     );
@@ -56,11 +70,11 @@ export default function ClassicRegisterDetail() {
   // directory lists names, so "no access" is the honest message either way.
   if (!entry || !entry.i_am_member) {
     return (
-      <ClassicShell subtitle="Teaching attendance">
+      <ClassicShell subtitle="Teaching attendance" registers={directory}>
         <h2 className="panel-title">No access to this register</h2>
         <p className="panel-lede">
           You are not one of its organisers. Ask for access from the register
-          directory, and somebody who runs it can add you.
+          directory — any of its organisers can let you in.
         </p>
         <Link className="btn primary" to="/classic-registers">Back to the directory</Link>
       </ClassicShell>
@@ -73,7 +87,7 @@ export default function ClassicRegisterDetail() {
     { id: "excused", label: "Excused absences" },
     { id: "status", label: "Long-term status" },
     { id: "manage", label: "Trainees & sessions" },
-    ...(entry.i_am_owner ? [{ id: "access", label: "Users & access" }] : []),
+    { id: "access", label: waiting ? `Users & access (${waiting})` : "Users & access" },
   ];
 
   const count = store.blob.trainees.length;
@@ -85,6 +99,8 @@ export default function ClassicRegisterDetail() {
     <ClassicShell
       subtitle={entry.name}
       note={note}
+      registers={directory}
+      currentSlug={entry.slug}
       tabs={tabs}
       activeTab={tab}
       onTabChange={view.setTab}
@@ -108,11 +124,9 @@ export default function ClassicRegisterDetail() {
           <section className={"panel" + (tab === "manage" ? " active" : "")}>
             {tab === "manage" && <ManagePanel store={store} entry={entry} />}
           </section>
-          {entry.i_am_owner && (
-            <section className={"panel" + (tab === "access" ? " active" : "")}>
-              {tab === "access" && <AccessPanel entry={entry} />}
-            </section>
-          )}
+          <section className={"panel" + (tab === "access" ? " active" : "")}>
+            {tab === "access" && <AccessPanel entry={entry} />}
+          </section>
         </>
       )}
     </ClassicShell>

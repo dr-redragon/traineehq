@@ -141,3 +141,11 @@
 .classic-register-page .session-sub {
   font-size:13px;color:var(--muted)
 }
+
+/* "or" between the register's own sign-in and the TraineeHQ one. */
+.classic-register-page .or-rule {
+  display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-size:12px
+}
+.classic-register-page .or-rule::before, .classic-register-page .or-rule::after {
+  content:"";flex:1;height:1px;background:var(--line)
+}

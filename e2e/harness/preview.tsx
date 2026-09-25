@@ -38,6 +38,9 @@ import RegisterDirectory from "@/pages/RegisterDirectory";
 import RegisterDetail from "@/pages/RegisterDetail";
 import { RegisterLayout } from "@/components/register/RegisterLayout";
 import { RegisterProvider } from "@/contexts/RegisterContext";
+import ClassicDirectory from "@/pages/classic/Directory";
+import ClassicRegisterDetail from "@/pages/classic/RegisterDetail";
+import ClassicSignIn from "@/pages/classic/SignIn";
 import "@/index.css";
 
 const params = new URLSearchParams(window.location.search);
@@ -64,6 +67,8 @@ const PATHS: Record<string, string> = {
   landing: "/",
   registers: "/registers",
   register: "/registers/north-west-ent",
+  classic: "/classic-registers/north-west-ent",
+  "classic-signin": "/classic-registers/sign-in",
 };
 
 // `&id=` swaps the row a page opens on, so a reviewer can look at any
@@ -75,7 +80,7 @@ const registerQuery = new URLSearchParams(
   [...params].filter(([key]) => ["tab", "year", "day", "view"].includes(key)),
 ).toString();
 const start = (PATHS[page] ?? PATHS.dashboard).replace(/(sp-1)$/, rowId ?? "$1")
-  + (page === "register" && registerQuery ? `?${registerQuery}` : "");
+  + ((page === "register" || page === "classic") && registerQuery ? `?${registerQuery}` : "");
 
 /**
  * A row of page links pinned to the bottom of the preview.
@@ -141,6 +146,9 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/profile" element={<MyProfile />} />
               <Route path="/admin" element={<AdminPanel />} />
               <Route path="/" element={<Landing />} />
+              <Route path="/classic-registers" element={<ClassicDirectory />} />
+              <Route path="/classic-registers/sign-in" element={<ClassicSignIn />} />
+              <Route path="/classic-registers/:slug" element={<ClassicRegisterDetail />} />
               <Route path="/registers" element={<RegisterProvider><RegisterLayout /></RegisterProvider>}>
                 <Route index element={<RegisterDirectory />} />
                 <Route path=":slug" element={<RegisterDetail />} />

@@ -67,6 +67,31 @@ describe("useRegisterView", () => {
   });
 });
 
+describe("useRegisterView — People sub-tabs", () => {
+  const useView = () => useRegisterView(sessions);
+
+  it("opens People on Trainees, and old tab names on their own part", () => {
+    expect(setup(useView, "/r?tab=people").result.current.section).toBe("trainees");
+    expect(setup(useView, "/r?tab=status").result.current).toMatchObject({ tab: "people", section: "status" });
+    expect(setup(useView, "/r?tab=excused").result.current.section).toBe("excused");
+  });
+
+  it("keeps the part in the address", () => {
+    const { result, search } = setup(useView, "/r");
+    act(() => result.current.setSection("days"));
+    const params = new URLSearchParams(search());
+    expect(params.get("tab")).toBe("people");
+    expect(params.get("section")).toBe("days");
+  });
+
+  it("picks a day in another year and shows that year", () => {
+    const { result } = setup(useView, "/r?year=2025/26");
+    act(() => result.current.setDay("a", "2024/25"));
+    expect(result.current).toMatchObject({ year: "2024/25" });
+    expect(result.current.day?.id).toBe("a");
+  });
+});
+
 describe("useClassicRegisterView", () => {
   it("only opens a tab this person is allowed", () => {
     const useHook = () => useClassicRegisterView(sessions, ["attendance", "checkin"]);

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Award, Copy, ExternalLink, Loader2, Mail, Pencil, Radio, RefreshCw, RotateCcw,
+  Award, Copy, ExternalLink, Loader2, Mail, Pencil, RefreshCw, RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -9,11 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  emailFeedbackLink, fetchSessionStatus, publishSession, resetFeedback,
+  emailFeedbackLink, fetchSessionStatus, resetFeedback,
 } from "@/lib/register/liveApi";
 import { describeSync, mergeCheckIns } from "@/lib/register/liveSync";
 import {
@@ -28,7 +27,6 @@ import type {
 } from "@/lib/register/types";
 
 /** The first of the month, as a sensible default for a day in that month. */
-const firstOf = (month: string) => `${month}-01`;
 
 const ukDate = (value: string) =>
   new Date(value).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
@@ -41,7 +39,7 @@ const ukDate = (value: string) =>
  * afterwards — rather than as one undifferentiated row of controls.
  */
 export function LiveDayCard({
-  blob, registerId, register, session, live, onEdit, onPublished, pushAllPresent, onEditForm,
+  blob, registerId, register, session, live, onEdit, pushAllPresent, onEditForm,
 }: {
   blob: RegisterBlob;
   registerId: string;
@@ -52,14 +50,11 @@ export function LiveDayCard({
   /** Its published counterpart, once there is one. */
   live: LiveSession | undefined;
   onEdit: (edit: RegisterEdit) => void;
-  onPublished?: () => void;
   pushAllPresent: (liveSessionId: string, localSessionId: string) => Promise<number>;
   onEditForm: () => void;
 }) {
   const queryClient = useQueryClient();
 
-  const [date, setDate] = useState(firstOf(session.month));
-  const [location, setLocation] = useState("");
   const [syncing, setSyncing] = useState(false);
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
@@ -81,34 +76,6 @@ export function LiveDayCard({
 
   const attendees = (status?.attendees ?? []).filter((a) => a.checked_in_at);
   const outstanding = attendees.filter((a) => !a.feedback_completed);
-
-  /**
-   * Publish, then immediately push everything the register already holds.
-   *
-   * This is the case the original got wrong: making a past teaching day live to
-   * collect feedback produced an empty sign-in list next to a grid full of
-   * ticks, and nobody who had actually attended could be sent the form.
-   */
-  const publish = useMutation({
-    mutationFn: async () => {
-      const result = await publishSession({
-        registerId, title: session.title, sessionDate: date || firstOf(session.month),
-        location: location.trim() || null, localId: session.id,
-      });
-      const pushed = await pushAllPresent(result.session.id, session.id).catch(() => 0);
-      return { ...result, pushed };
-    },
-    onSuccess: ({ created, pushed }) => {
-      queryClient.invalidateQueries({ queryKey: ["register-live-sessions", registerId] });
-      onPublished?.();
-      toast.success(created ? "Published — the sign-in link is live." : "Updated.", {
-        description: pushed
-          ? `${pushed} already marked present ${pushed === 1 ? "is" : "are"} on the live list too.`
-          : undefined,
-      });
-    },
-    onError: (e: Error) => toast.error(e.message),
-  });
 
   /**
    * Reconcile both directions in one press.
@@ -294,51 +261,20 @@ export function LiveDayCard({
       .catch(() => toast.error("Could not copy — select the link and copy it by hand."));
   };
 
+  // Every teaching day is published on its own (useAutoPublishDays); this is
+  // the moment between a day being added and its live page existing.
   if (!live) {
-    const alreadyPresent = blob.trainees.filter(
-      (t) => !!blob.attendance[`${t.id}|${session.id}`],
-    ).length;
-
     return (
       <Card>
         <CardContent className="space-y-3 p-4">
           <Label className="text-xs">Live sign-in, feedback &amp; certificates</Label>
-          <p className="text-sm text-muted-foreground">
-            Publish <strong>{session.title}</strong> to get a QR sign-in page, a feedback link
-            and certificates.
-            {alreadyPresent > 0 && (
-              <> The {alreadyPresent} already marked present here will be put on the live list
-                as it publishes, so they can be sent the form.</>
-            )}
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Setting up the QR sign-in page for <strong>{session.title}</strong>…
           </p>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="publish-date" className="text-xs">Date of the teaching day</Label>
-              <Input id="publish-date" type="date" value={date}
-                onChange={(e) => setDate(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="publish-loc" className="text-xs">Location (optional)</Label>
-              <Input id="publish-loc" value={location} placeholder="e.g. Wythenshawe Hospital"
-                onChange={(e) => setLocation(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => publish.mutate()} disabled={publish.isPending}>
-              {publish.isPending
-                ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                : <Radio className="mr-1.5 h-4 w-4" />}
-              Publish this teaching day
-            </Button>
-            <Button variant="outline" onClick={onEditForm}>
-              <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit the feedback form template
-            </Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            A published day starts from the template, then can be edited on its own.
-          </p>
+          <Button variant="outline" size="sm" onClick={onEditForm}>
+            <Pencil className="mr-1.5 h-3.5 w-3.5" /> Edit the feedback form template
+          </Button>
         </CardContent>
       </Card>
     );

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { CELL_DOT, CELL_LABEL } from "@/components/register/attendanceCell";
-import { formatMonth } from "@/lib/register/months";
+import { sessionWhen } from "@/lib/register/months";
 import type { CellState } from "@/lib/register/eligibility";
 import type { RegisterSession, RegisterTrainee } from "@/lib/register/types";
 import { cn } from "@/lib/utils";
@@ -128,7 +128,7 @@ export function AttendanceCellPopover({
     >
       <p className="text-sm font-semibold leading-snug">{session.title}</p>
       <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-        {formatMonth(session.month, "en-GB")}
+        {sessionWhen(session)}
       </p>
 
       <div className="mt-2.5 flex items-center gap-2">
@@ -155,6 +155,11 @@ export function AttendanceCellPopover({
             </Button>
             <Button size="sm" variant="outline" onClick={close}>Close</Button>
           </div>
+          {state === "upcoming" && (
+            <p className="mt-2.5 text-xs text-muted-foreground">
+              This teaching day has not happened yet, so it counts neither way until it has.
+            </p>
+          )}
           {state === "excused" && (
             <p className="mt-2.5 text-xs text-muted-foreground">
               Excused — this teaching day is already out of their denominator. Marking them

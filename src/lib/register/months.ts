@@ -130,9 +130,34 @@ export function currentAcademicYear(now: Date = new Date()): string {
   return academicYearLabel(now.getMonth() + 1 >= 8 ? now.getFullYear() : now.getFullYear() - 1);
 }
 
-/** Sessions oldest first. Month strings sort correctly as text. */
+/**
+ * Sessions oldest first: by date where there is one, so two teaching days in
+ * the same month come in the order they happened. An undated day sorts at the
+ * start of its month. ISO strings sort correctly as text.
+ */
 export function sessionsSorted(sessions: RegisterSession[]): RegisterSession[] {
-  return [...sessions].sort((a, b) => a.month.localeCompare(b.month));
+  const key = (s: RegisterSession) => s.date || `${s.month}-00`;
+  return [...sessions].sort((a, b) => key(a).localeCompare(key(b)) || a.title.localeCompare(b.title));
+}
+
+/** '2026-03-12' as "12 Mar 2026" — read as a calendar date, never shifted by timezone. */
+export function formatDay(date: string, style: "short" | "long" = "short"): string {
+  const [y, m, d] = date.split("-").map(Number);
+  if (!y || !m || !d) return date;
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-GB", {
+    day: "numeric", month: style === "long" ? "long" : "short", year: "numeric", timeZone: "UTC",
+  });
+}
+
+/** When a teaching day was: its date if it has one, otherwise its month. */
+export function sessionWhen(session: Pick<RegisterSession, "date" | "month">): string {
+  return session.date ? formatDay(session.date) : formatMonth(session.month, "en-GB");
+}
+
+/** Today as 'YYYY-MM-DD', on the local calendar — what "not happened yet" is judged against. */
+export function todayIso(now: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
 /** Every academic year that has at least one teaching day, oldest first. */

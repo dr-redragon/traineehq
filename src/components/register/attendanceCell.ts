@@ -19,15 +19,17 @@ export const CELL: Record<CellState, string> = {
   excused: "bg-register-clay-soft text-register-clay-ink hover:brightness-95",
   absent: "border border-border bg-card text-muted-foreground/70 hover:border-primary",
   na: "bg-muted text-muted-foreground/50",
+  upcoming: "border border-dashed border-border bg-transparent text-muted-foreground/60 hover:border-primary",
 };
 
 export const CELL_MARK: Record<CellState, string> = {
-  present: "✓", excused: "E", absent: "·", na: "–",
+  present: "✓", excused: "E", absent: "·", na: "–", upcoming: "",
 };
 
 /** The short name, for a tooltip or the popover's own line. */
 export const CELL_LABEL: Record<CellState, string> = {
   present: "Attended", excused: "Excused", absent: "Missed", na: "Not eligible",
+  upcoming: "Not held yet",
 };
 
 /** The long name, for the legend, where there is room to say why. */
@@ -36,6 +38,7 @@ export const CELL_LEGEND: Record<CellState, string> = {
   excused: "Excused",
   absent: "Missed",
   na: "Not eligible (leave, pre-start or post-CCT)",
+  upcoming: "Not held yet (counts neither way)",
 };
 
 /**
@@ -50,4 +53,5 @@ export const CELL_DOT: Record<CellState, string> = {
   excused: "bg-register-clay",
   absent: "bg-muted-foreground/40",
   na: "bg-muted-foreground/25",
+  upcoming: "border border-dashed border-muted-foreground/50",
 };

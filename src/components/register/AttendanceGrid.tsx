@@ -9,7 +9,7 @@ import { CELL, CELL_LABEL, CELL_LEGEND, CELL_MARK } from "@/components/register/
 import { activeStatusType } from "@/lib/register/eligibility";
 import { STATUS_SHORT, statusRangeText } from "@/lib/register/statusText";
 import { computeRows, type SortKey } from "@/lib/register/report";
-import { formatMonth } from "@/lib/register/months";
+import { sessionWhen, todayIso } from "@/lib/register/months";
 import { attendanceKey, gradeAt } from "@/lib/register/attendance";
 import { toggleAttendance } from "@/lib/register/blob";
 import { useTouchInput } from "@/hooks/useTouchInput";
@@ -82,7 +82,7 @@ export function AttendanceGrid({
   };
 
   const { rows, hidden } = useMemo(
-    () => computeRows(blob, sessions, { search, hideNotInProgramme, sortKey, sortDir }),
+    () => computeRows(blob, sessions, { search, hideNotInProgramme, sortKey, sortDir, asOf: todayIso() }),
     [blob, sessions, search, hideNotInProgramme, sortKey, sortDir],
   );
 
@@ -147,7 +147,7 @@ export function AttendanceGrid({
               <th className="px-2 py-2.5">Status</th>
               {sessions.map((s) => (
                 <th key={s.id} className="px-1 py-2.5 text-center" title={s.title}>
-                  {formatMonth(s.month, "en-GB").replace(" ", " ")}
+                  {sessionWhen(s).replace(/ /g, "\u00a0")}
                 </th>
               ))}
               <th className="cursor-pointer px-2 py-2.5 text-right" onClick={() => sortBy("att")}>
@@ -203,7 +203,7 @@ export function AttendanceGrid({
                     const editable = canEdit && cell.state !== "na";
                     const described =
                       `${row.trainee.name} — ${cell.session.title} ` +
-                      `(${formatMonth(cell.session.month, "en-GB")}) · ${CELL_LABEL[cell.state]}` +
+                      `(${sessionWhen(cell.session)}) · ${CELL_LABEL[cell.state]}` +
                       (grade ? ` · ${grade}` : "");
 
                     const mark = (
@@ -272,8 +272,8 @@ export function AttendanceGrid({
                   <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
                     {row.attended}/{row.adjDenom > 0 ? row.adjDenom : row.eligible}
                   </td>
-                  <td className={cn("px-2 py-1.5 text-right tabular-nums", pctClass(row.rawPct))}>
-                    {row.rawPct}%
+                  <td className={cn("px-2 py-1.5 text-right tabular-nums", pctClass(row.total ? row.rawPct : null))}>
+                    {row.total ? `${row.rawPct}%` : "—"}
                   </td>
                   <td className={cn("px-3 py-1.5 text-right font-semibold tabular-nums", pctClass(row.adjPct))}>
                     {row.adjPct === null ? "—" : `${row.adjPct}%`}
@@ -305,7 +305,7 @@ export function AttendanceLegend() {
   return (
     <>
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-        {(["present", "excused", "absent", "na"] as const).map((state) => (
+        {(["present", "excused", "absent", "na", "upcoming"] as const).map((state) => (
           <span key={state} className="inline-flex items-center gap-1.5">
             <span
               aria-hidden="true"
