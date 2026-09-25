@@ -1,13 +1,17 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Lock, ArrowRight, CheckCircle } from "lucide-react";
-import logoWhite from "@/assets/logo-white.png";
+import { Link, useNavigate } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { PolicyLink } from "@/components/PolicyLink";
+import { PortalShell, portalField, portalKicker, portalLabel } from "@/components/PortalShell";
 
+/**
+ * Setting a new password, in the same register as the door it leads back to.
+ */
 const ResetPassword = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -23,6 +27,7 @@ const ResetPassword = () => {
     });
     return () => subscription.unsubscribe();
   }, []);
+  void isRecovery;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,87 +51,67 @@ const ResetPassword = () => {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left branding panel */}
-      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden flex-col justify-between p-12">
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-16">
-            <img src={logoWhite} alt="NW HST Training Hub" className="h-10 w-10" />
-            <h1 className="text-xl font-display font-semibold text-primary-foreground tracking-tight">
-              North West HST Training Hub
-            </h1>
-          </div>
-          <h2 className="text-4xl font-display font-bold text-primary-foreground leading-tight mb-6">
-            Set a new<br />password.
-          </h2>
-          <p className="text-primary-foreground/70 text-lg max-w-md leading-relaxed">
-            Choose a strong password to secure your account.
-          </p>
-        </div>
-        <p className="relative z-10 text-primary-foreground/40 text-sm">
-          © 2026 North West HST Training Hub. All rights reserved.
-        </p>
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-sm border border-rule" />
-        <div className="absolute -bottom-16 -right-16 w-64 h-64 rounded-sm border border-rule" />
-        <div className="absolute top-20 right-20 w-32 h-32 rounded-sm bg-accent" />
+    <PortalShell
+      footerLinks={
+        <>
+          <PolicyLink kind="privacy" className="text-accent-deep underline underline-offset-4" />
+          <PolicyLink kind="terms" className="text-accent-deep underline underline-offset-4" />
+          <Link to="/contact" className="text-accent-deep underline underline-offset-4">
+            Contact us
+          </Link>
+        </>
+      }
+    >
+      <div className="space-y-1.5">
+        <span className={portalKicker}>Account</span>
+        <h2 className="font-display text-[clamp(26px,6.5vw,34px)] font-extrabold leading-[1.04] tracking-[-0.03em]">
+          Set a new password
+        </h2>
       </div>
 
-      {/* Right form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md animate-fade-in">
-          <div className="lg:hidden flex items-center gap-3 mb-10">
-            <img src={logoWhite} alt="NW HST Training Hub" className="h-9 w-9 rounded-md bg-primary p-1" />
-            <h1 className="text-lg font-display font-semibold tracking-tight">North West HST Training Hub</h1>
-          </div>
+      <p className="text-pretty text-[14.5px] text-muted-foreground">
+        Choose something at least six characters long.
+      </p>
 
-          <h2 className="text-2xl font-display font-bold mb-2">Set new password</h2>
-          <p className="text-muted-foreground mb-8">
-            Enter your new password below.
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="password">New password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                  minLength={6}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm new password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                  minLength={6}
-                />
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Updating…" : "Update password"}
-              {!isLoading && <ArrowRight className="h-4 w-4" />}
-            </Button>
-          </form>
+      <form onSubmit={handleSubmit} className="space-y-[18px]">
+        <div className="space-y-2">
+          <Label htmlFor="password" className={portalLabel}>New password</Label>
+          <Input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={portalField}
+            required
+            minLength={6}
+          />
         </div>
-      </div>
-    </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className={portalLabel}>Confirm new password</Label>
+          <Input
+            id="confirmPassword"
+            type="password"
+            autoComplete="new-password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className={portalField}
+            required
+            minLength={6}
+          />
+        </div>
+
+        <Button
+          type="submit"
+          className="h-12 w-full justify-between text-[15px]"
+          disabled={isLoading}
+        >
+          {isLoading ? "Updating…" : "Update password"}
+          {!isLoading && <ArrowRight className="h-4 w-4" />}
+        </Button>
+      </form>
+    </PortalShell>
   );
 };
 
