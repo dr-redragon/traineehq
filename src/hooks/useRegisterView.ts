@@ -8,6 +8,16 @@ import type { RegisterSession } from "@/lib/register/types";
 
 export type RegisterTabId = "attendance" | "day" | "people" | "access";
 
+/** The parts of the People tab, each a sub-tab of its own. */
+export type PeopleSectionId = "trainees" | "days" | "status" | "excused";
+
+const PEOPLE_SECTIONS: PeopleSectionId[] = ["trainees", "days", "status", "excused"];
+
+/** Old tab names that now open a particular part of People. */
+const FORMER_SECTIONS: Record<string, PeopleSectionId> = {
+  manage: "trainees", status: "status", excused: "excused",
+};
+
 const TABS: RegisterTabId[] = ["attendance", "day", "people", "access"];
 
 /**
@@ -45,6 +55,11 @@ export function useRegisterView(allSessions: RegisterSession[]) {
     : FORMER_TABS[rawTab] ?? "attendance";
   const showReport = tab === "attendance" && (params.get("view") === "report" || rawTab === "reports");
 
+  const rawSection = params.get("section") ?? "";
+  const section: PeopleSectionId = (PEOPLE_SECTIONS as string[]).includes(rawSection)
+    ? rawSection as PeopleSectionId
+    : FORMER_SECTIONS[rawTab] ?? "trainees";
+
   const years = useMemo(() => availableAcademicYears(allSessions), [allSessions]);
 
   const rawDay = params.get("day");
@@ -72,6 +87,10 @@ export function useRegisterView(allSessions: RegisterSession[]) {
     (next: RegisterTabId) => patch({ tab: next === "attendance" ? null : next, view: null }, { push: true }),
     [patch],
   );
+  const setSection = useCallback(
+    (next: PeopleSectionId) => patch({ tab: "people", section: next === "trainees" ? null : next }, { push: true }),
+    [patch],
+  );
   const setShowReport = useCallback(
     (on: boolean) => patch({ tab: null, view: on ? "report" : null }, { push: true }),
     [patch],
@@ -80,13 +99,14 @@ export function useRegisterView(allSessions: RegisterSession[]) {
     (next: string) => patch({ year: next, day: null }),
     [patch],
   );
+  /** Pick a teaching day; name its year too when it may be outside the one shown. */
   const setDay = useCallback(
-    (id: string) => patch({ day: id }),
+    (id: string, inYear?: string) => patch(inYear ? { day: id, year: inYear } : { day: id }),
     [patch],
   );
 
   return {
-    tab, setTab, showReport, setShowReport,
+    tab, setTab, showReport, setShowReport, section, setSection,
     years, year, setYear, sessions, day, setDay,
   };
 }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import QRCode from "qrcode";
-import { Copy, MailWarning, QrCode, UserPlus } from "lucide-react";
+import { CalendarPlus, Copy, MailWarning, QrCode, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,14 +15,16 @@ import { ChaseAbsencesDialog } from "@/components/register/ChaseAbsencesDialog";
 import { FeedbackFormEditor } from "@/components/register/FeedbackFormEditor";
 import { FeedbackPanel } from "@/components/register/FeedbackPanel";
 import { LiveDayCard } from "@/components/register/LiveDayCard";
+import { TeachingDayForm } from "@/components/register/TeachingDayForm";
+import { sessionFromDraft, type TeachingDayDraft } from "@/lib/register/teachingDay";
 import { YearTabs } from "@/components/register/YearTabs";
 import { useLiveAttendanceSync } from "@/hooks/useLiveAttendanceSync";
 import { fetchSessionStatus } from "@/lib/register/liveApi";
 import { gradeAt, isPresent } from "@/lib/register/attendance";
-import { setAttendance } from "@/lib/register/blob";
+import { setAttendance, upsertSession } from "@/lib/register/blob";
 import { splitByEmail, unexplainedAbsentees } from "@/lib/register/chase";
 import { GRADES } from "@/lib/register/constants";
-import { ALL_YEARS, academicYearOf, formatMonth } from "@/lib/register/months";
+import { ALL_YEARS, academicYearOf, sessionWhen } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import type { RegisterView } from "@/hooks/useRegisterView";
 import type { RegisterBlob, RegisterDirectoryEntry } from "@/lib/register/types";
@@ -62,6 +64,29 @@ export function CheckInPanel({
   const [manualGrade, setManualGrade] = useState("");
   const [chasing, setChasing] = useState(false);
   const [editingForm, setEditingForm] = useState(false);
+  const [addingDay, setAddingDay] = useState(false);
+
+  /**
+   * Add a teaching day from here, and make it the one on screen. It is set up
+   * for check-in on its own a moment later, so its QR code follows.
+   */
+  const addDay = (draft: TeachingDayDraft) => {
+    const session = sessionFromDraft(draft);
+    onEdit((b) => upsertSession(b, session));
+    view.setDay(session.id, academicYearOf(session.month));
+    setAddingDay(false);
+    toast.success(`${session.title} added — its QR code is being set up.`);
+  };
+
+  const newDayDialog = (
+    <Dialog open={addingDay} onOpenChange={setAddingDay}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>New teaching day</DialogTitle></DialogHeader>
+        <TeachingDayForm layout="stack" idPrefix="new-day" submitLabel="Add teaching day"
+          onSubmit={addDay} onCancel={() => setAddingDay(false)} />
+      </DialogContent>
+    </Dialog>
+  );
 
   const { years, year: activeYear, sessions: scoped, day: active } = view;
 
@@ -133,10 +158,15 @@ export function CheckInPanel({
 
   if (!blob.sessions.length) {
     return (
-      <p className="text-sm text-muted-foreground">
-        Add a teaching day on the <strong>People</strong> tab first — publishing one is
-        what creates its sign-in link.
-      </p>
+      <Card>
+        <CardContent className="space-y-3 p-4">
+          <Label className="text-xs">Add the first teaching day</Label>
+          <p className="text-sm text-muted-foreground">
+            Its QR sign-in page, feedback link and certificates are set up as soon as it is added.
+          </p>
+          <TeachingDayForm idPrefix="first-day" submitLabel="Add teaching day" onSubmit={addDay} />
+        </CardContent>
+      </Card>
     );
   }
 
@@ -148,7 +178,13 @@ export function CheckInPanel({
         sign-in list stay in step.
       </p>
 
-      <YearTabs years={years} value={activeYear} onChange={view.setYear} />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <YearTabs years={years} value={activeYear} onChange={view.setYear} />
+        <Button size="sm" className="w-full sm:w-auto" onClick={() => setAddingDay(true)}>
+          <CalendarPlus className="mr-1.5 h-4 w-4" /> New teaching day
+        </Button>
+      </div>
+      {newDayDialog}
 
       <div className="grid gap-4 lg:grid-cols-[300px,1fr] lg:items-start">
         {/* --------------------------------------------------------- the QR */}
@@ -165,7 +201,7 @@ export function CheckInPanel({
                 <QrCode className="h-8 w-8 opacity-40" />
                 <p className="px-4 text-[11px]">
                   {active
-                    ? "Publish this teaching day to get its QR code."
+                    ? "Setting up this teaching day's QR code…"
                     : "Choose a teaching day."}
                 </p>
               </div>
@@ -175,7 +211,7 @@ export function CheckInPanel({
               Scan to open the sign-in form for<br />
               <strong className="text-foreground">
                 {active
-                  ? `${formatMonth(active.month, "en-GB")} · ${active.title}`
+                  ? `${sessionWhen(active)} · ${active.title}`
                   : "—"}
               </strong>
               {live && <Badge className="ml-1.5 bg-success text-success-foreground">live</Badge>}
@@ -232,7 +268,7 @@ export function CheckInPanel({
                         )}
                       >
                         <span className="min-w-0 flex-1 truncate">
-                          <strong>{formatMonth(s.month, "en-GB")}</strong> · {s.title}
+                          <strong>{sessionWhen(s)}</strong> · {s.title}
                         </span>
                         {published && (
                           <Badge
@@ -276,7 +312,7 @@ export function CheckInPanel({
                 </div>
                 <p className="text-[11px] text-muted-foreground">
                   Logs the trainee as present for this teaching day, recording the grade they are
-                  at this rotation. Published days get the same mark on the live list, so the
+                  at this rotation. The same mark goes on the live sign-in list, so the
                   feedback form and certificate reach them too.
                 </p>
 
@@ -358,7 +394,7 @@ export function CheckInPanel({
                       onClick={() => setChasing(true)}
                       disabled={!withEmail.length || !live}
                       title={!live
-                        ? "Publish this teaching day first — the chaser is sent through it"
+                        ? "This teaching day is still being set up — the chaser is sent through it"
                         : undefined}
                     >
                       Write the chaser email…
@@ -370,7 +406,7 @@ export function CheckInPanel({
                     )}
                     {!live && !!withEmail.length && (
                       <p className="text-[11px] text-muted-foreground">
-                        Publish this teaching day first — the chaser is sent through it.
+                        This teaching day is still being set up — the chaser is sent through it.
                       </p>
                     )}
                   </>
@@ -387,7 +423,7 @@ export function CheckInPanel({
                 <FeedbackPanel
                   registerId={registerId}
                   liveSessionId={live?.id ?? null}
-                  sessionTitle={`${formatMonth(active.month, "en-GB")} · ${active.title}`}
+                  sessionTitle={`${sessionWhen(active)} · ${active.title}`}
                   onEditForm={() => setEditingForm(true)}
                 />
               </CardContent>
@@ -417,7 +453,7 @@ export function CheckInPanel({
           <FeedbackFormEditor
             registerId={registerId}
             sessionId={live?.id ?? null}
-            sessionTitle={active ? `${formatMonth(active.month, "en-GB")} · ${active.title}` : undefined}
+            sessionTitle={active ? `${sessionWhen(active)} · ${active.title}` : undefined}
             onClose={() => setEditingForm(false)}
           />
         </DialogContent>

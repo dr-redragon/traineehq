@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { YearTabs } from "@/components/register/YearTabs";
 import { addExcusal, removeExcusal } from "@/lib/register/blob";
 import { EXCUSAL_REASONS, OTHER_REASON } from "@/lib/register/constants";
-import { ALL_YEARS, academicYearOf, formatMonth } from "@/lib/register/months";
+import { ALL_YEARS, academicYearOf, sessionsSorted, sessionWhen } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import type { RegisterView } from "@/hooks/useRegisterView";
 import type { RegisterBlob } from "@/lib/register/types";
@@ -49,10 +49,10 @@ export function ExcusalsPanel({
     [blob.trainees],
   );
 
-  // Newest first, as in the original — an organiser is nearly always looking for
-  // something they logged recently.
-  // Newest first: the day being excused from is nearly always a recent one.
-  const sessions = useMemo(() => [...view.sessions].reverse(), [view.sessions]);
+  // Every teaching day, newest first: the form sits above the year chips, so it
+  // offers any day rather than only the year the list below is showing. The day
+  // being excused from is nearly always a recent one.
+  const sessions = useMemo(() => [...sessionsSorted(blob.sessions)].reverse(), [blob.sessions]);
 
   const excusals = useMemo(() => {
     const bySession = new Map(blob.sessions.map((s) => [s.id, s]));
@@ -90,13 +90,6 @@ export function ExcusalsPanel({
 
   return (
     <div className="space-y-4">
-      <p className="max-w-2xl text-sm text-muted-foreground">
-        Declared absences — leave, on-call, sickness, study leave — are removed from the
-        denominator, so a missed but excused teaching day does not count against a trainee's
-        adjusted attendance.
-      </p>
-
-      <YearTabs years={years} value={activeYear} onChange={view.setYear} />
 
       {canEdit && (
         <Card>
@@ -115,14 +108,21 @@ export function ExcusalsPanel({
 
             <div className="space-y-1.5">
               <Label htmlFor="ex-session" className="text-xs">Teaching day</Label>
-              <Select value={sessionId} onValueChange={view.setDay}>
+              <Select
+                value={sessionId}
+                onValueChange={(id) => {
+                  // A day from another year brings that year into view with it.
+                  const picked = blob.sessions.find((s) => s.id === id);
+                  view.setDay(id, picked ? academicYearOf(picked.month) : undefined);
+                }}
+              >
                 <SelectTrigger id="ex-session">
                   <SelectValue placeholder={sessions.length ? "Choose" : "None this year"} />
                 </SelectTrigger>
                 <SelectContent>
                   {sessions.map((s) => (
                     <SelectItem key={s.id} value={s.id}>
-                      {formatMonth(s.month, "en-GB")} · {s.title}
+                      {sessionWhen(s)} · {s.title}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -166,6 +166,14 @@ export function ExcusalsPanel({
         </Card>
       )}
 
+      <p className="max-w-2xl text-xs text-muted-foreground">
+        Declared absences — leave, on-call, sickness, study leave — are removed from the
+        denominator, so a missed but excused teaching day does not count against a trainee's
+        adjusted attendance.
+      </p>
+
+      <YearTabs years={years} value={activeYear} onChange={view.setYear} />
+
       {excusals.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           {blob.excused.length
@@ -179,7 +187,7 @@ export function ExcusalsPanel({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{trainee!.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {formatMonth(session!.month, "en-GB")} · {session!.title}
+                  {sessionWhen(session!)} · {session!.title}
                 </p>
                 {/* The reason gets a line of its own, and wraps. Appended to the
                     line above it was the first thing a narrow screen truncated

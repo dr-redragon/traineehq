@@ -9,7 +9,7 @@ import { CELL, CELL_LABEL, CELL_LEGEND, CELL_MARK } from "@/components/register/
 import { activeStatusType } from "@/lib/register/eligibility";
 import { STATUS_SHORT, statusRangeText } from "@/lib/register/statusText";
 import { computeRows, type SortKey } from "@/lib/register/report";
-import { formatMonth } from "@/lib/register/months";
+import { sessionWhen } from "@/lib/register/months";
 import { attendanceKey, gradeAt } from "@/lib/register/attendance";
 import { toggleAttendance } from "@/lib/register/blob";
 import { useTouchInput } from "@/hooks/useTouchInput";
@@ -147,7 +147,7 @@ export function AttendanceGrid({
               <th className="px-2 py-2.5">Status</th>
               {sessions.map((s) => (
                 <th key={s.id} className="px-1 py-2.5 text-center" title={s.title}>
-                  {formatMonth(s.month, "en-GB").replace(" ", " ")}
+                  {sessionWhen(s).replace(/ /g, "\u00a0")}
                 </th>
               ))}
               <th className="cursor-pointer px-2 py-2.5 text-right" onClick={() => sortBy("att")}>
@@ -203,7 +203,7 @@ export function AttendanceGrid({
                     const editable = canEdit && cell.state !== "na";
                     const described =
                       `${row.trainee.name} — ${cell.session.title} ` +
-                      `(${formatMonth(cell.session.month, "en-GB")}) · ${CELL_LABEL[cell.state]}` +
+                      `(${sessionWhen(cell.session)}) · ${CELL_LABEL[cell.state]}` +
                       (grade ? ` · ${grade}` : "");
 
                     const mark = (

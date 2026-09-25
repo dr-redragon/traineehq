@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_YEARS, academicYearLabel, academicYearOf, academicYearRange, academicYearStart,
   availableAcademicYears, currentAcademicYear, currentMonth, defaultAcademicYear,
-  formatMonth, parseMonth, sessionsInYear, sessionsSorted,
+  formatDay, formatMonth, parseMonth, sessionsInYear, sessionsSorted, sessionWhen,
 } from "./months";
 import type { RegisterSession } from "./types";
 
@@ -141,5 +141,24 @@ describe("session scoping", () => {
     it("returns the all-years sentinel for an empty register", () => {
       expect(defaultAcademicYear([], new Date())).toBe(ALL_YEARS);
     });
+  });
+});
+
+describe("dated teaching days", () => {
+  const march = [
+    { id: "b", month: "2026-03", date: "2026-03-26", title: "Rhinology" },
+    { id: "u", month: "2026-03", title: "Undated" },
+    { id: "a", month: "2026-03", date: "2026-03-12", title: "Otology" },
+    { id: "f", month: "2026-02", date: "2026-02-20", title: "February" },
+  ];
+
+  it("orders several days in one month by their date, an undated one first", () => {
+    expect(sessionsSorted(march).map((s) => s.id)).toEqual(["f", "u", "a", "b"]);
+  });
+
+  it("names a day by its date, or by its month when it has none", () => {
+    expect(sessionWhen(march[2])).toBe("12 Mar 2026");
+    expect(sessionWhen(march[1])).toBe("Mar 2026");
+    expect(formatDay("2026-03-12", "long")).toBe("12 March 2026");
   });
 });

@@ -99,8 +99,19 @@ export interface RegisterTrainee {
 
 export interface RegisterSession {
   id: string;
-  /** 'YYYY-MM'. The register year runs August to July. */
+  /**
+   * 'YYYY-MM'. The register year runs August to July. Every rule about who was
+   * eligible reads this; for a dated day it is always the month of `date`.
+   */
   month: string;
+  /**
+   * 'YYYY-MM-DD', the day it actually happened. Several teaching days can share
+   * a month, so this is what tells them apart. Absent on days recorded before
+   * dates were kept, which show as their month alone.
+   */
+  date?: string;
+  /** Where it was held, if anyone said. Printed on the certificate. */
+  location?: string;
   title: string;
   /** The matching `sessions` row, once the day has been published for check-in. */
   cloudId?: string;

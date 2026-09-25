@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { AttendanceGrid, AttendanceLegend, type GridOptions } from "@/components/register/AttendanceGrid";
 import { YearTabs } from "@/components/register/YearTabs";
 import { latestGrade } from "@/lib/register/attendance";
-import { academicYearRange, ALL_YEARS, formatMonth, sessionsInYear } from "@/lib/register/months";
+import { academicYearRange, ALL_YEARS, sessionsInYear, sessionWhen } from "@/lib/register/months";
 import { computeRows, type SortKey } from "@/lib/register/report";
 import type { RegisterView } from "@/hooks/useRegisterView";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
@@ -79,7 +79,7 @@ export function AttendancePanel({
     const header = [
       "Trainee", "Grade", "Attended", "Eligible", "Excused",
       "Adjusted denominator", "Raw %", "Adjusted %",
-      ...sessions.map((s) => `${formatMonth(s.month, "en-GB")} — ${s.title}`),
+      ...sessions.map((s) => `${sessionWhen(s)} — ${s.title}`),
     ];
     const lines = [header.map(csvCell).join(",")];
     for (const row of rows) {

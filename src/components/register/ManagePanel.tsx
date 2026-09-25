@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { CalendarPlus, ChevronDown, Pencil, Trash2, UserPlus } from "lucide-react";
+import { ChevronDown, MapPin, Pencil, Trash2, UserPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { TeachingDayForm } from "@/components/register/TeachingDayForm";
+import { sessionFromDraft } from "@/lib/register/teachingDay";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -13,7 +15,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { MonthInput } from "@/components/register/MonthInput";
 import {
   newId, removeSession, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/register/blob";
@@ -23,22 +24,31 @@ import {
 import { activeStatusType, isFormerTrainee } from "@/lib/register/eligibility";
 import { STATUS_SHORT, statusRangeText } from "@/lib/register/statusText";
 import { GRADES } from "@/lib/register/constants";
-import { formatMonth, sessionsSorted } from "@/lib/register/months";
+import { formatMonth, sessionsSorted, sessionWhen } from "@/lib/register/months";
 import { cn } from "@/lib/utils";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
-import type { RegisterBlob, RegisterTrainee } from "@/lib/register/types";
+import type { RegisterBlob, RegisterSession, RegisterTrainee } from "@/lib/register/types";
 
 const NONE = "__none__";
 
+/**
+ * The roster or the teaching days — one of the People tab's parts.
+ *
+ * The form to add to the list sits at the top of it, always open: adding a
+ * trainee or a teaching day is the commonest thing done here, so it should not
+ * be behind a button. Editing an existing row still opens a dialog.
+ */
 export function ManagePanel({
-  blob, onEdit, canEdit,
+  blob, onEdit, canEdit, part,
 }: {
   blob: RegisterBlob;
   onEdit: (edit: RegisterEdit) => void;
   canEdit: boolean;
+  part: "trainees" | "days";
 }) {
   const [trainee, setTrainee] = useState<{ id?: string; name: string; grade: string; email: string } | null>(null);
-  const [session, setSession] = useState<{ id?: string; title: string; month: string } | null>(null);
+  const [adding, setAdding] = useState({ name: "", grade: "", email: "" });
+  const [session, setSession] = useState<RegisterSession | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; detail: string; run: () => void } | null>(null);
   const [showFormer, setShowFormer] = useState(false);
 
@@ -62,14 +72,16 @@ export function ManagePanel({
     setTrainee(null);
   };
 
-  const saveSession = () => {
-    if (!session?.title.trim() || !session.month) return;
-    onEdit((b) => upsertSession(b, {
-      id: session.id ?? newId(),
-      title: session.title.trim(),
-      month: session.month,
+  const addTrainee = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adding.name.trim()) return;
+    onEdit((b) => upsertTrainee(b, {
+      id: newId(),
+      name: adding.name.trim(),
+      ...(adding.grade ? { grade: adding.grade } : {}),
+      ...(adding.email.trim() ? { email: adding.email.trim() } : {}),
     }));
-    setSession(null);
+    setAdding({ name: "", grade: "", email: "" });
   };
 
   const row = (t: RegisterTrainee) => {
@@ -118,7 +130,8 @@ export function ManagePanel({
   return (
     <div className="space-y-10">
       {/* -------------------------------------------------------- trainees -- */}
-      <section id="people-trainees" className="scroll-mt-16 space-y-3">
+      {part === "trainees" && (
+      <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold">Trainees</h2>
@@ -127,16 +140,46 @@ export function ManagePanel({
               {former.length > 0 && ` · ${former.length} former`}
             </p>
           </div>
-          {canEdit && (
-            <Button
-              size="sm"
-              className="w-full sm:w-auto"
-              onClick={() => setTrainee({ name: "", grade: "", email: "" })}
-            >
-              <UserPlus className="mr-1.5 h-4 w-4" /> Add trainee
-            </Button>
-          )}
         </div>
+
+        {canEdit && (
+          <Card>
+            <CardContent className="p-4">
+              <form onSubmit={addTrainee} className="grid gap-3 sm:grid-cols-[1.4fr,0.7fr,1.3fr,auto] sm:items-end">
+                <div className="space-y-1.5">
+                  <Label htmlFor="add-t-name" className="text-xs">Name</Label>
+                  <Input id="add-t-name" value={adding.name} placeholder="Full name"
+                    onChange={(e) => setAdding((a) => ({ ...a, name: e.target.value }))} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="add-t-grade" className="text-xs">Grade</Label>
+                  <Select value={adding.grade || NONE}
+                    onValueChange={(v) => setAdding((a) => ({ ...a, grade: v === NONE ? "" : v }))}>
+                    <SelectTrigger id="add-t-grade"><SelectValue placeholder="Not set" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>Not set</SelectItem>
+                      {GRADES.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="add-t-email" className="text-xs">
+                    Email <span className="text-muted-foreground">(for certificates)</span>
+                  </Label>
+                  <Input id="add-t-email" type="email" value={adding.email}
+                    onChange={(e) => setAdding((a) => ({ ...a, email: e.target.value }))} />
+                </div>
+                <Button type="submit" disabled={!adding.name.trim()} className="w-full sm:w-auto">
+                  <UserPlus className="mr-1.5 h-4 w-4" /> Add trainee
+                </Button>
+              </form>
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Grade keeps itself up to date: whatever a trainee picks at their next sign-in
+                replaces it, since it changes between rotations.
+              </p>
+            </CardContent>
+          </Card>
+        )}
 
         {blob.trainees.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nobody on the roster yet.</p>
@@ -166,8 +209,8 @@ export function ManagePanel({
                 <CollapsibleContent className="mt-2">
                   <div className="divide-y rounded-lg border opacity-80">{former.map(row)}</div>
                   <p className="mt-2 text-[11px] text-muted-foreground">
-                    They stay in every past year's figures. Change or clear the status in the
-                    Long-term status section below to bring somebody back into the roster.
+                    They stay in every past year's figures. Change or clear their status under
+                    Long-term status to bring somebody back into the roster.
                   </p>
                 </CollapsibleContent>
               </Collapsible>
@@ -175,23 +218,30 @@ export function ManagePanel({
           </>
         )}
       </section>
+      )}
 
       {/* -------------------------------------------------------- sessions -- */}
-      <section id="people-days" className="scroll-mt-16 space-y-3">
+      {part === "days" && (
+      <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-sm font-semibold">Teaching days</h2>
             <p className="text-xs text-muted-foreground">
-              {sessions.length} recorded. The register year runs August to July.
+              {sessions.length} recorded. The register year runs August to July; a month can
+              hold as many teaching days as it needs. Each one gets its QR sign-in page as soon
+              as it is added.
             </p>
           </div>
-          {canEdit && (
-            <Button size="sm" className="w-full sm:w-auto"
-              onClick={() => setSession({ title: "", month: "" })}>
-              <CalendarPlus className="mr-1.5 h-4 w-4" /> Add teaching day
-            </Button>
-          )}
         </div>
+
+        {canEdit && (
+          <Card>
+            <CardContent className="p-4">
+              <TeachingDayForm idPrefix="add-day" submitLabel="Add teaching day"
+                onSubmit={(draft) => onEdit((b) => upsertSession(b, sessionFromDraft(draft)))} />
+            </CardContent>
+          </Card>
+        )}
 
         {sessions.length === 0 ? (
           <p className="text-sm text-muted-foreground">No teaching days yet.</p>
@@ -201,12 +251,20 @@ export function ManagePanel({
               <div key={s.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{s.title}</p>
-                  <p className="text-xs text-muted-foreground">{formatMonth(s.month, "en-GB")}</p>
+                  <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+                    <span>{sessionWhen(s)}</span>
+                    {!s.date && <span className="text-register-clay">no exact date — edit to add it</span>}
+                    {s.location && (
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3 w-3" /> {s.location}
+                      </span>
+                    )}
+                  </p>
                 </div>
                 {canEdit && (
                   <div className="flex gap-1">
                     <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Edit ${s.title}`}
-                      onClick={() => setSession({ id: s.id, title: s.title, month: s.month })}>
+                      onClick={() => setSession(s)}>
                       <Pencil className="h-3.5 w-3.5" />
                     </Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" aria-label={`Remove ${s.title}`}
@@ -224,12 +282,13 @@ export function ManagePanel({
           </div>
         )}
       </section>
+      )}
 
       {/* -------------------------------------------------- trainee dialog -- */}
       <Dialog open={!!trainee} onOpenChange={(o) => !o && setTrainee(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{trainee?.id ? "Edit trainee" : "Add trainee"}</DialogTitle>
+            <DialogTitle>Edit trainee</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
@@ -271,27 +330,28 @@ export function ManagePanel({
       <Dialog open={!!session} onOpenChange={(o) => !o && setSession(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{session?.id ? "Edit teaching day" : "Add teaching day"}</DialogTitle>
+            <DialogTitle>Edit teaching day</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="s-title" className="text-xs">Title</Label>
-              <Input id="s-title" value={session?.title ?? ""} autoFocus
-                placeholder="e.g. Paediatric ENT"
-                onChange={(e) => setSession((s) => s && { ...s, title: e.target.value })} />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="s-month" className="text-xs">Month</Label>
-              <MonthInput id="s-month" value={session?.month ?? ""}
-                onChange={(m) => setSession((s) => s && { ...s, month: m })} />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setSession(null)}>Cancel</Button>
-            <Button onClick={saveSession} disabled={!session?.title.trim() || !session?.month}>
-              Save
-            </Button>
-          </DialogFooter>
+          {session && (
+            <TeachingDayForm
+              key={session.id}
+              layout="stack"
+              idPrefix="edit-day"
+              submitLabel="Save"
+              initial={{ title: session.title, date: session.date ?? "", location: session.location ?? "" }}
+              onCancel={() => setSession(null)}
+              onSubmit={(draft) => {
+                onEdit((b) => upsertSession(b, sessionFromDraft(draft, session)));
+                setSession(null);
+              }}
+            />
+          )}
+          {session && !session.date && (
+            <p className="text-[11px] text-muted-foreground">
+              This day was recorded with only its month ({formatMonth(session.month, "en-GB")}).
+              Give it its exact date to save.
+            </p>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -1,6 +1,6 @@
 import { isEligible, isExcused } from "./eligibility";
 import { isPresent } from "./attendance";
-import { formatMonth } from "./months";
+import { sessionWhen } from "./months";
 import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
 
 /**
@@ -42,7 +42,7 @@ export function splitByEmail(absent: RegisterTrainee[]) {
 }
 
 export function defaultChaseSubject(session: RegisterSession): string {
-  return `Attendance query — ${session.title} (${formatMonth(session.month, "en-GB")})`;
+  return `Attendance query — ${session.title} (${sessionWhen(session)})`;
 }
 
 /**
@@ -56,7 +56,7 @@ export function defaultChaseBody(session: RegisterSession, registerName?: string
   return [
     "Hello,",
     `Our records show you were not at ${session.title} on ` +
-      `${formatMonth(session.month, "en-GB")}. Please could you reply with the reason, so we can ` +
+      `${sessionWhen(session)}. Please could you reply with the reason, so we can ` +
       "update the register?",
     "If you were there and we have missed you, just say so and we will correct it.",
     `Many thanks,\n${registerName ?? "The teaching programme"}`,
