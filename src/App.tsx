@@ -25,13 +25,14 @@ import { ThemeProvider } from "./hooks/useTheme";
  * page costs what that page costs, and the rest arrives while it is being
  * read.
  *
- * Landing and Login are the exceptions, imported directly: they are the first
- * thing a signed-out visitor sees, and putting them behind a second request
- * would trade the saving straight back.
+ * Login is the exception, imported directly: it is the first thing a signed-out
+ * visitor sees — the site opens on it — and putting it behind a second request
+ * would trade the saving straight back. Landing is lazy along with the rest now
+ * that it no longer holds the front door.
  */
-import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 
+const Landing = lazy(() => import("./pages/Landing"));
 const Index = lazy(() => import("./pages/Index"));
 const SpecialtyDetail = lazy(() => import("./pages/SpecialtyDetail"));
 const KeyContacts = lazy(() => import("./pages/KeyContacts"));
@@ -40,7 +41,7 @@ const MyProfile = lazy(() => import("./pages/MyProfile"));
 const CommunityHub = lazy(() => import("./pages/CommunityHub"));
 const SpecialtyDiscussion = lazy(() => import("./pages/SpecialtyDiscussion"));
 const NotFound = lazy(() => import("./pages/NotFound"));
-const RequestAccess = lazy(() => import("./pages/RequestAccess"));
+const Contact = lazy(() => import("./pages/Contact"));
 const RegisterDirectory = lazy(() => import("./pages/RegisterDirectory"));
 const RegisterDetail = lazy(() => import("./pages/RegisterDetail"));
 const RegisterAccess = lazy(() => import("./pages/RegisterAccess"));
@@ -147,9 +148,30 @@ const App = () => (
           <RouteChunk>
           <Routes>
             {/* Public */}
-            <Route path="/" element={<Landing />} />
+            {/*
+              The site opens on the sign-in page.
+
+              It used to open on Landing — a separate page carrying its own
+              sign-in card — so the redesigned sign-in page was only ever
+              reached by typing /login, and everyone arriving at the domain
+              went on seeing the old one. This is a members-only tool that is
+              not indexed and whose accounts are approved by hand, so the door
+              is what the front page is for.
+
+              Landing keeps a path of its own rather than being deleted: it
+              still carries the feature summary and the contact form, which is
+              the only way to reach anybody from outside.
+            */}
+            <Route path="/" element={<Login />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/request-access" element={<RequestAccess />} />
+            <Route path="/welcome" element={<Landing />} />
+            {/*
+              Requesting access is a tab on the sign-in page, not a page. This
+              path still resolves — it is in old emails and links — and opens
+              that page on the second tab.
+            */}
+            <Route path="/request-access" element={<Login initialMode="request" />} />
+            <Route path="/contact" element={<Contact />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
