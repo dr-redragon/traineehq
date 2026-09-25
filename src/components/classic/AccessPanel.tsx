@@ -404,7 +404,7 @@ function CertificateLogo({ entry }: { entry: RegisterDirectoryEntry }) {
       if (uploadError) throw new Error(uploadError.message);
 
       const { error } = await untyped
-        .from("classic_registers")
+        .from("registers")
         .update({ certificate_logo_path: path })
         .eq("id", entry.id);
       if (error) throw new Error(error.message);
@@ -416,7 +416,7 @@ function CertificateLogo({ entry }: { entry: RegisterDirectoryEntry }) {
   const clear = useMutation({
     mutationFn: async () => {
       const { error } = await untyped
-        .from("classic_registers")
+        .from("registers")
         .update({ certificate_logo_path: null })
         .eq("id", entry.id);
       if (error) throw new Error(error.message);

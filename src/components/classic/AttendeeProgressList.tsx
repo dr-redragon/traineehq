@@ -76,7 +76,7 @@ export function AttendeeProgressList({
   /** Render the certificate and hand it to the trainee — a genuine send, not a preview. */
   const emailCertificateTo = async (attendee: RegisterAttendee) => {
     const bytes = await renderCertificatePdf(detailsFor(attendee));
-    const { data, error } = await supabase.functions.invoke("classic-register-certificate", {
+    const { data, error } = await supabase.functions.invoke("register-certificate", {
       body: {
         session_id: sessionId, attendee_id: attendee.id, pdf_base64: bytesToBase64(bytes),
       },

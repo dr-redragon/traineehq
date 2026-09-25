@@ -6,7 +6,7 @@
  *   - the tenancy tables added by 20260907090000_register_multi_tenancy.sql
  *     (who may open which register), and
  *   - `RegisterBlob`, the register's own payload, which is stored whole as JSONB
- *     in `classic_register_stores.data`.
+ *     in `register_stores.data`.
  *
  * The blob shape is carried over verbatim from the standalone register
  * (ent-teaching-register/index.html, the model comment above `let DB`). The rules
@@ -20,7 +20,7 @@ export type RegisterRole = "owner" | "editor";
 export type RequestStatus = "pending" | "approved" | "rejected";
 
 /**
- * A row from the `classic_register_directory()` function.
+ * A row from the `register_directory()` function.
  *
  * Deliberately names and counts only — it is readable by anyone signed in,
  * including people with no access to any register, because you cannot ask to
@@ -43,7 +43,7 @@ export interface RegisterDirectoryEntry {
 }
 
 /**
- * A row from `classic_register_archive()` — a register that has been deleted
+ * A row from `register_archive()` — a register that has been deleted
  * but not yet destroyed.
  *
  * `purge_at` is the database's own deadline rather than a window the browser
@@ -184,7 +184,7 @@ export const EMPTY_REGISTER: RegisterBlob = {
   status: [],
 };
 
-/** One `classic_register_stores` row: the blob plus the guard that serialises writes. */
+/** One `register_stores` row: the blob plus the guard that serialises writes. */
 export interface RegisterStore {
   register_id: string;
   data: RegisterBlob;

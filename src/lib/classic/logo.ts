@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /** Public-read bucket: a deanery crest is branding, not personal data. */
-export const REGISTER_LOGO_BUCKET = "classic-register-logos";
+export const REGISTER_LOGO_BUCKET = "register-logos";
 
 /** What the bucket accepts, and what pdf-lib can actually embed. */
 export const LOGO_MIME_TYPES = ["image/png", "image/jpeg"] as const;

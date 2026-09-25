@@ -77,7 +77,7 @@ const rowId = params.get("id");
 // `&tab=`, `&year=` and `&day=` pass through to a register, whose place is
 // kept in its query string.
 const registerQuery = new URLSearchParams(
-  [...params].filter(([key]) => ["tab", "year", "day", "view"].includes(key)),
+  [...params].filter(([key]) => ["tab", "year", "day", "view", "section"].includes(key)),
 ).toString();
 const start = (PATHS[page] ?? PATHS.dashboard).replace(/(sp-1)$/, rowId ?? "$1")
   + ((page === "register" || page === "classic") && registerQuery ? `?${registerQuery}` : "");

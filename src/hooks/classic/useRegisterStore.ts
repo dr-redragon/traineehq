@@ -18,7 +18,7 @@ const MAX_ATTEMPTS = 4;
  *
  * The whole register is stored and written as a single JSONB document, so two
  * organisers editing on the same evening would, with a naive save, silently
- * discard one another's work. `save_classic_register()` refuses any write built on a
+ * discard one another's work. `save_register()` refuses any write built on a
  * version that has since moved, and this hook is the other half of that
  * bargain.
  *

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, X } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,6 +7,9 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MonthInput } from "@/components/register/MonthInput";
@@ -17,6 +20,68 @@ import type { RegisterBlob, RegisterStatus } from "@/lib/register/types";
 
 type Draft = Partial<RegisterStatus>;
 
+/** The fields of one status record. Used for a new one and, in a popup, to edit one. */
+function StatusFields({
+  draft, onChange, idPrefix, trainees, nameOf,
+}: {
+  draft: Draft;
+  onChange: (update: (d: Draft) => Draft) => void;
+  idPrefix: string;
+  trainees: { id: string; name: string }[];
+  nameOf: (id: string) => string;
+}) {
+  const hint = STATUS_OPTIONS.find((o) => o.value === (draft.type ?? "mat"))?.hint;
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-trainee`} className="text-xs">Trainee</Label>
+          <Select value={draft.trainee ?? ""} onValueChange={(v) => onChange((d) => ({ ...d, trainee: v }))}>
+            <SelectTrigger id={`${idPrefix}-trainee`}><SelectValue placeholder="Choose" /></SelectTrigger>
+            <SelectContent>
+              {trainees.map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-type`} className="text-xs">Status</Label>
+          <Select
+            value={draft.type ?? "mat"}
+            onValueChange={(v) => onChange((d) => ({ ...d, type: v as RegisterStatus["type"] }))}
+          >
+            <SelectTrigger id={`${idPrefix}-type`}><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {STATUS_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-start`} className="text-xs">From</Label>
+          <MonthInput id={`${idPrefix}-start`} value={draft.start ?? ""}
+            onChange={(m) => onChange((d) => ({ ...d, start: m || null }))} />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-end`} className="text-xs">To</Label>
+          <MonthInput id={`${idPrefix}-end`} value={draft.end ?? ""}
+            onChange={(m) => onChange((d) => ({ ...d, end: m || null }))} />
+        </div>
+      </div>
+
+      {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+
+      {draft.trainee && draft.type && (
+        <p className="rounded-md bg-muted px-3 py-2 text-xs">
+          <strong>{nameOf(draft.trainee)}</strong>{" "}
+          {statusRangeText({
+            id: "", trainee: draft.trainee, type: draft.type,
+            start: draft.start ?? null, end: draft.end ?? null,
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /**
  * Long-term status.
  *
@@ -25,6 +90,10 @@ type Draft = Partial<RegisterStatus>;
  * mark: a month outside a trainee's active window counts towards neither the
  * numerator nor the denominator. Somebody looking at an unexpected percentage
  * needs to be able to find this quickly.
+ *
+ * Adding happens in the form that is always open at the top; editing an
+ * existing record opens it in a popup over the list, so nobody has to scroll
+ * back up to change a row they are looking at.
  */
 export function StatusPanel({
   blob, onEdit, canEdit,
@@ -33,29 +102,24 @@ export function StatusPanel({
   onEdit: (edit: RegisterEdit) => void;
   canEdit: boolean;
 }) {
-  // The form is always open at the top; this is what it holds when nobody is
-  // part-way through anything.
   const blank: Draft = { type: "mat" };
   const [draft, setDraft] = useState<Draft>(blank);
-  const reset = () => setDraft(blank);
+  const [editing, setEditing] = useState<Draft | null>(null);
   const [confirm, setConfirm] = useState<RegisterStatus | null>(null);
 
   const trainees = [...blob.trainees].sort((a, b) => a.name.localeCompare(b.name));
   const nameOf = (id: string) => blob.trainees.find((t) => t.id === id)?.name ?? "Unknown trainee";
   const rows = blob.status.filter((s) => s.type !== "active");
 
-  const hint = STATUS_OPTIONS.find((o) => o.value === (draft?.type ?? "mat"))?.hint;
-
-  const save = () => {
-    if (!draft?.trainee || !draft.type) return;
+  const save = (d: Draft) => {
+    if (!d.trainee || !d.type) return;
     onEdit((b) => upsertStatus(b, {
-      id: draft.id ?? newId(),
-      trainee: draft.trainee!,
-      type: draft.type!,
-      start: draft.start || null,
-      end: draft.end || null,
+      id: d.id ?? newId(),
+      trainee: d.trainee!,
+      type: d.type!,
+      start: d.start || null,
+      end: d.end || null,
     }));
-    reset();
   };
 
   return (
@@ -63,82 +127,16 @@ export function StatusPanel({
       {canEdit && (
         <Card>
           <CardContent className="space-y-3 p-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold">
-                {draft.id ? `Editing ${nameOf(draft.trainee ?? "")}` : "New status"}
-              </p>
-              {draft.id && (
-              <Button size="icon" variant="ghost" className="h-7 w-7"
-                aria-label="Cancel" onClick={reset}>
-                <X className="h-4 w-4" />
-              </Button>
-              )}
-            </div>
-
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="st-trainee" className="text-xs">Trainee</Label>
-                <Select
-                  value={draft.trainee ?? ""}
-                  onValueChange={(v) => setDraft((d) => ({ ...d, trainee: v }))}
-                >
-                  <SelectTrigger id="st-trainee"><SelectValue placeholder="Choose" /></SelectTrigger>
-                  <SelectContent>
-                    {trainees.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="st-type" className="text-xs">Status</Label>
-                <Select
-                  value={draft.type ?? "mat"}
-                  onValueChange={(v) => setDraft((d) => ({ ...d, type: v as RegisterStatus["type"] }))}
-                >
-                  <SelectTrigger id="st-type"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((o) => (
-                      <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="st-start" className="text-xs">From</Label>
-                <MonthInput id="st-start" value={draft.start ?? ""}
-                  onChange={(m) => setDraft((d) => ({ ...d, start: m || null }))} />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label htmlFor="st-end" className="text-xs">To</Label>
-                <MonthInput id="st-end" value={draft.end ?? ""}
-                  onChange={(m) => setDraft((d) => ({ ...d, end: m || null }))} />
-              </div>
-            </div>
-
-            {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
-
-            {draft.trainee && draft.type && (
-              <p className="rounded-md bg-muted px-3 py-2 text-xs">
-                <strong>{nameOf(draft.trainee)}</strong>{" "}
-                {statusRangeText({
-                  id: "", trainee: draft.trainee, type: draft.type,
-                  start: draft.start ?? null, end: draft.end ?? null,
-                })}
-              </p>
-            )}
-
+            <p className="text-sm font-semibold">New status</p>
+            <StatusFields draft={draft} onChange={setDraft} idPrefix="st-new"
+              trainees={trainees} nameOf={nameOf} />
             <div className="flex gap-2">
-              <Button size="sm" onClick={save} disabled={!draft.trainee || !draft.type}>
-                {draft.id ? "Save status" : "Add status"}
+              <Button size="sm" disabled={!draft.trainee || !draft.type}
+                onClick={() => { save(draft); setDraft(blank); }}>
+                Add status
               </Button>
-              {(draft.id || draft.trainee) && (
-                <Button size="sm" variant="outline" onClick={reset}>
-                  {draft.id ? "Cancel edit" : "Clear"}
-                </Button>
+              {draft.trainee && (
+                <Button size="sm" variant="outline" onClick={() => setDraft(blank)}>Clear</Button>
               )}
             </div>
           </CardContent>
@@ -168,11 +166,11 @@ export function StatusPanel({
               {canEdit && (
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" className="h-7 w-7"
-                    aria-label="Edit status" onClick={() => setDraft(s)}>
+                    aria-label={`Edit ${nameOf(s.trainee)}'s status`} onClick={() => setEditing(s)}>
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                    aria-label="Remove status" onClick={() => setConfirm(s)}>
+                    aria-label={`Remove ${nameOf(s.trainee)}'s status`} onClick={() => setConfirm(s)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
@@ -181,6 +179,25 @@ export function StatusPanel({
           ))}
         </div>
       )}
+
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit {editing?.trainee ? `${nameOf(editing.trainee)}'s` : ""} status</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <StatusFields draft={editing} onChange={(u) => setEditing((d) => (d ? u(d) : d))}
+              idPrefix="st-edit" trainees={trainees} nameOf={nameOf} />
+          )}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setEditing(null)}>Cancel</Button>
+            <Button disabled={!editing?.trainee || !editing?.type}
+              onClick={() => { if (editing) save(editing); setEditing(null); }}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>

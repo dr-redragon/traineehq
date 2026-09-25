@@ -189,7 +189,7 @@ export default function ClassicDirectory() {
   const { data: specialties } = useCreatableSpecialties(deaneryId || undefined);
 
   // Held by TraineeHQ admins, and by anyone who already runs a register — the
-  // same rule can_create_classic_register() enforces in the database. Shown or
+  // same rule can_create_register() enforces in the database. Shown or
   // hidden here only so the form is not offered to someone it would refuse.
   const canCreate =
     role === "admin" || role === "super_admin" || grouped.mine.length > 0;

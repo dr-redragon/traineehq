@@ -1,7 +1,7 @@
 /**
  * How long an archived register has left.
  *
- * The window itself lives in the database — `classic_register_archive()`
+ * The window itself lives in the database — `register_archive()`
  * returns a `purge_at` with every row, and everything here is read off that
  * rather than counting fifteen days over again in the browser. A clock that
  * disagreed with the one enforcing the deadline would be worse than no clock:

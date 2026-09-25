@@ -233,9 +233,13 @@ const App = () => (
               the one above so the two can be compared before one is kept.
 
               It is a copy of the standalone ENT register at
-              register.traineehq.com: its own look, its own six tabs, its own
-              classic_* tables, its own sidebar link. Nothing here shares state
-              with /registers, so deleting either is a self-contained job.
+              register.traineehq.com: its own look, its own six tabs and its
+              own sidebar link — but not its own data. It reads and writes the
+              same registers, members, trainees, teaching days, sign-ins and
+              feedback as /registers, so an edit in either shows in both, and
+              anyone with access to a register has it in both. The two are
+              different ways of looking at one register, and people can use
+              whichever they prefer.
 
               Reached the same two ways the first one is: this standalone link,
               or the sidebar. Access is a TraineeHQ sign-in either way — the
