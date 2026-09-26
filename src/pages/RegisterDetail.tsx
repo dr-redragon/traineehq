@@ -9,8 +9,10 @@ import { cn } from "@/lib/utils";
 import { AccessPanel } from "@/components/register/AccessPanel";
 import { AttendancePanel } from "@/components/register/AttendancePanel";
 import { CheckInPanel } from "@/components/register/CheckInPanel";
+import { ManagePanel } from "@/components/register/ManagePanel";
 import { PeoplePanel } from "@/components/register/PeoplePanel";
 import { ReportPanel } from "@/components/register/ReportPanel";
+import { SubTabs } from "@/components/register/SubTabs";
 import { useRegister } from "@/contexts/RegisterContext";
 import { useRegisterDirectory } from "@/hooks/useRegisters";
 import { useRegisterRequests } from "@/hooks/useRegisterAccess";
@@ -47,9 +49,10 @@ function RegisterTab({ value, children }: { value: RegisterTabId; children: Reac
  * One register, behind four tabs grouped by how the work is done:
  *
  *   Attendance       the grid, its headline figures, and the report
- *   Teaching day     one day, start to finish: QR, check-in, live list,
- *                    certificates, absences and the feedback that came back
- *   People           the roster, teaching days, long-term status, excusals
+ *   Teaching day     Live day: one day, start to finish — QR, check-in, live
+ *                    list, certificates, absences and the feedback that came
+ *                    back. Manage days: the list of teaching days itself.
+ *   People           the roster, long-term status, excusals
  *   Access & settings  members, requests, the certificate badge, deleting
  *
  * The open tab, the academic year and the teaching day live in the address
@@ -213,8 +216,21 @@ export default function RegisterDetail() {
             )}
           </TabsContent>
 
-          <TabsContent value="day" className="mt-4">
-            <CheckInPanel blob={blob} register={entry} view={view} onEdit={edit} />
+          <TabsContent value="day" className="mt-4 space-y-5">
+            <SubTabs
+              label="Teaching day"
+              items={[
+                { id: "live", label: "Live day" },
+                { id: "manage", label: "Manage days", count: blob.sessions.length },
+              ]}
+              value={view.daySection}
+              onChange={view.setDaySection}
+            />
+            {view.daySection === "live" ? (
+              <CheckInPanel blob={blob} register={entry} view={view} onEdit={edit} />
+            ) : (
+              <ManagePanel part="days" blob={blob} onEdit={edit} canEdit />
+            )}
           </TabsContent>
 
           <TabsContent value="people" className="mt-4">

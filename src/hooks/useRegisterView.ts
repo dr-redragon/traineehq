@@ -9,9 +9,16 @@ import type { RegisterSession } from "@/lib/register/types";
 export type RegisterTabId = "attendance" | "day" | "people" | "access";
 
 /** The parts of the People tab, each a sub-tab of its own. */
-export type PeopleSectionId = "trainees" | "days" | "status" | "excused";
+export type PeopleSectionId = "trainees" | "status" | "excused";
 
-const PEOPLE_SECTIONS: PeopleSectionId[] = ["trainees", "days", "status", "excused"];
+const PEOPLE_SECTIONS: PeopleSectionId[] = ["trainees", "status", "excused"];
+
+/**
+ * The parts of the Teaching day tab: the day being run (QR, check-in, live
+ * list, feedback) and the list of teaching days itself. Kept as `?part=` —
+ * `?section=` belongs to People.
+ */
+export type DaySectionId = "live" | "manage";
 
 /** Old tab names that now open a particular part of People. */
 const FORMER_SECTIONS: Record<string, PeopleSectionId> = {
@@ -50,12 +57,19 @@ export function useRegisterView(allSessions: RegisterSession[]) {
   const { params, patch } = useUrlState();
 
   const rawTab = params.get("tab") ?? "";
-  const tab: RegisterTabId = (TABS as string[]).includes(rawTab)
+  const rawTabId: RegisterTabId = (TABS as string[]).includes(rawTab)
     ? rawTab as RegisterTabId
     : FORMER_TABS[rawTab] ?? "attendance";
-  const showReport = tab === "attendance" && (params.get("view") === "report" || rawTab === "reports");
+  const showReport = rawTabId === "attendance" && (params.get("view") === "report" || rawTab === "reports");
 
   const rawSection = params.get("section") ?? "";
+
+  // Teaching days used to be managed from People; a link to that part now
+  // opens it where it lives, on the Teaching day tab.
+  const formerDays = rawTab === "people" && rawSection === "days";
+  const tab: RegisterTabId = formerDays ? "day" : rawTabId;
+  const daySection: DaySectionId = formerDays || params.get("part") === "manage" ? "manage" : "live";
+
   const section: PeopleSectionId = (PEOPLE_SECTIONS as string[]).includes(rawSection)
     ? rawSection as PeopleSectionId
     : FORMER_SECTIONS[rawTab] ?? "trainees";
@@ -91,6 +105,11 @@ export function useRegisterView(allSessions: RegisterSession[]) {
     (next: PeopleSectionId) => patch({ tab: "people", section: next === "trainees" ? null : next }, { push: true }),
     [patch],
   );
+  const setDaySection = useCallback(
+    (next: DaySectionId) =>
+      patch({ tab: "day", part: next === "live" ? null : next, section: null }, { push: true }),
+    [patch],
+  );
   const setShowReport = useCallback(
     (on: boolean) => patch({ tab: null, view: on ? "report" : null }, { push: true }),
     [patch],
@@ -111,12 +130,15 @@ export function useRegisterView(allSessions: RegisterSession[]) {
    */
   const openDay = useCallback(
     (id: string, inYear?: string) =>
-      patch({ tab: "day", view: null, day: id, ...(inYear ? { year: inYear } : {}) }, { push: true }),
+      patch(
+        { tab: "day", part: null, view: null, day: id, ...(inYear ? { year: inYear } : {}) },
+        { push: true },
+      ),
     [patch],
   );
 
   return {
-    tab, setTab, showReport, setShowReport, section, setSection,
+    tab, setTab, showReport, setShowReport, section, setSection, daySection, setDaySection,
     years, year, setYear, sessions, day, setDay, openDay,
   };
 }
