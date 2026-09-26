@@ -8,7 +8,7 @@ import { attendanceKey } from "./attendance";
  * Immutable edits to the register blob.
  *
  * Every function here takes a blob and returns a new one, touching nothing in
- * place. That is not decoration: `save_classic_register()` refuses a write built on a
+ * place. That is not decoration: `save_register()` refuses a write built on a
  * stale read, so a rejected save has to be replayed against whatever the other
  * person just wrote. Replaying is only sound if the edit is a pure function of
  * the blob it is given — see `useRegisterStore`.
@@ -22,7 +22,7 @@ export function newId(): string {
 /**
  * Fill in whatever a blob is missing.
  *
- * A register created by `create_classic_register()` starts as `{}`, and blobs written by
+ * A register created by `create_register()` starts as `{}`, and blobs written by
  * older versions of the standalone app can be missing keys added later. Every
  * read goes through this so the rest of the code can assume the arrays exist.
  */

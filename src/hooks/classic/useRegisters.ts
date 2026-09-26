@@ -145,7 +145,7 @@ export function useDeleteRegisterForever() {
 /**
  * Whether this user holds any register at all.
  *
- * Deliberately narrow — it reads only the caller's own `classic_register_members` rows,
+ * Deliberately narrow — it reads only the caller's own `register_members` rows,
  * which RLS allows, rather than pulling the whole directory. The sidebar asks
  * this on every page, so it should be the cheapest question that answers
  * "is there anything here for me".

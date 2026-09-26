@@ -53,7 +53,7 @@ function raise(error: PostgrestFailure | null): asserts error is null {
   throw new Error(error.hint ? `${error.message}. ${error.hint}` : error.message);
 }
 
-/** Thrown when `save_classic_register` rejects a write built on a stale read. */
+/** Thrown when `save_register` rejects a write built on a stale read. */
 export class RegisterConflictError extends Error {
   constructor(message: string) {
     super(message);
@@ -69,17 +69,17 @@ export class RegisterConflictError extends Error {
  * Every active register, whether or not the caller belongs to it.
  *
  * Names and member counts only. This is what makes "request access" possible at
- * all, so it must not be filtered down to the caller's own classic_registers.
+ * all, so it must not be filtered down to the caller's own registers.
  */
 export async function fetchRegisterDirectory(): Promise<RegisterDirectoryEntry[]> {
-  const { data, error } = await untyped.rpc("classic_register_directory");
+  const { data, error } = await untyped.rpc("register_directory");
   raise(error);
   return (data ?? []) as RegisterDirectoryEntry[];
 }
 
 export async function fetchRegisterStore(registerId: string): Promise<RegisterStore | null> {
   const { data, error } = await untyped
-    .from("classic_register_stores")
+    .from("register_stores")
     .select("register_id, data, version, updated_at, updated_by")
     .eq("register_id", registerId)
     .maybeSingle();
@@ -90,7 +90,7 @@ export async function fetchRegisterStore(registerId: string): Promise<RegisterSt
 /**
  * The caller's own memberships, across every register.
  *
- * `classic_register_members` lets anyone read their own rows, so this needs no RPC and
+ * `register_members` lets anyone read their own rows, so this needs no RPC and
  * no directory read — it is the cheapest way to ask "do I hold a register".
  */
 export async function fetchMyRegisterMemberships(): Promise<RegisterMember[]> {
@@ -102,7 +102,7 @@ export async function fetchMyRegisterMemberships(): Promise<RegisterMember[]> {
   if (!auth.session?.user) return [];
 
   const { data, error } = await untyped
-    .from("classic_register_members")
+    .from("register_members")
     .select("register_id, user_id, role, granted_by, granted_at")
     .eq("user_id", auth.session.user.id);
   raise(error);
@@ -111,7 +111,7 @@ export async function fetchMyRegisterMemberships(): Promise<RegisterMember[]> {
 
 export async function fetchRegisterMembers(registerId: string): Promise<RegisterMember[]> {
   const { data, error } = await untyped
-    .from("classic_register_members")
+    .from("register_members")
     .select("register_id, user_id, role, granted_by, granted_at")
     .eq("register_id", registerId);
   raise(error);
@@ -120,7 +120,7 @@ export async function fetchRegisterMembers(registerId: string): Promise<Register
 
 export async function fetchRegisterRequests(registerId: string): Promise<RegisterAccessRequest[]> {
   const { data, error } = await untyped
-    .from("classic_register_access_requests")
+    .from("register_access_requests")
     .select("*")
     .eq("register_id", registerId)
     .order("created_at", { ascending: false });
@@ -137,7 +137,7 @@ export async function fetchRegisterRequests(registerId: string): Promise<Registe
  * TraineeHQ admins alone.
  */
 export async function fetchRegisterPeople(registerId: string): Promise<RegisterPerson[]> {
-  const { data, error } = await untyped.rpc("classic_register_people", { _register_id: registerId });
+  const { data, error } = await untyped.rpc("register_people", { _register_id: registerId });
   raise(error);
   return (data ?? []) as RegisterPerson[];
 }
@@ -150,7 +150,7 @@ export async function fetchRegisterPeople(registerId: string): Promise<RegisterP
  * client-side would mean reading `user_roles` for everybody.
  */
 export async function fetchCreatableDeaneries(): Promise<CreatableDeanery[]> {
-  const { data, error } = await untyped.rpc("classic_register_creatable_deaneries");
+  const { data, error } = await untyped.rpc("register_creatable_deaneries");
   raise(error);
   return (data ?? []) as CreatableDeanery[];
 }
@@ -166,7 +166,7 @@ export async function fetchCreatableDeaneries(): Promise<CreatableDeanery[]> {
 export async function fetchCreatableSpecialties(
   deaneryId: string,
 ): Promise<CreatableSpecialty[]> {
-  const { data, error } = await untyped.rpc("classic_register_creatable_specialties", {
+  const { data, error } = await untyped.rpc("register_creatable_specialties", {
     _deanery_id: deaneryId,
   });
   raise(error);
@@ -180,7 +180,7 @@ export async function fetchCreatableSpecialties(
 export async function createRegister(
   deaneryId: string, specialtyId: string, name?: string,
 ): Promise<string> {
-  const { data, error } = await untyped.rpc("create_classic_register", {
+  const { data, error } = await untyped.rpc("create_register", {
     _deanery_id: deaneryId,
     _specialty_id: specialtyId,
     _name: name?.trim() || null,
@@ -190,7 +190,7 @@ export async function createRegister(
 }
 
 export async function requestRegisterAccess(registerId: string, reason?: string): Promise<string> {
-  const { data, error } = await untyped.rpc("request_classic_register_access", {
+  const { data, error } = await untyped.rpc("request_register_access", {
     _register_id: registerId,
     _reason: reason?.trim() || null,
   });
@@ -203,7 +203,7 @@ export async function decideRegisterAccess(
   approve: boolean,
   note?: string,
 ): Promise<void> {
-  const { error } = await untyped.rpc("decide_classic_register_access", {
+  const { error } = await untyped.rpc("decide_register_access", {
     _request_id: requestId,
     _approve: approve,
     _note: note?.trim() || null,
@@ -216,7 +216,7 @@ export async function setRegisterMemberRole(
   userId: string,
   role: RegisterRole,
 ): Promise<void> {
-  const { error } = await untyped.rpc("set_classic_register_member_role", {
+  const { error } = await untyped.rpc("set_register_member_role", {
     _register_id: registerId,
     _user_id: userId,
     _role: role,
@@ -236,7 +236,7 @@ export async function inviteToRegister(
   email: string,
   role: RegisterRole = "editor",
 ): Promise<{ created: boolean; email_sent: boolean }> {
-  const { data, error } = await supabase.functions.invoke("classic-register-invite", {
+  const { data, error } = await supabase.functions.invoke("register-invite", {
     body: {
       register_id: registerId,
       email: email.trim().toLowerCase(),
@@ -253,7 +253,7 @@ export async function inviteToRegister(
 }
 
 export async function removeRegisterMember(registerId: string, userId: string): Promise<void> {
-  const { error } = await untyped.rpc("remove_classic_register_member", {
+  const { error } = await untyped.rpc("remove_register_member", {
     _register_id: registerId,
     _user_id: userId,
   });
@@ -265,7 +265,7 @@ export async function removeRegisterMember(registerId: string, userId: string): 
  * and recoverable whole until the date this returns.
  */
 export async function archiveRegister(registerId: string): Promise<string> {
-  const { data, error } = await untyped.rpc("archive_classic_register", {
+  const { data, error } = await untyped.rpc("archive_register", {
     _register_id: registerId,
   });
   raise(error);
@@ -274,7 +274,7 @@ export async function archiveRegister(registerId: string): Promise<string> {
 
 /** Take it back out again. Refused by the database once the window has closed. */
 export async function restoreRegister(registerId: string): Promise<void> {
-  const { error } = await untyped.rpc("restore_classic_register", {
+  const { error } = await untyped.rpc("restore_register", {
     _register_id: registerId,
   });
   raise(error);
@@ -287,7 +287,7 @@ export async function restoreRegister(registerId: string): Promise<void> {
  * can still genuinely be restored — the list is not a set of tombstones.
  */
 export async function fetchRegisterArchive(): Promise<ArchivedRegister[]> {
-  const { data, error } = await untyped.rpc("classic_register_archive");
+  const { data, error } = await untyped.rpc("register_archive");
   raise(error);
   return (data ?? []) as ArchivedRegister[];
 }
@@ -299,11 +299,11 @@ export async function fetchRegisterArchive(): Promise<ArchivedRegister[]> {
  * RLS ("owners delete their archived register") is the whole guard, and it
  * requires `archived_at` to be set, so this cannot reach a live register: the
  * archive is not merely the UI's idea of a first step. Every table hanging off
- * `classic_registers` does so `on delete cascade`, so one row going away takes
+ * `registers` does so `on delete cascade`, so one row going away takes
  * its entire history with it. There is no undo.
  */
 export async function deleteRegister(registerId: string): Promise<void> {
-  const { error } = await untyped.from("classic_registers").delete().eq("id", registerId);
+  const { error } = await untyped.from("registers").delete().eq("id", registerId);
   raise(error);
 }
 
@@ -320,7 +320,7 @@ export async function saveRegister(
   data: RegisterBlob,
   expectedVersion: number,
 ): Promise<number> {
-  const { data: version, error } = await untyped.rpc("save_classic_register", {
+  const { data: version, error } = await untyped.rpc("save_register", {
     _register_id: registerId,
     _data: data as unknown as Record<string, unknown>,
     _expected_version: expectedVersion,

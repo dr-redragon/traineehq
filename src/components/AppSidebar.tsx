@@ -60,10 +60,9 @@ export function AppSidebar() {
   const { data: myRegisters, isSuccess: membershipsLoaded } = useMyRegisterMemberships();
   const hasRegisters = !membershipsLoaded || (myRegisters?.length ?? 0) > 0;
 
-  // The classic register keeps its own membership table, so it is asked
-  // separately and shown on its own terms: somebody may hold a register in one
-  // system and none in the other, and while the two are being compared that is
-  // the normal state rather than a mistake.
+  // The classic register reads the same memberships as the one above — it is
+  // another way of looking at the same registers — so this answers the same
+  // question through the classic register's own hooks and cache.
   const { data: myClassicRegisters, isSuccess: classicLoaded } =
     useMyClassicRegisterMemberships();
   const hasClassicRegisters = !classicLoaded || (myClassicRegisters?.length ?? 0) > 0;

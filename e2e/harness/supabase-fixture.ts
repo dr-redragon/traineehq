@@ -227,32 +227,11 @@ const REGISTER_RPC: Record<string, unknown> = {
   register_people: PROFILES.map(({ user_id, first_name, last_name, email }) => ({ user_id, first_name, last_name, email })),
 };
 
-// The classic register: the same cohort, seen as an editor (not an owner) so
-// the preview shows what an editor gets on Users & access. Its teaching days
-// carry their live id on the blob, as classic sessions do, and one person
-// ticked in the register is missing from the live list, so the "not on the
-// live list yet" warning has something to say.
-const CLASSIC_DIRECTORY = REGISTER_DIRECTORY.map((r) => ({ ...r, i_am_owner: false }));
-const CLASSIC_STORE = {
-  ...REGISTER_STORE,
-  data: {
-    ...REGISTER_STORE.data,
-    sessions: REG_SESSIONS.map((s) => (s.id === "s-9" ? { ...s, cloudId: LIVE_SESSION.id } : s)),
-  },
-};
-const CLASSIC_ATTENDEES = REG_ATTENDEES.slice(0, -1);
-
-Object.assign(REGISTER_RPC, {
-  classic_register_directory: CLASSIC_DIRECTORY,
-  classic_register_archive: [],
-  classic_register_people: REGISTER_RPC.register_people,
-});
-
 /** What the register-api edge function answers, by action. */
 // Days are set up for check-in as the register opens; this is where they land.
 const LIVE_SESSIONS: typeof LIVE_SESSION[] = [LIVE_SESSION];
 
-function registerApi(body: { action?: string }, classic = false) {
+function registerApi(body: { action?: string }) {
   if (body.action === "create-session") {
     const b = body as Record<string, string>;
     const existing = LIVE_SESSIONS.find((l) => l.local_id === b.local_id);
@@ -269,7 +248,7 @@ function registerApi(body: { action?: string }, classic = false) {
   }
   if (body.action === "session-status") {
     return {
-      session: LIVE_SESSION, attendees: classic ? CLASSIC_ATTENDEES : REG_ATTENDEES,
+      session: LIVE_SESSION, attendees: REG_ATTENDEES,
       feedback_count: REG_FEEDBACK.length,
       email_configured: true, email_sandbox: false, email_from: "register@example.invalid",
     };
@@ -298,11 +277,6 @@ const TABLES: Record<string, unknown[]> = {
   register_access_requests: REGISTER_REQUESTS,
   register_sessions: LIVE_SESSIONS,
   register_feedback: REG_FEEDBACK,
-  classic_register_stores: [CLASSIC_STORE],
-  classic_register_members: REGISTER_MEMBERS,
-  classic_register_access_requests: REGISTER_REQUESTS,
-  classic_register_sessions: LIVE_SESSIONS,
-  classic_register_feedback: REG_FEEDBACK,
   user_roles: [{ user_id: "u-1", role: "admin" }],
   announcements: [
     { id: "a-1", title: "ARCP submissions close on 30 September", content: "Evidence uploaded after the deadline will not be seen by the panel. If you are short of a WBA, speak to your educational supervisor this week rather than on the day.", is_active: true, created_at: "2026-09-14T09:00:00Z", deanery_id: DEANERY.id },
@@ -544,8 +518,7 @@ export const supabase = {
   },
   functions: {
     invoke: (name: string, { body }: { body?: { action?: string } } = {}) =>
-      Promise.resolve({ data: name === "register-api" ? registerApi(body ?? {})
-        : name === "classic-register-api" ? registerApi(body ?? {}, true) : {}, error: null }),
+      Promise.resolve({ data: name === "register-api" ? registerApi(body ?? {}) : {}, error: null }),
   },
   channel: () => ({ on: () => ({ subscribe: () => ({}) }), subscribe: () => ({}) }),
   removeChannel: () => undefined,

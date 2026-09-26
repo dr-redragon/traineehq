@@ -7,7 +7,7 @@ import type {
 /**
  * The live teaching day: publishing it, signing in to it, and reading it back.
  *
- * Everything that writes goes through the `classic-register-api` edge function, because
+ * Everything that writes goes through the `register-api` edge function — the same one the teaching register uses, since the two share one database —, because
  * no browser role holds insert, update or delete on any of these tables. The two
  * anonymous calls carry no credential beyond the session id in the link — that
  * is the whole of a trainee's authority, and the function derives the register
@@ -15,7 +15,7 @@ import type {
  */
 
 async function callApi<T>(action: string, body: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("classic-register-api", {
+  const { data, error } = await supabase.functions.invoke("register-api", {
     body: { action, ...body },
   });
 
@@ -51,7 +51,7 @@ const untyped = supabase as unknown as {
 
 /** One session, by the id in the link. Returns null for a link that has expired. */
 export async function fetchPublicSession(sessionId: string): Promise<PublicSession | null> {
-  const { data, error } = await untyped.rpc("classic_register_public_session", { _session_id: sessionId });
+  const { data, error } = await untyped.rpc("register_public_session", { _session_id: sessionId });
   if (error) throw new Error(error.message);
   const rows = (data ?? []) as PublicSession[];
   return rows[0] ?? null;
@@ -59,7 +59,7 @@ export async function fetchPublicSession(sessionId: string): Promise<PublicSessi
 
 /** The names behind the sign-in dropdown, for that session's register. */
 export async function fetchPublicRoster(sessionId: string): Promise<PublicRoster> {
-  const { data, error } = await untyped.rpc("classic_register_public_roster", { _session_id: sessionId });
+  const { data, error } = await untyped.rpc("register_public_roster", { _session_id: sessionId });
   if (error) throw new Error(error.message);
   return (data as PublicRoster) ?? { trainees: [], sessions: [] };
 }
@@ -215,7 +215,7 @@ export async function resetFeedback(sessionId: string, attendeeId: string): Prom
 /** The published teaching days for a register. Members read these directly. */
 export async function fetchLiveSessions(registerId: string): Promise<LiveSession[]> {
   const { data, error } = await untyped
-    .from("classic_register_sessions")
+    .from("register_sessions")
     .select("id, register_id, title, session_date, location, local_id, form")
     .eq("register_id", registerId)
     .order("session_date", { ascending: false });
@@ -231,7 +231,7 @@ export async function fetchLiveSessions(registerId: string): Promise<LiveSession
  */
 export async function fetchFeedback(sessionId: string): Promise<FeedbackResponse[]> {
   const { data, error } = await untyped
-    .from("classic_register_feedback")
+    .from("register_feedback")
     .select("id, session_id, overall_rating, answers, comments, submitted_at")
     .eq("session_id", sessionId)
     .order("submitted_at", { ascending: false });

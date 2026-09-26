@@ -7,7 +7,7 @@ import type { AttendanceMark, RegisterAttendee, RegisterBlob, RegisterTrainee } 
  *
  * The two halves are recorded in different places and neither is a copy of the
  * other. A trainee who scans the QR writes an attendee row in Supabase, and
- * `classic_register_record_checkin()` writes the matching mark into the blob. An
+ * `register_record_checkin()` writes the matching mark into the blob. An
  * organiser ticking a cell in the grid writes only the blob — and until that
  * reaches Supabase, that person is invisible to the live day: not on the
  * feedback form's list, never sent a link, never issued a certificate.
