@@ -78,10 +78,10 @@ describe("useRegisterView — People sub-tabs", () => {
 
   it("keeps the part in the address", () => {
     const { result, search } = setup(useView, "/r");
-    act(() => result.current.setSection("days"));
+    act(() => result.current.setSection("status"));
     const params = new URLSearchParams(search());
     expect(params.get("tab")).toBe("people");
-    expect(params.get("section")).toBe("days");
+    expect(params.get("section")).toBe("status");
   });
 
   it("picks a day in another year and shows that year", () => {
@@ -89,6 +89,35 @@ describe("useRegisterView — People sub-tabs", () => {
     act(() => result.current.setDay("a", "2024/25"));
     expect(result.current).toMatchObject({ year: "2024/25" });
     expect(result.current.day?.id).toBe("a");
+  });
+});
+
+describe("useRegisterView — Teaching day sub-tabs", () => {
+  const useView = () => useRegisterView(sessions);
+
+  it("opens the Teaching day tab on the live day", () => {
+    expect(setup(useView, "/r?tab=day").result.current.daySection).toBe("live");
+  });
+
+  it("keeps Manage days in the address", () => {
+    const { result, search } = setup(useView, "/r");
+    act(() => result.current.setDaySection("manage"));
+    const params = new URLSearchParams(search());
+    expect(params.get("tab")).toBe("day");
+    expect(params.get("part")).toBe("manage");
+    expect(result.current.daySection).toBe("manage");
+  });
+
+  it("sends an old link to People's teaching days to Manage days", () => {
+    expect(setup(useView, "/r?tab=people&section=days").result.current)
+      .toMatchObject({ tab: "day", daySection: "manage" });
+  });
+
+  it("opens a day from the grid on the live day, even from Manage days", () => {
+    const { result } = setup(useView, "/r?tab=day&part=manage");
+    act(() => result.current.openDay("c"));
+    expect(result.current).toMatchObject({ tab: "day", daySection: "live" });
+    expect(result.current.day?.id).toBe("c");
   });
 });
 

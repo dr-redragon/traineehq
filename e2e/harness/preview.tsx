@@ -74,10 +74,10 @@ const PATHS: Record<string, string> = {
 // `&id=` swaps the row a page opens on, so a reviewer can look at any
 // specialty or board rather than only the one wired into PATHS.
 const rowId = params.get("id");
-// `&tab=`, `&year=` and `&day=` pass through to a register, whose place is
+// `&tab=`, `&year=`, `&day=`, `&section=` and `&part=` pass through to a register, whose place is
 // kept in its query string.
 const registerQuery = new URLSearchParams(
-  [...params].filter(([key]) => ["tab", "year", "day", "view", "section"].includes(key)),
+  [...params].filter(([key]) => ["tab", "year", "day", "view", "section", "part"].includes(key)),
 ).toString();
 const start = (PATHS[page] ?? PATHS.dashboard).replace(/(sp-1)$/, rowId ?? "$1")
   + ((page === "register" || page === "classic") && registerQuery ? `?${registerQuery}` : "");
