@@ -1,8 +1,7 @@
 /* Archivo is the Modernist design system's single family — it carries both the
-   heading and the body role, at 800 for headings. Manrope stays loaded because
-   the teaching register keeps its own body face (see `.register-theme`); it is
-   not used anywhere else. */
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Manrope:wght@300;400;500;600;700&display=swap');
+   heading and the body role, at 800 for headings. The teaching register is set
+   in it too, now that it wears the site's design rather than its own. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -63,10 +62,9 @@
     --primary-foreground: 0 0% 100%;
     /* The design system asks for a solid step down the ramp on hover and
        press, not the fill faded with an alpha — a translucent red over this
-       ground goes pink. They are tokens rather than ramp classes because the
-       shadcn primitives are shared with the teaching register, which points
-       with moss and clay: a `hover:bg-accent-700` baked into the Button would
-       paint TraineeHQ's red onto the register's pages. */
+       ground goes pink. They are tokens rather than ramp classes so that a
+       colour scheme can move them: a `hover:bg-accent-700` baked into the
+       Button would stay red under every scheme. */
     --primary-hover: 8 100% 34%;     /* accent-700 #ae1800 */
     --primary-active: 8 92% 25%;     /* accent-800 #7c1405 */
 
@@ -111,9 +109,7 @@
     --radius: 0rem;
 
     /* Control metrics. The design system puts a button and a field on the same
-       36px so the pair lines up in a form row. They are tokens because the
-       shadcn primitives are shared with the teaching register, which keeps the
-       taller control it has always had. */
+       36px so the pair lines up in a form row. */
     --control-h: 2.25rem;            /* 36px */
     --control-h-sm: 2rem;            /* 32px */
     --control-h-lg: 2.75rem;         /* 44px */
@@ -165,19 +161,21 @@
     --shadow-md: 0 3px 10px hsl(0 2% 17% / 0.16);
     --shadow-lg: 0 12px 32px hsl(0 2% 17% / 0.22);
 
-    /* Defaults for the teaching register's own tokens, so the utilities
-       built on them (bg-register-deep and friends) are never left pointing
-       at nothing outside the register. `.register-theme` at the foot of
-       this file is where they take on the register's colours. */
-    --register-deep: 208 73% 22%;
-    --register-deep-foreground: 0 0% 100%;
-    --register-deep-muted: 205 25% 75%;
-    --register-ink: 208 73% 28%;
-    --register-clay: 0 63% 42%;
-    --register-clay-soft: 20 60% 88%;
-    --register-clay-ink: 0 63% 28%;
-    --register-gold: 48 100% 50%;
-    --register-shadow: 0 1px 2px hsl(0 0% 0% / 0.06), 0 8px 24px hsl(0 0% 0% / 0.06);
+    /* The teaching register's own token names, kept so the utilities built on
+       them (bg-register-deep and friends) still resolve — but each is now an
+       alias of a site token rather than a colour of its own. The register
+       wears the site's design, so it follows the light/dark theme and the
+       person's accent scheme exactly as every other page does: the masthead
+       is the ink rail, and what used to point in clay points in the accent. */
+    --register-deep: var(--sidebar-background);
+    --register-deep-foreground: var(--sidebar-accent-foreground);
+    --register-deep-muted: var(--sidebar-kicker);
+    --register-ink: var(--foreground);
+    --register-clay: var(--rule-accent);
+    --register-clay-soft: var(--accent-strong);
+    --register-clay-ink: var(--accent-foreground);
+    --register-gold: var(--rule-accent);
+    --register-shadow: none;
   }
 
   /* The dark ground. Modernist ships light only, so this is derived rather
@@ -261,8 +259,7 @@
   }
 
   /* Modernist headings are Archivo at 800 with a tight line and a slight
-     negative track. The weight is a variable so the register, which sets
-     Georgia, can drop back to a weight a serif actually has. */
+     negative track. */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
     font-weight: var(--font-heading-weight);
@@ -272,8 +269,7 @@
 
   /* The design system's keyboard focus: a 2px accent ring, offset, and no
      underbar. It replaces the gov.uk yellow-and-black bar the previous
-     palette used. The register keeps its own ring (moss, 3px) further down
-     this file, so this does not reach it. */
+     palette used. */
   :focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
@@ -292,8 +288,8 @@
    These are the structural pieces the design system organises pages with —
    the strong rule, the kicker, the flush-left surface panel, the modular
    grid. They are written against the theme's variables rather than against
-   the design system's raw hexes, so inside the register they take the
-   register's own colours instead of TraineeHQ's red.
+   the design system's raw hexes, so they follow the light/dark theme and
+   the person's accent scheme.
 
    Everything else in the app is a shadcn component, and those follow the
    tokens above without needing a class here.
@@ -301,8 +297,7 @@
 @layer components {
   /* The row hover the design uses throughout — every table row, list row and
      grid cell in it tints to the accent's lightest step rather than to ink.
-     It follows the theme, so inside the register it is the register's own
-     palest accent and not TraineeHQ's pink. */
+     It follows the theme and the accent scheme. */
   .ds-row {
     transition: background-color 150ms;
     cursor: pointer;
@@ -506,10 +501,6 @@
    on a pastel ground is exactly the trap this could have fallen into.
    `--rule-accent` is held to 3:1, which is the bar for a rule or an icon.
 
-   `:not(.register-theme)` is load-bearing: the teaching register sets its
-   own accent and is excluded from the redesign, so a scheme must not reach
-   it even though both classes live on <html>.
-
    NOT in `@layer base`, and that is load-bearing rather than an oversight.
    Tailwind tree-shakes rules inside a layer whose class names it cannot find
    in the source, and these class names are never written literally anywhere —
@@ -520,7 +511,7 @@
    meant to override, which is what we want.
    ===================================================================== */
 /* Ink Rail — The design system's own red — near-mono, high contrast. */
-:root.scheme-ink:not(.register-theme) {
+:root.scheme-ink {
   --primary: 8 87% 47%;
   --primary-hover: 8 87% 39%;
   --primary-active: 8 87% 32%;
@@ -542,7 +533,7 @@
   --sidebar-kicker: 8 100% 63%;
 
 }
-:root.scheme-ink:not(.register-theme).dark {
+:root.scheme-ink.dark {
   --primary: 8 100% 55%;
   --primary-hover: 8 100% 65%;
   --primary-active: 8 100% 73%;
@@ -566,7 +557,7 @@
 }
 
 /* Blush — A soft rose. */
-:root.scheme-blush:not(.register-theme) {
+:root.scheme-blush {
   --primary: 344 62% 53%;
   --primary-hover: 344 62% 45%;
   --primary-active: 344 62% 38%;
@@ -588,7 +579,7 @@
   --sidebar-kicker: 344 82% 66.5%;
 
 }
-:root.scheme-blush:not(.register-theme).dark {
+:root.scheme-blush.dark {
   --primary: 344 77% 61%;
   --primary-hover: 344 77% 71%;
   --primary-active: 344 77% 79%;
@@ -612,7 +603,7 @@
 }
 
 /* Apricot — Warm peach. */
-:root.scheme-apricot:not(.register-theme) {
+:root.scheme-apricot {
   --primary: 24 72% 41.5%;
   --primary-hover: 24 72% 33.5%;
   --primary-active: 24 72% 26.5%;
@@ -634,7 +625,7 @@
   --sidebar-kicker: 24 92% 50%;
 
 }
-:root.scheme-apricot:not(.register-theme).dark {
+:root.scheme-apricot.dark {
   --primary: 24 87% 46.5%;
   --primary-hover: 24 87% 56.5%;
   --primary-active: 24 87% 64.5%;
@@ -658,7 +649,7 @@
 }
 
 /* Sage — Muted green. */
-:root.scheme-sage:not(.register-theme) {
+:root.scheme-sage {
   --primary: 152 42% 36%;
   --primary-hover: 152 42% 28%;
   --primary-active: 152 42% 21%;
@@ -680,7 +671,7 @@
   --sidebar-kicker: 152 62% 40.5%;
 
 }
-:root.scheme-sage:not(.register-theme).dark {
+:root.scheme-sage.dark {
   --primary: 152 57% 38.5%;
   --primary-hover: 152 57% 48.5%;
   --primary-active: 152 57% 56.5%;
@@ -704,7 +695,7 @@
 }
 
 /* Sky — Cool blue. */
-:root.scheme-sky:not(.register-theme) {
+:root.scheme-sky {
   --primary: 204 62% 42.5%;
   --primary-hover: 204 62% 34.5%;
   --primary-active: 204 62% 27.5%;
@@ -726,7 +717,7 @@
   --sidebar-kicker: 204 82% 52%;
 
 }
-:root.scheme-sky:not(.register-theme).dark {
+:root.scheme-sky.dark {
   --primary: 204 77% 48%;
   --primary-hover: 204 77% 58%;
   --primary-active: 204 77% 66%;
@@ -750,7 +741,7 @@
 }
 
 /* Lilac — Pale violet. */
-:root.scheme-lilac:not(.register-theme) {
+:root.scheme-lilac {
   --primary: 264 48% 57.5%;
   --primary-hover: 264 48% 49.5%;
   --primary-active: 264 48% 42.5%;
@@ -772,7 +763,7 @@
   --sidebar-kicker: 264 68% 70%;
 
 }
-:root.scheme-lilac:not(.register-theme).dark {
+:root.scheme-lilac.dark {
   --primary: 264 63% 66%;
   --primary-hover: 264 63% 76%;
   --primary-active: 264 63% 84%;
@@ -793,288 +784,6 @@
   --sidebar-ring: 264 68% 70%;
   --sidebar-kicker: 264 68% 70%;
 
-}
-
-/* ===================================================================== */
-/* The teaching register's own skin.                                     */
-/*                                                                       */
-/* The register is reached by direct link and stands on its own — it      */
-/* already refuses TraineeHQ's sidebar (see RegisterLayout) — so it wears */
-/* the palette of the ENT teaching register it grew out of: cream paper,  */
-/* moss green, a clay accent and a gold rule under the masthead, with     */
-/* Georgia over the sans body text.                                       */
-/*                                                                       */
-/* It is a token swap rather than a set of one-off classes, so every      */
-/* shadcn component inside the register follows without being touched.    */
-/* The class goes on <html> (see useRegisterTheme) because Radix renders  */
-/* dialogs, menus and toasts into a portal at the end of <body>: on a     */
-/* wrapper element every menu would stay TraineeHQ blue over a green      */
-/* page. The theme puts `dark` on that same element, which is why the     */
-/* dark palette below is `.register-theme.dark`.                          */
-/* ===================================================================== */
-@layer base {
-  .register-theme {
-    /* Georgia for headings, Manrope for the body: the serif headline over a
-       plain sans is the register's signature, and Manrope is close enough to
-       the Inter it uses to not be worth a second font download.
-
-       Both are pinned. TraineeHQ's own body face is now Archivo, and
-       `--font-body` was previously inherited rather than set here — leaving
-       it inherited would have quietly restyled every line of the register
-       the moment the rest of the site changed family. The heading weight is
-       pinned for the same reason: Modernist asks for 800, which Georgia
-       does not have, and asking for it would have the browser synthesise a
-       smeared faux-bold. */
-    --font-display: Georgia, "Times New Roman", serif;
-    --font-body: 'Manrope', system-ui, sans-serif;
-    --font-heading-weight: 700;
-
-    /* The register points with clay, never with TraineeHQ's red. */
-    --rule-accent: 17 54% 49%;
-
-    --background: 48 36% 95%;        /* paper     #f6f4ec */
-    --foreground: 155 22% 11%;       /* ink       #15211c */
-
-    --card: 45 100% 98%;             /* card      #fffdf7 */
-    --card-foreground: 155 22% 11%;
-
-    --popover: 45 100% 98%;
-    --popover-foreground: 155 22% 11%;
-
-    --primary: 142 26% 33%;          /* moss      #3f6b4f */
-    --primary-foreground: 45 100% 98%;
-    --primary-hover: 144 27% 26%;
-    --primary-active: 144 27% 20%;
-
-    --secondary: 70 20% 92%;         /* sage      #eef0e6 */
-    --secondary-foreground: 144 27% 24%;
-
-    --muted: 70 20% 92%;
-    /* A shade darker than the register's own #7a7568, which lands at 4.2:1 on
-       this paper. Everything secondary on the page is set in it, so it has to
-       clear 4.5. */
-    --muted-foreground: 42 8% 40%;
-
-    /* Sage, not clay. `accent` is what shadcn hovers a ghost button and a
-       menu row with; clay there would set every hover on fire. The clay is
-       kept for the things the register actually points at — the active tab
-       rule, an excused absence — under --register-clay. */
-    --accent: 70 20% 92%;
-    --accent-foreground: 144 27% 24%;
-    --accent-strong: 70 20% 85%;
-    /* Deep moss, so an outline tag or a link inside the register reads moss
-       rather than TraineeHQ red. */
-    --accent-deep: 144 27% 24%;
-
-    /* Clay, taken down far enough that white sits on it at 5:1. */
-    --destructive: 17 56% 44%;
-    --destructive-foreground: 0 0% 100%;
-    --destructive-hover: 17 56% 36%;
-
-    --border: 45 24% 80%;            /* line      #d8d2c0 */
-    --input: 45 20% 74%;
-    --ring: 142 26% 33%;
-
-    /* 12px cards, 10px buttons — the register is rounder than gov.uk-plain
-       TraineeHQ, which sits at 4px. */
-    --radius: 0.75rem;
-
-    --success: 142 26% 33%;          /* moss */
-    --success-foreground: 45 100% 98%;
-    /* The 60-80% attendance band. The register's gold reads at 2.9:1 on
-       paper, and this is a number somebody acts on, so it is darkened until
-       it is legible rather than merely decorative. */
-    --warning: 38 60% 34%;
-    --warning-foreground: 45 100% 98%;
-
-    /* The register's own five, for the parts no shadcn token names. */
-    --register-deep: 144 27% 24%;            /* masthead  #2c4d39 */
-    --register-deep-foreground: 48 36% 95%;
-    --register-deep-muted: 136 15% 76%;      /* masthead sub-label #b8cbbd */
-    --register-ink: 144 27% 24%;             /* headline green on paper */
-    --register-clay: 17 54% 49%;
-    --register-clay-soft: 24 57% 79%;        /* excused   #e8c4ac */
-    --register-clay-ink: 17 60% 28%;         /* on clay-soft */
-    --register-gold: 40 48% 47%;
-    --register-shadow: 0 1px 2px hsl(155 22% 11% / 0.06), 0 8px 24px hsl(155 22% 11% / 0.06);
-  }
-
-  .register-theme.dark {
-    --background: 155 18% 9%;
-    --foreground: 45 25% 92%;
-
-    --card: 155 14% 12%;
-    --card-foreground: 45 25% 92%;
-
-    --popover: 155 14% 12%;
-    --popover-foreground: 45 25% 92%;
-
-    --primary: 142 30% 58%;
-    --primary-foreground: 155 22% 11%;
-    --primary-hover: 142 30% 66%;
-    --primary-active: 142 30% 74%;
-
-    --secondary: 150 10% 18%;
-    --secondary-foreground: 45 25% 92%;
-
-    --muted: 150 10% 18%;
-    --muted-foreground: 45 10% 66%;
-
-    --accent: 150 12% 20%;
-    --accent-foreground: 45 25% 92%;
-    --accent-strong: 150 12% 26%;
-    --accent-deep: 142 30% 66%;
-
-    --destructive: 17 62% 56%;
-    --destructive-foreground: 155 22% 11%;
-    --destructive-hover: 17 62% 64%;
-
-    --border: 150 8% 24%;
-    --input: 150 8% 34%;
-    --ring: 142 32% 62%;
-
-    --success: 142 30% 58%;
-    --success-foreground: 155 22% 11%;
-    --warning: 40 55% 58%;
-    --warning-foreground: 155 22% 11%;
-
-    --register-deep: 155 20% 13%;
-    --register-deep-foreground: 45 25% 92%;
-    --register-deep-muted: 136 12% 62%;
-    --register-ink: 142 30% 66%;
-    --register-clay: 17 62% 62%;
-    --register-clay-soft: 20 30% 32%;
-    --register-clay-ink: 24 70% 84%;
-    --register-gold: 40 52% 55%;
-    --register-shadow: 0 1px 2px hsl(0 0% 0% / 0.3), 0 8px 24px hsl(0 0% 0% / 0.25);
-
-    --rule-accent: 17 62% 62%;
-  }
-
-  /* Cards sit off the paper rather than being drawn on it — the shadow is
-     two very soft layers, so a page of them still reads as calm.
-
-     The border is drawn here rather than inherited: TraineeHQ's cards are
-     now surface-filled and unoutlined, so the line the register has always
-     had around a card has to be put back on the register's side. */
-  .register-theme [data-slot="card"] {
-    border: 1px solid hsl(var(--border));
-    box-shadow: var(--register-shadow);
-  }
-
-  @media print {
-    .register-theme [data-slot="card"] {
-      box-shadow: none;
-    }
-  }
-
-  /* The register's focus ring: moss rather than gov.uk yellow, and without
-     the black underbar, which reads as a mistake on cream. Kept at 3px so
-     it is no less visible than the one it replaces. */
-  .register-theme :focus-visible {
-    outline: 3px solid hsl(var(--ring));
-    outline-offset: 1px;
-    box-shadow: none;
-  }
-
-  /* ------------------------------------------------------------------
-     Holding the register still.
-
-     The palette is a token swap, so the register was always going to be
-     safe from it — it sets its own tokens and everything follows. Its
-     SHAPE was not. TraineeHQ and the register share one set of shadcn
-     primitives, and Modernist changed those primitives themselves: the
-     button lost 4px and took the heading face, the tag lost its pill, the
-     tab strip lost its track for a baseline rule, the table header went
-     small and uppercase, and the separator doubled in weight. All of that
-     would have arrived in the register uninvited.
-
-     So the register puts its own shapes back. The hooks are `data-slot`
-     attributes on the primitives, the same mechanism the register already
-     used to give its cards their shadow, and the metrics that can be
-     numbers are tokens above rather than selectors here.
-
-     This block is what "excluding the teaching register" costs once the
-     two share a component library. It should be deleted, not extended,
-     when the register gets its own pass.
-     ------------------------------------------------------------------ */
-  .register-theme {
-    --control-h: 2.5rem;             /* 40px — the register's button */
-    --control-h-sm: 2.25rem;
-    --control-h-lg: 2.75rem;
-    --field-h: 2.75rem;              /* 44px — the register's field */
-  }
-
-  /* The button keeps the body face at a normal weight, and a label centred
-     in it: the flush-left label is Modernist's, not the register's. */
-  .register-theme [data-slot="button"] {
-    font-family: var(--font-body);
-    font-weight: 500;
-    justify-content: center;
-    text-align: center;
-  }
-
-  /* The tag keeps its pill. */
-  .register-theme [data-slot="badge"] {
-    border-radius: 9999px;
-    padding: 0.125rem 0.625rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: normal;
-  }
-
-  /* The tabs keep their inset track and their raised selected pill, rather
-     than sitting flush on a rule. */
-  .register-theme [data-slot="tabs-list"] {
-    height: 2.5rem;
-    gap: 0;
-    border-bottom: 0;
-    border-radius: var(--radius);
-    background: hsl(var(--muted));
-    padding: 0.25rem;
-  }
-  .register-theme [data-slot="tabs-trigger"] {
-    margin-bottom: 0;
-    border-bottom: 0;
-    border-radius: max(0px, calc(var(--radius) - 4px));
-    font-family: var(--font-body);
-    font-weight: 500;
-    padding: 0.375rem 0.75rem;
-  }
-  .register-theme [data-slot="tabs-trigger"][data-state="active"] {
-    background: hsl(var(--background));
-    box-shadow: var(--shadow-sm);
-  }
-
-  /* The table keeps its roomier rows and its sentence-case header. */
-  .register-theme [data-slot="table-head"] {
-    height: 3rem;
-    padding: 0 1rem;
-    font-size: 0.875rem;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: normal;
-  }
-  .register-theme [data-slot="table-cell"] {
-    padding: 1rem;
-  }
-
-  /* The field keeps the heavier rule and the paper behind it, rather than
-     the single rule and inset surface Modernist gives it. */
-  .register-theme [data-slot="input"],
-  .register-theme [data-slot="textarea"] {
-    border-width: 2px;
-    border-radius: max(0px, calc(var(--radius) - 4px));
-    background: hsl(var(--background));
-  }
-
-  /* And the separator stays a hairline. */
-  .register-theme [data-slot="separator"][data-orientation="horizontal"] {
-    height: 1px;
-  }
-  .register-theme [data-slot="separator"][data-orientation="vertical"] {
-    width: 1px;
-  }
 }
 
 /* ---------------------------------------------------------------------------

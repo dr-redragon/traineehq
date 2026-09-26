@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { RegisterMasthead } from "@/components/register/RegisterMasthead";
-import { useRegisterTheme } from "@/hooks/useRegisterTheme";
 import { cn } from "@/lib/utils";
 
 /**
@@ -21,7 +20,6 @@ export function RegisterPageShell({
   /** Where the mark goes, for the pages whose visitor is signed in. */
   href?: string;
 }) {
-  useRegisterTheme();
 
   return (
     <div className="flex min-h-screen flex-col bg-background">

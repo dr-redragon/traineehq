@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,12 +16,25 @@ import type { RegisterBlob, RegisterSession } from "@/lib/register/types";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import { cn } from "@/lib/utils";
 
-/** The colour bands the original register used: 80 and 60 per cent. */
-function pctClass(pct: number | null) {
-  if (pct === null) return "text-muted-foreground";
-  if (pct >= 80) return "text-success";
-  if (pct >= 60) return "text-warning";
-  return "text-destructive";
+/**
+ * How an adjusted figure is drawn, in the register's two bands: 80 and 60 per
+ * cent. At or above 80 it is plain ink. Between 60 and 80 it takes the accent
+ * at text weight on a pale tint. Below 60 it is a solid accent flag — something
+ * you can see across a room. The bar under it runs to the figure, with a tick
+ * at the 80% expectation. Every colour is a token, so the bands follow the
+ * person's colour scheme.
+ */
+function adjustedBand(pct: number | null) {
+  if (pct === null) return { chip: "text-muted-foreground", bar: "bg-transparent" };
+  if (pct >= 80) return { chip: "text-foreground", bar: "bg-foreground" };
+  if (pct >= 60) return { chip: "bg-accent text-accent-deep", bar: "bg-rule/60" };
+  return { chip: "bg-primary text-primary-foreground", bar: "bg-rule" };
+}
+
+/** A teaching day's header on two short lines — "18 Nov" over "2026" — so its column stays narrow. */
+function whenLines(s: RegisterSession): [string, string] {
+  const parts = sessionWhen(s).split(" ");
+  return parts.length > 1 ? [parts.slice(0, -1).join(" "), parts[parts.length - 1]] : [parts[0], ""];
 }
 
 /** The filter and sort a grid is shown with, when its parent owns them. */
@@ -35,6 +47,7 @@ export interface GridOptions {
 
 export function AttendanceGrid({
   blob, sessions, onEdit, canEdit, onToggle, options, onSort, bare = false, emptyMessage,
+  selectedSessionId, onSelectSession,
 }: {
   blob: RegisterBlob;
   sessions: RegisterSession[];
@@ -56,6 +69,10 @@ export function AttendanceGrid({
   /** Just the table: no search row, legend or footnote. */
   bare?: boolean;
   emptyMessage?: string;
+  /** The teaching day whose column is lit up, and whose details are open beside the grid. */
+  selectedSessionId?: string | null;
+  /** Given, each teaching day's header becomes a button that picks that day. */
+  onSelectSession?: (sessionId: string) => void;
 }) {
   const [ownSearch, setSearch] = useState("");
   const [ownHide, setHideNotInProgramme] = useState(true);
@@ -133,30 +150,66 @@ export function AttendanceGrid({
       )}
 
       {/* A register can run a dozen teaching days; the table scrolls inside its
-          own box rather than pushing the page sideways on a phone. */}
-      <div className="overflow-x-auto rounded-lg border bg-card shadow-register">
-        <table className="w-full min-w-[640px] border-collapse text-sm">
+          own box rather than pushing the page sideways on a phone. It sits on
+          the page itself rather than in a card: a strong rule over the header,
+          hairlines between rows, and nothing else — the grid does the
+          organising. */}
+      <div className="overflow-x-auto border-t-2 border-foreground">
+        <table className="w-full min-w-[560px] border-collapse font-body text-sm">
           <thead>
-            <tr className="border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-register-ink [&_th]:font-bold">
+            <tr className="border-b border-border text-left align-bottom text-[11px] uppercase tracking-[0.1em] text-muted-foreground [&_th]:font-bold">
               <th
-                className="sticky left-0 z-10 cursor-pointer bg-muted px-3 py-2.5"
+                // `w-full` hands every spare pixel to the name column, so the
+                // day columns stay tight however wide the page is.
+                className="sticky left-0 z-10 w-full cursor-pointer bg-background py-2 pl-2 pr-3"
                 onClick={() => sortBy("name")}
               >
                 Trainee <SortIcon k="name" />
               </th>
-              <th className="px-2 py-2.5">Status</th>
-              {sessions.map((s) => (
-                <th key={s.id} className="px-1 py-2.5 text-center" title={s.title}>
-                  {sessionWhen(s).replace(/ /g, "\u00a0")}
-                </th>
-              ))}
-              <th className="cursor-pointer px-2 py-2.5 text-right" onClick={() => sortBy("att")}>
+              <th className="whitespace-nowrap px-1 py-2">Status</th>
+              {sessions.map((s) => {
+                const [top, bottom] = whenLines(s);
+                const picked = s.id === selectedSessionId;
+                const label = (
+                  <span className="flex flex-col items-center leading-tight">
+                    <span className="whitespace-nowrap">{top}</span>
+                    {bottom && (
+                      <span className={cn("font-normal", picked ? "opacity-80" : "text-muted-foreground/80")}>
+                        {bottom}
+                      </span>
+                    )}
+                  </span>
+                );
+                return (
+                  <th key={s.id} className="min-w-[44px] p-0 text-center" title={s.title}>
+                    {onSelectSession ? (
+                      <button
+                        type="button"
+                        aria-pressed={picked}
+                        aria-label={`${s.title} (${sessionWhen(s)}) — show this teaching day`}
+                        onClick={() => onSelectSession(s.id)}
+                        className={cn(
+                          "flex w-full justify-center px-0.5 py-2 text-[10.5px] font-bold normal-case tracking-normal transition-colors",
+                          picked
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ) : (
+                      <span className="flex justify-center px-0.5 py-2 text-[10.5px] normal-case tracking-normal">{label}</span>
+                    )}
+                  </th>
+                );
+              })}
+              <th className="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onClick={() => sortBy("att")}>
                 Att/Elig <SortIcon k="att" />
               </th>
-              <th className="cursor-pointer px-2 py-2.5 text-right" onClick={() => sortBy("raw")}>
+              <th className="cursor-pointer whitespace-nowrap px-2 py-2 text-right" onClick={() => sortBy("raw")}>
                 Raw <SortIcon k="raw" />
               </th>
-              <th className="cursor-pointer px-3 py-2.5 text-right" onClick={() => sortBy("adj")}>
+              <th className="w-[150px] cursor-pointer whitespace-nowrap py-2 pl-3 pr-2 text-right" onClick={() => sortBy("adj")}>
                 Adjusted <SortIcon k="adj" />
               </th>
             </tr>
@@ -167,36 +220,45 @@ export function AttendanceGrid({
               const status = activeStatusType(
                 blob, row.trainee.id, sessions[sessions.length - 1]?.month,
               );
+              const band = adjustedBand(row.adjPct);
 
               return (
-                <tr key={row.trainee.id} className="border-b last:border-0 hover:bg-muted/40">
-                  <td className="sticky left-0 z-10 bg-card px-3 py-1.5 font-medium">
-                    <span className="block max-w-[180px] truncate">{row.trainee.name}</span>
-                    {row.trainee.grade && (
-                      <span className="text-[11px] font-normal text-muted-foreground">
-                        {row.trainee.grade}
+                <tr key={row.trainee.id} className="group border-b border-border/60 transition-colors hover:bg-accent">
+                  <td className="sticky left-0 z-10 bg-background py-1 pl-2 pr-3 transition-colors group-hover:bg-accent">
+                    {/* Name and grade on one line: half the height of a row
+                        that stacks them, which is most of what makes the grid
+                        compact. */}
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span className="max-w-[180px] truncate text-[14px] font-semibold">
+                        {row.trainee.name}
                       </span>
-                    )}
+                      {row.trainee.grade && (
+                        <span className="shrink-0 text-[11.5px] text-muted-foreground">
+                          {row.trainee.grade}
+                        </span>
+                      )}
+                    </span>
                   </td>
 
-                  <td className="px-2 py-1.5">
+                  <td className="px-1 py-1">
                     {status && (
                       // The specific status, and the dates behind it on hover:
                       // "Leave" for both maternity and out-of-programme would
-                      // hide a difference that matters at an ARCP.
-                      <Badge
-                        variant="secondary"
-                        className="whitespace-nowrap text-[10px]"
+                      // hide a difference that matters at an ARCP. A small
+                      // square tag, so the column costs no more than it needs.
+                      <span
+                        className="inline-block whitespace-nowrap bg-muted px-1.5 py-px text-[10px] font-bold uppercase tracking-[0.04em] text-muted-foreground"
                         title={statusRangeText(status)}
                       >
                         {STATUS_SHORT[status.type]}
-                      </Badge>
+                      </span>
                     )}
                   </td>
 
                   {row.cells.map((cell) => {
                     const key = attendanceKey(row.trainee.id, cell.session.id);
                     const open = openCell?.key === key;
+                    const picked = cell.session.id === selectedSessionId;
                     const grade = gradeAt(blob, row.trainee.id, cell.session.id);
                     // "Not eligible" is a derived fact, not a mark — it comes
                     // from a status window, so it is changed there, not here.
@@ -238,9 +300,10 @@ export function AttendanceGrid({
                         title={described}
                         aria-label={described}
                         className={cn(
-                          "h-7 w-7 rounded text-xs font-semibold transition-colors",
+                          "inline-flex h-[26px] w-[26px] items-center justify-center text-xs font-bold transition-colors",
+                          "hover:outline hover:outline-2 hover:outline-offset-1 hover:outline-rule",
                           CELL[cell.state],
-                          !editable && "cursor-default",
+                          !editable && "cursor-default hover:outline-none",
                         )}
                       >
                         {CELL_MARK[cell.state]}
@@ -248,7 +311,10 @@ export function AttendanceGrid({
                     );
 
                     return (
-                      <td key={cell.session.id} className="px-1 py-1.5 text-center">
+                      <td
+                        key={cell.session.id}
+                        className={cn("px-0.5 py-1 text-center", picked && "bg-accent-strong")}
+                      >
                         {mark}
                         {open && openCell && (
                           <AttendanceCellPopover
@@ -269,14 +335,35 @@ export function AttendanceGrid({
                     );
                   })}
 
-                  <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">
+                  <td className="px-2 py-1 text-right text-[13px] tabular-nums text-muted-foreground">
                     {row.attended}/{row.adjDenom > 0 ? row.adjDenom : row.eligible}
                   </td>
-                  <td className={cn("px-2 py-1.5 text-right tabular-nums", pctClass(row.total ? row.rawPct : null))}>
+                  <td className="px-2 py-1 text-right text-[13px] tabular-nums text-muted-foreground">
                     {row.total ? `${row.rawPct}%` : "—"}
                   </td>
-                  <td className={cn("px-3 py-1.5 text-right font-semibold tabular-nums", pctClass(row.adjPct))}>
-                    {row.adjPct === null ? "—" : `${row.adjPct}%`}
+                  <td className="py-1 pl-3 pr-2">
+                    <div className="flex items-center justify-end gap-2.5">
+                      {/* The bar tracks the adjusted figure; the ink tick is the
+                          80% every trainee is expected to reach. */}
+                      <div
+                        aria-hidden="true"
+                        className="relative h-1.5 w-16 shrink-0 bg-foreground/15"
+                      >
+                        <div
+                          className={cn("absolute inset-y-0 left-0", band.bar)}
+                          style={{ width: `${row.adjPct ?? 0}%` }}
+                        />
+                        <div className="absolute -inset-y-[3px] left-[80%] w-0.5 bg-foreground" />
+                      </div>
+                      <span
+                        className={cn(
+                          "min-w-[46px] px-1.5 py-0.5 text-right text-[13.5px] font-extrabold tabular-nums",
+                          band.chip,
+                        )}
+                      >
+                        {row.adjPct === null ? "—" : `${row.adjPct}%`}
+                      </span>
+                    </div>
                   </td>
                 </tr>
               );
@@ -304,13 +391,13 @@ export function AttendanceGrid({
 export function AttendanceLegend() {
   return (
     <>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+      <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-[12px] text-muted-foreground">
         {(["present", "excused", "absent", "na", "upcoming"] as const).map((state) => (
-          <span key={state} className="inline-flex items-center gap-1.5">
+          <span key={state} className="inline-flex items-center gap-2">
             <span
               aria-hidden="true"
               className={cn(
-                "inline-flex h-4 w-4 items-center justify-center rounded text-[10px] font-semibold",
+                "inline-flex h-[18px] w-[18px] items-center justify-center text-[11px] font-bold",
                 CELL[state],
               )}
             >
@@ -324,6 +411,7 @@ export function AttendanceLegend() {
         <strong>Adjusted</strong> drops months a trainee was not in programme, then excused
         absences, from the denominator. <strong>Raw</strong> counts every teaching day in the
         year. An adjusted figure of “—” means none of these days were ever theirs to attend.
+        The tick on each bar marks the 80% expectation.
       </p>
     </>
   );

@@ -37,7 +37,13 @@ export function PeoplePanel({
 
   return (
     <div className="space-y-5">
-      <div role="tablist" aria-label="People" className="flex flex-wrap gap-1.5">
+      {/* The same ruled segmented control as the academic-year picker, so the
+          register has one look for "pick one of these". */}
+      <div
+        role="tablist"
+        aria-label="People"
+        className="inline-flex max-w-full flex-wrap border-2 border-foreground"
+      >
         {SECTIONS.map(([id, label]) => {
           const on = view.section === id;
           return (
@@ -48,14 +54,14 @@ export function PeoplePanel({
               aria-selected={on}
               onClick={() => view.setSection(id)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                "inline-flex h-8 select-none touch-manipulation items-center gap-1.5 px-3 text-[13px] transition-colors",
                 on
-                  ? "border-register-ink bg-register-ink text-white"
-                  : "text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                  ? "bg-foreground font-bold text-background"
+                  : "font-normal text-foreground hover:bg-accent",
               )}
             >
               {label}
-              <span className={cn("tabular-nums", on ? "text-white/70" : "text-muted-foreground/70")}>
+              <span className={cn("tabular-nums", on ? "opacity-70" : "text-muted-foreground")}>
                 {counts[id]}
               </span>
             </button>

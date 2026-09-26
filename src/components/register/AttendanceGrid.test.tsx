@@ -187,3 +187,35 @@ describe("AttendanceGrid cells", () => {
     expect(onEdit).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * A teaching day's column header opens that day beside the grid. It is a
+ * button only when the parent can show the day, and it says which day is open
+ * with `aria-pressed` rather than only a fill colour.
+ */
+describe("AttendanceGrid teaching-day headers", () => {
+  it("picks the teaching day whose header is pressed, and marks it as the open one", () => {
+    const onSelectSession = vi.fn();
+    const { rerender } = render(
+      <AttendanceGrid blob={blob} sessions={[february]} onEdit={vi.fn()} canEdit
+        onSelectSession={onSelectSession} selectedSessionId={null} />,
+    );
+    const header = screen.getByRole("button", { name: /February teaching .* show this teaching day/ });
+    expect(header).toHaveAttribute("aria-pressed", "false");
+
+    fireEvent.click(header);
+    expect(onSelectSession).toHaveBeenCalledWith("s1");
+
+    rerender(
+      <AttendanceGrid blob={blob} sessions={[february]} onEdit={vi.fn()} canEdit
+        onSelectSession={onSelectSession} selectedSessionId="s1" />,
+    );
+    expect(screen.getByRole("button", { name: /show this teaching day/ }))
+      .toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("leaves the header as plain text when there is nowhere to show the day", () => {
+    grid();
+    expect(screen.queryByRole("button", { name: /show this teaching day/ })).toBeNull();
+  });
+});

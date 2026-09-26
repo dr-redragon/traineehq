@@ -321,15 +321,18 @@ function DeleteRegisterSection({ register }: { register: RegisterDirectoryEntry 
 
   return (
     <section className="space-y-3">
-      <h2 className="text-sm font-semibold text-destructive">Delete this register</h2>
-      <Card className="border-destructive/40">
+      {/* Red whatever colour scheme is chosen: the schemes move the site's
+          "destructive" colour with the accent, and deleting a register has to
+          look like danger even when the accent is sky or sage. */}
+      <h2 className="text-sm font-semibold text-accent-700 dark:text-accent-400">Delete this register</h2>
+      <Card className="border border-accent-600/40">
         <CardContent className="flex flex-wrap items-center gap-3 p-4">
           <p className="min-w-[240px] flex-1 text-sm text-muted-foreground">
             Takes {register.name} away from every member, with its trainees, teaching days,
             attendance and feedback. It waits in the archive on the register list for 15 days
             and can be restored whole until then; after that it is deleted permanently.
           </p>
-          <Button variant="destructive" size="sm" className="w-full sm:w-auto"
+          <Button size="sm" className="w-full bg-accent-600 text-white hover:bg-accent-700 active:bg-accent-800 sm:w-auto"
             onClick={() => setConfirming(true)}>
             <Archive className="mr-1.5 h-3.5 w-3.5" /> Delete register
           </Button>
@@ -349,7 +352,7 @@ function DeleteRegisterSection({ register }: { register: RegisterDirectoryEntry 
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-accent-600 text-white hover:bg-accent-700 active:bg-accent-800"
               disabled={archive.isPending}
               onClick={(e) => { e.preventDefault(); confirm(); }}
             >

@@ -105,9 +105,19 @@ export function useRegisterView(allSessions: RegisterSession[]) {
     [patch],
   );
 
+  /**
+   * Open one teaching day on the Teaching day tab — the attendance grid's way
+   * across. One navigation, so the tab and the day cannot land half-way.
+   */
+  const openDay = useCallback(
+    (id: string, inYear?: string) =>
+      patch({ tab: "day", view: null, day: id, ...(inYear ? { year: inYear } : {}) }, { push: true }),
+    [patch],
+  );
+
   return {
     tab, setTab, showReport, setShowReport, section, setSection,
-    years, year, setYear, sessions, day, setDay,
+    years, year, setYear, sessions, day, setDay, openDay,
   };
 }
 

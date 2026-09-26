@@ -9,7 +9,6 @@ import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { safeDestination } from "@/lib/safeDestination";
 import { RegisterMasthead } from "@/components/register/RegisterMasthead";
-import { useRegisterTheme } from "@/hooks/useRegisterTheme";
 
 /** Where to land once signed in, when nothing better was asked for. */
 const DEFAULT_DESTINATION = "/registers";
@@ -33,7 +32,6 @@ export default function RegisterSignIn() {
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  useRegisterTheme();
 
   // Where the guard was sending them before it found no session.
   const destination = safeDestination(

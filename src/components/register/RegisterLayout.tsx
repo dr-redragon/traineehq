@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useRegister } from "@/contexts/RegisterContext";
-import { useRegisterTheme } from "@/hooks/useRegisterTheme";
 import { RegisterMasthead } from "@/components/register/RegisterMasthead";
 
 /**
@@ -16,15 +15,13 @@ import { RegisterMasthead } from "@/components/register/RegisterMasthead";
  * panel — which is exactly why this is a separate route tree rather than a tab
  * inside `/admin`.
  *
- * Having its own shell, it wears its own colours too: `useRegisterTheme` swaps
- * the palette to the register's cream-and-moss for as long as one of these
- * pages is up.
+ * Its own shell, but not its own colours: it wears the site's design, so the
+ * light/dark theme and the person's accent scheme reach it like any other page.
  */
 export function RegisterLayout() {
   const { activeRegister, myRegisters, setActiveRegisterSlug } = useRegister();
   const navigate = useNavigate();
   const { search } = useLocation();
-  useRegisterTheme();
 
   /**
    * Switching register opens it. The tab comes along — somebody on the
@@ -105,12 +102,12 @@ export function RegisterLayout() {
         }
       />
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:py-8">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8">
         <Outlet />
       </main>
 
       <footer className="border-t py-4 print:hidden">
-        <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 text-xs text-muted-foreground">
+        <div className="mx-auto flex max-w-7xl items-center gap-2 px-4 text-xs text-muted-foreground">
           <BookOpen className="h-3.5 w-3.5" />
           Attendance registers for specialty teaching programmes.
         </div>
