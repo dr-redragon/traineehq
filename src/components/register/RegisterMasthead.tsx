@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import logoWhite from "@/assets/logo-white.png";
 
 /**
- * The bar every register page opens with: deep moss, a gold rule under it, and
- * the name set in the serif the rest of the register uses for its headings.
+ * The bar every register page opens with: the site's ink rail turned on its
+ * side, with an accent rule under it and the name set in the heading face. Its
+ * colours are the site's tokens, so it follows the theme and accent scheme.
  *
  * It is shared by the signed-in shell and by the three pages that sit outside
  * it — sign-in, check-in and feedback. A trainee scanning a QR code at a
@@ -25,10 +26,10 @@ export function RegisterMasthead({
     <>
       <img src={logoWhite} alt="" className="h-9 w-9 shrink-0" />
       <span className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <span className="font-display text-2xl font-bold leading-none tracking-tight">
+        <span className="font-display text-2xl font-extrabold leading-none tracking-[-0.02em]">
           The Register
         </span>
-        <span className="text-[11px] font-semibold uppercase tracking-[0.22em] text-register-deep-muted">
+        <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-register-deep-muted">
           Teaching attendance
         </span>
       </span>
@@ -36,8 +37,8 @@ export function RegisterMasthead({
   );
 
   return (
-    <header className="border-b-[3px] border-register-gold bg-register-deep text-register-deep-foreground print:hidden">
-      <div className="mx-auto max-w-6xl px-4 py-4">
+    <header className="border-b-4 border-register-gold bg-register-deep text-register-deep-foreground print:hidden">
+      <div className="mx-auto max-w-7xl px-4 py-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {href ? (
             <Link

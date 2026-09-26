@@ -6,13 +6,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { AttendanceGrid, AttendanceLegend, type GridOptions } from "@/components/register/AttendanceGrid";
+import { SessionSidePanel } from "@/components/register/SessionSidePanel";
 import { YearTabs } from "@/components/register/YearTabs";
 import { latestGrade } from "@/lib/register/attendance";
-import { academicYearRange, ALL_YEARS, sessionsInYear, sessionWhen, todayIso } from "@/lib/register/months";
+import {
+  academicYearOf, academicYearRange, ALL_YEARS, sessionsInYear, sessionWhen, todayIso,
+} from "@/lib/register/months";
 import { computeRows, type SortKey } from "@/lib/register/report";
 import type { RegisterView } from "@/hooks/useRegisterView";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
-import type { RegisterBlob } from "@/lib/register/types";
+import type { RegisterBlob, RegisterDirectoryEntry } from "@/lib/register/types";
 import { cn } from "@/lib/utils";
 
 const CSV_STATE = {
@@ -32,12 +35,17 @@ const csvCell = (value: string | number) => {
  * the register's history — which is what the classic register does, and what
  * keeps a register with several years of teaching days readable. All of the
  * tables answer to one search box, one filter and one sort.
+ *
+ * A teaching day's column header opens that day in a panel beside the grid:
+ * its turnout, who missed it without a reason, and the actions that follow.
  */
 export function AttendancePanel({
-  blob, slug, view, onEdit, onToggle,
+  blob, slug, register, view, onEdit, onToggle,
 }: {
   blob: RegisterBlob;
   slug: string;
+  /** The register itself, for the day panel's chaser and feedback. */
+  register?: RegisterDirectoryEntry;
   view: RegisterView;
   onEdit: (edit: RegisterEdit) => void;
   onToggle: (traineeId: string, sessionId: string, nowPresent: boolean) => void;
@@ -53,6 +61,13 @@ export function AttendancePanel({
   }));
 
   const { years, year, sessions } = view;
+
+  // The teaching day open beside the grid. Its own state rather than the
+  // shared ?day=, which always names some day: the panel is opened by a click
+  // and shut by one, and a day outside the year on screen closes it.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = sessions.find((s) => s.id === selectedId) ?? null;
+  const toggleSession = (id: string) => setSelectedId((cur) => (cur === id ? null : id));
   const scopeLabel = year === ALL_YEARS ? "All years" : year;
 
   // One block per year under "All years", newest first; otherwise just the one.
@@ -115,16 +130,21 @@ export function AttendancePanel({
     <div className="space-y-4">
       <YearTabs years={years} value={year} onChange={view.setYear} />
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      {/* The headline figures as one ruled strip: equal cells, a strong rule
+          above and below, the numbers set large in the heading face. */}
+      <div className="grid grid-cols-2 border-y-2 border-foreground sm:grid-cols-3 lg:grid-cols-6">
         {tiles.map(([label, value, accent]) => (
-          <div key={label} className="rounded-lg border border-border bg-card px-3 py-2.5 shadow-register">
+          <div
+            key={label}
+            className="space-y-1 border-b border-r border-border px-4 py-3 last:border-r-0 lg:border-b-0"
+          >
             <p className={cn(
-              "font-display text-xl font-bold tabular-nums",
-              accent && Number(value) > 0 ? "text-destructive" : "text-register-ink",
+              "font-display text-[26px] font-extrabold leading-none tabular-nums",
+              accent && Number(value) > 0 ? "text-primary" : "text-foreground",
             )}>
               {value}
             </p>
-            <p className="mt-0.5 text-[11px] uppercase tracking-wider text-muted-foreground">{label}</p>
+            <p className="text-[11px] uppercase tracking-[0.1em] text-muted-foreground">{label}</p>
           </div>
         ))}
       </div>
@@ -157,31 +177,51 @@ export function AttendancePanel({
         </div>
       </div>
 
-      {blocks.map((block) => (
-        <section key={block.label ?? "one"} className="space-y-2">
-          {block.label && (
-            <div className="flex flex-wrap items-baseline gap-x-3 pt-2">
-              <h3 className="font-display text-base font-bold">{block.label}</h3>
-              <span className="text-xs text-muted-foreground">
-                {academicYearRange(block.label)} · {block.sessions.length}{" "}
-                {block.sessions.length === 1 ? "teaching day" : "teaching days"}
-              </span>
-            </div>
-          )}
-          <AttendanceGrid
-            blob={blob}
-            sessions={block.sessions}
-            onEdit={onEdit}
-            canEdit
-            onToggle={onToggle}
-            options={options}
-            onSort={sortBy}
-            bare
-          />
-        </section>
-      ))}
+      <div className={cn("grid items-start gap-6", selected && "xl:grid-cols-[minmax(0,1fr)_300px]")}>
+        <div className="min-w-0 space-y-4">
+          {blocks.map((block) => (
+            <section key={block.label ?? "one"} className="space-y-2">
+              {block.label && (
+                <div className="flex flex-wrap items-baseline gap-x-3 pt-2">
+                  <h3 className="font-display text-lg font-extrabold">{block.label}</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {academicYearRange(block.label)} · {block.sessions.length}{" "}
+                    {block.sessions.length === 1 ? "teaching day" : "teaching days"}
+                  </span>
+                </div>
+              )}
+              <AttendanceGrid
+                blob={blob}
+                sessions={block.sessions}
+                onEdit={onEdit}
+                canEdit
+                onToggle={onToggle}
+                options={options}
+                onSort={sortBy}
+                bare
+                selectedSessionId={selected?.id ?? null}
+                onSelectSession={toggleSession}
+              />
+            </section>
+          ))}
 
-      <AttendanceLegend />
+          <AttendanceLegend />
+        </div>
+
+        {selected && (
+          // First on a narrow screen, so it opens right above the grid whose
+          // header was pressed rather than somewhere below the legend.
+          <div className="order-first xl:order-none">
+            <SessionSidePanel
+              blob={blob}
+              session={selected}
+              register={register}
+              onOpenDay={() => view.openDay(selected.id, academicYearOf(selected.month))}
+              onClose={() => setSelectedId(null)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

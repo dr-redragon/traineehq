@@ -27,8 +27,7 @@ export default {
     },
     extend: {
       // Read through the CSS variables rather than naming the families here,
-      // so a scoped palette can swap them: the teaching register sets
-      // --font-display to Georgia and everything under `font-display` follows.
+      // so a scoped palette can swap them.
       fontFamily: {
         display: ["var(--font-display)", "Sora", "sans-serif"],
         body: ["var(--font-body)", "Manrope", "sans-serif"],
@@ -68,7 +67,7 @@ export default {
           // Theme-aware, unlike the numbered steps below: `strong` is the
           // pressed state of an accent tint and `deep` is the accent at text
           // weight. The shared primitives use these, so they follow the
-          // register's moss and clay instead of painting it red.
+          // person's accent scheme instead of painting everything red.
           strong: "hsl(var(--accent-strong))",
           deep: "hsl(var(--accent-deep))",
           100: "#fff2ef",
@@ -83,7 +82,7 @@ export default {
         },
         // The accent at full strength — what the design system actually runs
         // red: the active rail marker, a leading section rule, a kicker. It
-        // follows the scoped theme, so inside the register it is clay.
+        // follows the accent scheme.
         rule: "hsl(var(--rule-accent))",
         ink: {
           100: "#f8f4f4",
@@ -124,9 +123,9 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
-        // The teaching register's own accents — the deep masthead, the gold
-        // rule under it, and the clay it points with. See `.register-theme`
-        // in index.css.
+        // The teaching register's accent names — the deep masthead, the rule
+        // under it, and the colour it points with. Each is an alias of a site
+        // token (see index.css), so the register follows the theme and scheme.
         register: {
           deep: "hsl(var(--register-deep))",
           "deep-foreground": "hsl(var(--register-deep-foreground))",

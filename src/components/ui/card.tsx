@@ -4,13 +4,11 @@ import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
   // `data-slot` so a scoped theme can reach every card at once without each
-  // caller passing a class: the teaching register uses it to give its cards
-  // their soft lifted shadow (see `.register-theme` in index.css).
+  // caller passing a class.
   //
   // Modernist cards are surface-filled and unoutlined — the tonal step off
   // the ground is the whole of the separation, and the border is dropped so
-  // a page of cards does not read as a page of boxes. The register adds its
-  // own border and shadow back through that same `data-slot`.
+  // a page of cards does not read as a page of boxes.
   <div
     ref={ref}
     data-slot="card"

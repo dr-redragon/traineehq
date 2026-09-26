@@ -22,20 +22,20 @@ import { useCurrentUser } from "@/hooks/useUserRole";
 import { ALL_YEARS } from "@/lib/register/months";
 
 /**
- * A tab in the register's own idiom: a plain label that gains a clay rule when
- * it is the one you are on, rather than shadcn's pill in a tray. The rule is
- * three pixels of a colour used nowhere else on the page, so which panel is
- * open reads at a glance from across a lecture theatre.
+ * A tab on the ruled strip: a plain label that turns bold and takes a thick
+ * accent rule when it is the one you are on. The rule is the accent at full
+ * strength, so which panel is open reads at a glance from across a lecture
+ * theatre, and it follows the person's colour scheme like the rest of the site.
  */
 function RegisterTab({ value, children }: { value: RegisterTabId; children: ReactNode }) {
   return (
     <TabsTrigger
       value={value}
       className={cn(
-        "rounded-none border-b-[3px] border-transparent bg-transparent px-3 py-3 text-[13px]",
-        "font-semibold text-muted-foreground shadow-none transition-colors hover:text-foreground",
-        "data-[state=active]:border-register-clay data-[state=active]:bg-transparent",
-        "data-[state=active]:text-register-ink data-[state=active]:shadow-none",
+        "rounded-none border-b-4 border-transparent bg-transparent px-4 pb-2 pt-3 first:pl-0",
+        "font-body text-[13.5px] font-medium text-muted-foreground shadow-none transition-colors",
+        "hover:text-foreground data-[state=active]:border-rule data-[state=active]:bg-transparent",
+        "data-[state=active]:font-bold data-[state=active]:text-foreground data-[state=active]:shadow-none",
       )}
     >
       {children}
@@ -139,10 +139,13 @@ export default function RegisterDetail() {
   return (
     <div className="space-y-5">
       <div className="print:hidden">
-        <h1 className="font-display text-xl font-bold tracking-tight sm:text-2xl">
+        <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-accent-deep">
+          Teaching register
+        </p>
+        <h1 className="mt-1.5 font-display text-3xl font-extrabold leading-none tracking-[-0.03em] sm:text-[42px]">
           {entry.specialty_name}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-2 text-[13px] text-muted-foreground">
           {entry.deanery_name} · {entry.member_count}{" "}
           {entry.member_count === 1 ? "member" : "members"}
           {isSaving && (
@@ -157,13 +160,15 @@ export default function RegisterDetail() {
         <Skeleton className="h-64 w-full" />
       ) : (
         <Tabs value={view.tab} onValueChange={(v) => view.setTab(v as RegisterTabId)}>
-          {/* Scrolls rather than wrapping or shrinking on a phone, and sticky, so
+          {/* Scrolls sideways only (the tabs' pulled-down rule would otherwise
+              give it a sliver of vertical scroll too) rather than wrapping or
+              shrinking on a phone, and sticky, so
               the masthead scrolls away but the way between panels does not.
               Bled to the edges so the rule under the row reaches them. */}
           <TabsList
             className={cn(
-              "sticky top-0 z-20 -mx-4 flex h-auto w-full justify-start gap-1 overflow-x-auto",
-              "rounded-none border-b border-border bg-background px-4 py-0 print:hidden",
+              "sticky top-0 z-20 flex h-auto w-full justify-start gap-0 overflow-x-auto overflow-y-hidden",
+              "rounded-none border-b-2 border-foreground bg-background p-0 print:hidden",
             )}
           >
             <RegisterTab value="attendance">Attendance</RegisterTab>
@@ -173,7 +178,7 @@ export default function RegisterDetail() {
               Access &amp; settings
               {waiting > 0 && (
                 <span
-                  className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-register-clay px-1.5 text-[10px] font-bold text-white"
+                  className="ml-1.5 inline-flex h-5 min-w-5 items-center justify-center bg-primary px-1.5 text-[10px] font-bold text-primary-foreground"
                   aria-label={`${waiting} waiting`}
                 >
                   {waiting}
@@ -199,6 +204,7 @@ export default function RegisterDetail() {
               <AttendancePanel
                 blob={blob}
                 slug={entry.slug}
+                register={entry}
                 view={view}
                 onEdit={edit}
                 onToggle={(traineeId, sessionId, nowPresent) =>

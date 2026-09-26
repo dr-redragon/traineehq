@@ -8,18 +8,19 @@ import type { CellState } from "@/lib/register/eligibility";
  * tapped. A cell that reads "Missed" in one and "Absent" in another is a cell
  * an organiser has to stop and think about.
  *
- * The original register's marks, kept: a filled moss square for a day attended,
- * clay for one excused, and an empty bordered cell for one missed. Missed is
- * deliberately the quiet one — a row of them reads as a gap in the grid, which
- * is the shape an organiser scans for, and it keeps a page of ordinary absence
- * from becoming a wall of red.
+ * Square cells with a mark in every state — never colour alone. A solid ink
+ * square for a day attended, an accent tint for one excused, and an empty
+ * bordered cell for one missed. Missed is deliberately the quiet one — a row of
+ * them reads as a gap in the grid, which is the shape an organiser scans for,
+ * and it keeps a page of ordinary absence from becoming a wall of colour. The
+ * tint is the accent's, so it follows the person's colour scheme.
  */
 export const CELL: Record<CellState, string> = {
-  present: "bg-primary text-primary-foreground hover:bg-primary/85",
-  excused: "bg-register-clay-soft text-register-clay-ink hover:brightness-95",
-  absent: "border border-border bg-card text-muted-foreground/70 hover:border-primary",
-  na: "bg-muted text-muted-foreground/50",
-  upcoming: "border border-dashed border-border bg-transparent text-muted-foreground/60 hover:border-primary",
+  present: "bg-foreground text-background hover:bg-foreground/80",
+  excused: "bg-accent-strong text-accent-foreground hover:brightness-95",
+  absent: "border-[1.5px] border-border bg-transparent text-muted-foreground hover:border-rule",
+  na: "bg-muted text-muted-foreground/60",
+  upcoming: "border-[1.5px] border-dashed border-border bg-transparent text-muted-foreground/60 hover:border-rule",
 };
 
 export const CELL_MARK: Record<CellState, string> = {
@@ -49,8 +50,8 @@ export const CELL_LEGEND: Record<CellState, string> = {
  * bordered dot next to a line of text reads as a bullet point.
  */
 export const CELL_DOT: Record<CellState, string> = {
-  present: "bg-primary",
-  excused: "bg-register-clay",
+  present: "bg-foreground",
+  excused: "bg-rule",
   absent: "bg-muted-foreground/40",
   na: "bg-muted-foreground/25",
   upcoming: "border border-dashed border-muted-foreground/50",
