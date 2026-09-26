@@ -35,6 +35,29 @@ drop table if exists public.classic_register_members         cascade;
 drop table if exists public.classic_register_stores          cascade;
 drop table if exists public.classic_registers                cascade;
 
+-- -------------------------------------------------------------- storage --
+-- First, because three of these policies call is_classic_register_owner() and
+-- would block it being dropped. The classic logo bucket's policies, then the
+-- bucket itself. The classic
+-- register now uses the teaching register's `register-logos` bucket.
+drop policy if exists "classic register logos are readable"    on storage.objects;
+drop policy if exists "classic register owners upload logos"   on storage.objects;
+drop policy if exists "classic register owners replace logos"  on storage.objects;
+drop policy if exists "classic register owners remove logos"   on storage.objects;
+
+-- Empty when this was written. Some projects refuse direct writes to the
+-- storage schema; if so the bucket is left for deleting from the dashboard
+-- rather than failing the whole migration over an empty bucket.
+do $$
+begin
+  if not exists (select 1 from storage.objects where bucket_id = 'classic-register-logos') then
+    delete from storage.buckets where id = 'classic-register-logos';
+  end if;
+exception when others then
+  raise notice 'classic-register-logos bucket not removed (%); delete it from the dashboard', sqlerrm;
+end;
+$$;
+
 -- -------------------------------------------------------------- functions --
 drop function if exists public.archive_classic_register(uuid);
 drop function if exists public.can_create_classic_register(uuid);
@@ -63,26 +86,5 @@ drop function if exists public.save_classic_register(uuid, jsonb, bigint);
 drop function if exists public.set_classic_register_member_role(uuid, uuid, public.classic_register_role);
 
 drop type if exists public.classic_register_role;
-
--- -------------------------------------------------------------- storage --
--- The classic logo bucket's policies, then the bucket itself. The classic
--- register now uses the teaching register's `register-logos` bucket.
-drop policy if exists "classic register logos are readable"    on storage.objects;
-drop policy if exists "classic register owners upload logos"   on storage.objects;
-drop policy if exists "classic register owners replace logos"  on storage.objects;
-drop policy if exists "classic register owners remove logos"   on storage.objects;
-
--- Empty when this was written. Some projects refuse direct writes to the
--- storage schema; if so the bucket is left for deleting from the dashboard
--- rather than failing the whole migration over an empty bucket.
-do $$
-begin
-  if not exists (select 1 from storage.objects where bucket_id = 'classic-register-logos') then
-    delete from storage.buckets where id = 'classic-register-logos';
-  end if;
-exception when others then
-  raise notice 'classic-register-logos bucket not removed (%); delete it from the dashboard', sqlerrm;
-end;
-$$;
 
 commit;
