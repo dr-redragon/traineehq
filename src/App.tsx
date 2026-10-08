@@ -11,6 +11,7 @@ import { RequireAuth } from "./components/RequireAuth";
 import { RouteChunk } from "./components/RouteChunk";
 import { GdprConsentNotice } from "./components/GdprConsentNotice";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { PageHead } from "./components/PageHead";
 import { ColorSchemeSync } from "./hooks/useColorScheme";
 import { ThemeProvider } from "./hooks/useTheme";
 
@@ -142,6 +143,8 @@ const App = () => (
           {/* Every page opens at its own beginning. Following a link from
               halfway down one page used to land you halfway down the next. */}
           <ScrollToTop />
+          {/* Title, robots and canonical tags per route; see lib/publicPages.ts. */}
+          <PageHead />
           {/* One boundary around the lot rather than one per route: the
               fallback is a full-page line either way, and a chunk that fails
               to load needs the same answer wherever it was going. */}
@@ -154,9 +157,9 @@ const App = () => (
               It used to open on Landing — a separate page carrying its own
               sign-in card — so the redesigned sign-in page was only ever
               reached by typing /login, and everyone arriving at the domain
-              went on seeing the old one. This is a members-only tool that is
-              not indexed and whose accounts are approved by hand, so the door
-              is what the front page is for.
+              went on seeing the old one. This is a members-only tool whose
+              accounts are approved by hand, so the door is what the front
+              page is for.
 
               Landing keeps a path of its own rather than being deleted: it
               still carries the feature summary and the contact form, which is

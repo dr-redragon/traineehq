@@ -15,7 +15,10 @@
          headers netlify.toml used to set are declared here instead. This is a
          sign-in page for a private tool: keep it out of search results. The
          crawler is deliberately still allowed in by robots.txt, because a
-         disallowed page is never fetched and so its noindex is never read. -->
+         disallowed page is never fetched and so its noindex is never read.
+         The few public pages (/welcome, /contact, /request-access) are built
+         as copies of this file with "index, follow" and a canonical link in
+         its place: see src/lib/publicPages.ts. -->
     <meta name="robots" content="noindex, nofollow" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />
 
