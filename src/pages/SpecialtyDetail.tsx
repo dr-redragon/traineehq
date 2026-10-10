@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useLocation, useSearchParams } from "react-router-dom";
+import { useParams, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +38,19 @@ const SpecialtyDetail = () => {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  // Which arrival this is. Tidying the address after a search result has been
+  // opened carries the original key along, so that tidy-up does not count as
+  // arriving again and send the drive back to the row it is already showing.
+  const arrivalKey = (location.state as { arrivalKey?: string } | null)?.arrivalKey ?? location.key;
+  // `?open=1` is a one-off request to open a file. Once it has been opened it
+  // comes out of the address, or a refresh or a copied link would open the
+  // file again.
+  const clearOpenRequest = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("open");
+    navigate({ search: `?${next}`, hash: location.hash }, { replace: true, state: { arrivalKey } });
+  };
   const queryClient = useQueryClient();
   const { data: hasEditRights, isPending: rightsPending } = useCanManageSpecialty(id);
   const [editMode, setEditMode] = useState(false);
@@ -138,7 +151,9 @@ const SpecialtyDetail = () => {
       const match = subsections.find((s) => s.id === subsectionId);
       if (match) setActiveTab(match.name);
     }
-  }, [searchParams, subsections]);
+    // The location key as well: following the same search result twice is the
+    // same query string, but should still bring its section back to the front.
+  }, [searchParams, subsections, arrivalKey]);
 
   const subsectionIds = subsections?.map((s) => s.id) ?? [];
   const { data: resources } = useQuery({
@@ -607,6 +622,10 @@ const SpecialtyDetail = () => {
                   // Only for the section the folder is actually in, so a stale
                   // `?folder=` cannot open something in a different tab.
                   openFolderId={searchParams.get("subsection") === sub.id ? searchParams.get("folder") : null}
+                  highlightId={searchParams.get("subsection") === sub.id ? searchParams.get("highlight") : null}
+                  openHighlighted={searchParams.get("open") === "1"}
+                  arrivalKey={arrivalKey}
+                  onOpenedHighlighted={clearOpenRequest}
                   resources={subResources}
                   folders={subFolders}
                   categories={subsections.map((s) => ({ id: s.id, name: s.name }))}

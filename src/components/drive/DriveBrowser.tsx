@@ -68,6 +68,21 @@ interface DriveBrowserProps {
    * you to find it again.
    */
   openFolderId?: string | null;
+  /**
+   * A file or folder to pick out on arrival, from `?highlight=`. A search
+   * result lands here: the row is scrolled to and marked so it can be found
+   * at a glance among its neighbours.
+   */
+  highlightId?: string | null;
+  /** Open the highlighted file as well, from `?open=1`. */
+  openHighlighted?: boolean;
+  /**
+   * Changes on every navigation, so following the same result twice — the
+   * same URL — still brings you back to it after you have wandered off.
+   */
+  arrivalKey?: string;
+  /** Called once the highlighted file has been opened, to drop `?open=1`. */
+  onOpenedHighlighted?: () => void;
 }
 
 /** A selection id for a folder. Files are stored under their own id. */
@@ -78,6 +93,7 @@ const folderIdOf = (rowId: string) => rowId.replace("folder-row:", "");
 export function DriveBrowser({
   subsection, specialtyId, resources, folders, canManage, openFolderId,
   categories = [], allFolders = [],
+  highlightId, openHighlighted, arrivalKey, onOpenedHighlighted,
 }: DriveBrowserProps) {
   const queryClient = useQueryClient();
 
@@ -92,6 +108,26 @@ export function DriveBrowser({
   useEffect(() => {
     if (openFolderId) setCurrentFolderId(openFolderId);
   }, [openFolderId]);
+
+  // The row a search result pointed at. It stays marked until you do
+  // something else in the drive, so it does not vanish while you are still
+  // looking for it.
+  const [highlighted, setHighlighted] = useState<string | null>(highlightId ?? null);
+  // Whether the highlighted row has been scrolled to (and, if asked, opened)
+  // yet. It may not be on screen on the first render: the rows load after.
+  const arrivedRef = useRef(false);
+
+  // A highlight comes with its own location — the folder named alongside it,
+  // or the top of the section when there is none — so the row is actually in
+  // front of you, even if you had drilled somewhere else in the meantime.
+  useEffect(() => {
+    if (!highlightId) return;
+    setCurrentFolderId(openFolderId ?? null);
+    setHighlighted(highlightId);
+    setSelection(new Set());
+    arrivedRef.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlightId, arrivalKey]);
   // Null means the hand-arranged order, which is what drag-and-drop writes and
   // what this list has always shown. A column click is a temporary view over
   // that rather than a replacement for it.
@@ -175,6 +211,7 @@ export function DriveBrowser({
 
   const handleRowClick = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
+    setHighlighted(null);
     if (e.shiftKey && lastClickedId) {
       const a = visibleIds.indexOf(lastClickedId);
       const b = visibleIds.indexOf(id);
@@ -1014,7 +1051,35 @@ export function DriveBrowser({
         : new Set(open).add(id),
     );
 
-  const openFolder = (id: string) => { setCurrentFolderId(id); clearSelection(); };
+  const openFolder = (id: string) => {
+    setCurrentFolderId(id);
+    clearSelection();
+    setHighlighted(null);
+  };
+
+  // Scroll the highlighted row into the middle of the screen once it exists.
+  const highlightOnScreen = !!highlighted && rows.some((row) => row.id === highlighted);
+  useEffect(() => {
+    if (!highlightOnScreen || arrivedRef.current) return;
+    // A frame late, so the page's own scroll-to-top on arrival has already
+    // happened and does not undo this.
+    const frame = requestAnimationFrame(() => {
+      arrivedRef.current = true;
+      document
+        .querySelector(`[data-drive-row="${CSS.escape(highlighted!)}"]`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [highlightOnScreen, highlighted]);
+
+  // The file's row opens its own viewer when it mounts with the signal (a
+  // child's effect runs before this one), so by here the request is spent.
+  const openRequestShown = !!openHighlighted && !!highlightId &&
+    rows.some((row) => row.kind === "file" && row.id === highlightId);
+  useEffect(() => {
+    if (openRequestShown) onOpenedHighlighted?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequestShown]);
 
   const renderRows = () => (
     <Section id="section-root" empty={rows.length === 0}>
@@ -1033,6 +1098,7 @@ export function DriveBrowser({
             onToggleExpanded={() => toggleExpanded(row.id)}
             count={folderCounts(folders, resources, row.id).total}
             selected={selection.has(`folder-row:${row.id}`)}
+            highlighted={highlighted === row.id}
             onClick={(e) => {
               if (e.shiftKey || e.metaKey || e.ctrlKey) { handleRowClick(`folder-row:${row.id}`, e); return; }
               if (selectMode || selection.size > 0) { handleRowClick(`folder-row:${row.id}`, e); return; }
@@ -1058,6 +1124,8 @@ export function DriveBrowser({
             dragGroup={dragGroupFor(row.id)}
             reorderable={!sort}
             selected={selection.has(row.id)}
+            highlighted={highlighted === row.id}
+            openSignal={openHighlighted && highlightId === row.id ? arrivalKey ?? "open" : undefined}
             onClick={(e) => handleRowClick(row.id, e)}
             canManage={canManage}
             selectMode={selectMode}

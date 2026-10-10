@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
@@ -40,6 +40,13 @@ function formatFileSize(bytes?: number | null): string {
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
 }
 
+/**
+ * How a search result's row is marked: the selection's fill with the accent
+ * rule around it, so it reads as "this one" without looking selected for a
+ * bulk action.
+ */
+const HIGHLIGHT_CLASS = "bg-accent-strong ring-2 ring-inset ring-rule";
+
 /** One indent step per level, matching the disclosure arrow's width. */
 const INDENT_PX = 22;
 
@@ -66,6 +73,8 @@ interface BaseRowProps {
    * of one. Worked out by the browser, which is what holds the selection.
    */
   dragGroup?: string[];
+  /** Picked out because a search result pointed here. */
+  highlighted?: boolean;
 }
 
 /* ---------- File Row ---------- */
@@ -79,13 +88,18 @@ interface FileRowProps extends BaseRowProps {
   /** A copy beside the original. */
   onDuplicate: (id: string) => void;
   onDownload: (id: string) => void;
+  /** Opens the viewer whenever it changes to a new value: a search's "Open". */
+  openSignal?: string;
 }
 
 export function FileRow({
   resource, selected, onClick, canManage, selectMode, depth = 0, index, dragGroup,
-  reorderable = true, onDelete, onMove, onCopyTo, onDuplicate, onDownload,
+  reorderable = true, onDelete, onMove, onCopyTo, onDuplicate, onDownload, highlighted, openSignal,
 }: FileRowProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
+  useEffect(() => {
+    if (openSignal) setViewerOpen(true);
+  }, [openSignal]);
   const [editOpen, setEditOpen] = useState(false);
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -151,8 +165,10 @@ export function FileRow({
             {...(canManage ? { ...dragProps, ...dropProps } : {})}
             onClick={onClick}
             onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) setViewerOpen(true); }}
+            data-drive-row={resource.id}
+            aria-current={highlighted ? "true" : undefined}
             className={`group relative flex cursor-pointer select-none items-center gap-4 border-b border-border px-1 py-3 transition-colors
-              ${selected ? "bg-accent-strong" : "hover:bg-accent"}
+              ${selected ? "bg-accent-strong" : highlighted ? HIGHLIGHT_CLASS : "hover:bg-accent"}
             `}
           >
             <DropIndicator edge={edge} />
@@ -299,7 +315,8 @@ interface FolderRowProps extends BaseRowProps {
 export function FolderRow({
   folder, selected, onClick, canManage, selectMode, count, onOpen, onRename, onDelete, onDownload,
   downloading, depth = 0, hasChildren = false, expanded = false, index, dragGroup,
-  reorderable = true, onToggleExpanded, onNewSubfolder, accepts, onMove, onCopyTo, onDuplicate,
+  reorderable = true, onToggleExpanded, onNewSubfolder, accepts, highlighted,
+  onMove, onCopyTo, onDuplicate,
 }: FolderRowProps) {
   /**
    * A folder is both a place in the order and a place to put things, which is
@@ -340,8 +357,10 @@ export function FolderRow({
           {...(canManage ? { ...dragProps, ...dropProps } : {})}
           onClick={onClick}
           onDoubleClick={(e) => { e.stopPropagation(); if (!selectMode) onOpen(); }}
+          data-drive-row={folder.id}
+          aria-current={highlighted ? "true" : undefined}
           className={`group relative flex cursor-pointer select-none items-center gap-4 border-b border-border px-1 py-3 transition-colors
-            ${active ? "bg-accent-strong ring-2 ring-inset ring-rule" : selected ? "bg-accent-strong" : "hover:bg-accent"}
+            ${active ? "bg-accent-strong ring-2 ring-inset ring-rule" : selected ? "bg-accent-strong" : highlighted ? HIGHLIGHT_CLASS : "hover:bg-accent"}
           `}
         >
           <DropIndicator edge={edge} />
