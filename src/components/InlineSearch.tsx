@@ -1,21 +1,15 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Folder, Loader2, MessageSquare, Search, Users, X } from "lucide-react";
+import { Loader2, Search, X } from "lucide-react";
 
 import { getIcon } from "@/lib/iconMap";
+import { KIND_ICONS } from "@/lib/searchIcons";
 import { cn } from "@/lib/utils";
 import {
-  KIND_LABELS, KIND_ORDER, type SearchHit, type SearchKind, useGlobalSearch,
+  KIND_LABELS, KIND_ORDER, type SearchHit, useGlobalSearch,
 } from "@/hooks/useGlobalSearch";
 
-const KIND_ICONS: Record<Exclude<SearchKind, "specialty">, typeof FileText> = {
-  folder: Folder,
-  resource: FileText,
-  contact: Users,
-  discussion: MessageSquare,
-};
-
-function Highlight({ text, query }: { text: string; query: string }) {
+export function Highlight({ text, query }: { text: string; query: string }) {
   if (!query) return <>{text}</>;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
   if (idx === -1) return <>{text}</>;
@@ -37,9 +31,10 @@ function Highlight({ text, query }: { text: string; query: string }) {
  * type, so a result can be clicked before you have finished the word and
  * without a dialog ever opening.
  *
- * The listbox is the combobox pattern: arrows move a highlight, Enter opens
- * whatever is highlighted, and Enter with nothing highlighted opens the first
- * match, because after typing a query the top hit is what Enter is for.
+ * The listbox is the combobox pattern: arrows move a highlight and Enter opens
+ * whatever is highlighted. Enter with nothing highlighted opens the results
+ * page instead — every match, not just the handful the dropdown has room for —
+ * so a search that was not settled on one result is not settled for you.
  * Escape gives the query back before it closes, so a mistyped search can be
  * corrected rather than lost.
  */
@@ -88,12 +83,27 @@ export function InlineSearch({ className }: { className?: string }) {
     navigate(hit.path);
   };
 
+  const showAll = () => {
+    const q = term.trim();
+    if (!q) return;
+    setOpen(false);
+    setTerm("");
+    inputRef.current?.blur();
+    navigate(`/search?q=${encodeURIComponent(q)}`);
+  };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
       // First press clears a query, second closes. Escaping out of a typo
       // should not also throw away the panel you were reading.
       if (term) setTerm("");
       else setOpen(false);
+      return;
+    }
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (active >= 0 && hits[active]) go(hits[active]);
+      else showAll();
       return;
     }
     if (!hits.length) return;
@@ -104,9 +114,6 @@ export function InlineSearch({ className }: { className?: string }) {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((i) => (i <= 0 ? hits.length - 1 : i - 1));
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      go(hits[active >= 0 ? active : 0]);
     }
   };
 
@@ -202,6 +209,16 @@ export function InlineSearch({ className }: { className?: string }) {
                 })}
               </div>
             ))
+          )}
+          {hits.length > 0 && (
+            <button
+              type="button"
+              onClick={showAll}
+              className="flex w-full items-center justify-between border-t-2 border-border px-3 py-2.5 text-left text-sm font-medium hover:bg-accent"
+            >
+              <span>See all results for “{query}”</span>
+              <kbd className="text-xs text-muted-foreground">Enter</kbd>
+            </button>
           )}
         </div>
       )}

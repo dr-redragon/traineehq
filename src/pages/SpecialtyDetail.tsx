@@ -131,7 +131,9 @@ const SpecialtyDetail = () => {
       const match = subsections.find((s) => s.id === subsectionId);
       if (match) setActiveTab(match.name);
     }
-  }, [searchParams, subsections]);
+    // The location key as well: following the same search result twice is the
+    // same query string, but should still bring its section back to the front.
+  }, [searchParams, subsections, location.key]);
 
   const subsectionIds = subsections?.map((s) => s.id) ?? [];
   const { data: resources } = useQuery({
@@ -586,6 +588,9 @@ const SpecialtyDetail = () => {
                   // Only for the section the folder is actually in, so a stale
                   // `?folder=` cannot open something in a different tab.
                   openFolderId={searchParams.get("subsection") === sub.id ? searchParams.get("folder") : null}
+                  highlightId={searchParams.get("subsection") === sub.id ? searchParams.get("highlight") : null}
+                  openHighlighted={searchParams.get("open") === "1"}
+                  arrivalKey={location.key}
                   resources={subResources}
                   folders={subFolders}
                   canManage={!!canManage}
