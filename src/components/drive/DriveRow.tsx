@@ -14,6 +14,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { DropIndicator, useSortableItem, type DragSource } from "@/lib/dnd";
 import { isDriveDrag } from "@/components/drive/dragHost";
+import { resourceTypeIcon } from "@/lib/resourceTypeIcon";
 import { ResourceViewer } from "@/components/ResourceViewer";
 import { EditResourceDialog } from "@/components/EditResourceDialog";
 import { toast } from "sonner";
@@ -49,6 +50,25 @@ const HIGHLIGHT_CLASS = "bg-accent-strong ring-2 ring-inset ring-rule";
 
 /** One indent step per level, matching the disclosure arrow's width. */
 const INDENT_PX = 22;
+
+/**
+ * The slot every row starts with, before its name: the disclosure arrow (or a
+ * gap the same width), then an icon.
+ *
+ * Folders used to lead with an arrow and an icon while files led with nothing,
+ * so a folder's name sat some 50px right of the file below it at the same
+ * level — the list read as two ragged columns. With both kinds starting from
+ * this one slot, every name at a given depth begins at the same x, and a
+ * nested row is offset by exactly its indent and nothing else.
+ */
+function RowLead({ disclosure, icon }: { disclosure?: React.ReactNode; icon: React.ReactNode }) {
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      {disclosure ?? <span className="w-[22px]" aria-hidden />}
+      {icon}
+    </div>
+  );
+}
 
 interface BaseRowProps {
   selected: boolean;
@@ -123,7 +143,7 @@ export function FileRow({
     // indented margin would leave a ragged left edge on every nested row.
     paddingLeft: depth ? `${4 + depth * INDENT_PX}px` : undefined,
   };
-
+  const FileIcon = resourceTypeIcon(resource.resource_type);
 
   const { data: isBookmarked } = useQuery({
     queryKey: ["bookmark-status", resource.id, user?.id],
@@ -182,10 +202,10 @@ export function FileRow({
                   : "opacity-0 group-hover:opacity-100 data-[state=checked]:opacity-100 transition-opacity"}
               />
             )}
-            {/* No icon tile and no type badge: the design's table is four
-                columns of text, and the TYPE column already says what a row
-                is. A tinted square and a pill on every row is the enclosure
-                this was asked to lose. */}
+            {/* A plain icon in the same slot a folder's sits in, so file and
+                folder names line up. Still no tinted tile and no type badge:
+                the TYPE column already says what a row is. */}
+            <RowLead icon={<FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />} />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold">{resource.title}</p>
               {resource.description && (
@@ -380,29 +400,32 @@ export function FolderRow({
                 target is the one that keeps you where you are.
 
                 It stops the click reaching the row, or every peek would also
-                be a navigation. */}
-            <button
-              type="button"
-              aria-label={expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
-              aria-expanded={hasChildren ? expanded : undefined}
-              disabled={!hasChildren}
-              onClick={(e) => { e.stopPropagation(); onToggleExpanded?.(); }}
-              onDoubleClick={(e) => e.stopPropagation()}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="-my-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-0"
-            >
-              <ChevronRight
-                className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`}
-                aria-hidden
-              />
-            </button>
-            {/* A folder keeps its icon where a file does not — it is the one
-                thing in the list you can go *into*, and the TYPE column alone
-                does not make that obvious enough to click. It is drawn plain,
-                without the tinted tile. */}
-            {active || expanded
-              ? <FolderOpen className="h-4 w-4 shrink-0 text-rule" />
-              : <FolderClosed className="h-4 w-4 shrink-0 text-rule" />}
+                be a navigation.
+
+                A folder keeps its icon where a file has a plainer one — it is
+                the one thing in the list you can go *into*. */}
+            <RowLead
+              disclosure={
+                <button
+                  type="button"
+                  aria-label={expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
+                  aria-expanded={hasChildren ? expanded : undefined}
+                  disabled={!hasChildren}
+                  onClick={(e) => { e.stopPropagation(); onToggleExpanded?.(); }}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  className="-my-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-0"
+                >
+                  <ChevronRight
+                    className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`}
+                    aria-hidden
+                  />
+                </button>
+              }
+              icon={active || expanded
+                ? <FolderOpen className="h-4 w-4 shrink-0 text-rule" />
+                : <FolderClosed className="h-4 w-4 shrink-0 text-rule" />}
+            />
             <div className="min-w-0 flex-1">
               <p className="truncate text-[15px] font-semibold">{folder.name}</p>
             </div>

@@ -108,3 +108,57 @@ export function ariaSortFor(sort: SortState | null, key: SortKey): "ascending" |
   if (!sort || sort.key !== key) return "none";
   return sort.dir === "asc" ? "ascending" : "descending";
 }
+
+/** The words for each key, as the Sort menu and the "Sorted by" line say them. */
+export const SORT_LABELS: Record<SortKey, string> = {
+  name: "Name",
+  type: "Type",
+  updated: "Date modified",
+  size: "Size",
+};
+
+/**
+ * Which way each key reads "first" in plain words, so the menu can say
+ * "A → Z" or "Newest first" rather than leaving "ascending" to be decoded.
+ */
+export function directionLabel(key: SortKey, dir: SortDir): string {
+  switch (key) {
+    case "name":
+    case "type":
+      return dir === "asc" ? "A → Z" : "Z → A";
+    case "updated":
+      return dir === "asc" ? "Oldest first" : "Newest first";
+    case "size":
+      return dir === "asc" ? "Smallest first" : "Largest first";
+  }
+}
+
+const STORAGE_KEY = "drive-sort";
+
+/**
+ * The viewer's last choice, so a sort survives moving between categories and
+ * coming back tomorrow. Browser storage can be missing or refuse (a private
+ * window, blocked site data), and the arranged order is the right fallback.
+ */
+export function loadSort(): SortState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SortState>;
+    if (parsed.key && parsed.key in SORT_LABELS && (parsed.dir === "asc" || parsed.dir === "desc")) {
+      return { key: parsed.key, dir: parsed.dir };
+    }
+  } catch {
+    /* unreadable: fall through to the arranged order */
+  }
+  return null;
+}
+
+export function saveSort(sort: SortState | null) {
+  try {
+    if (sort) localStorage.setItem(STORAGE_KEY, JSON.stringify(sort));
+    else localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* storage unavailable: the sort still applies for this visit */
+  }
+}

@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ChevronRight, FolderPlus, Upload, Plus, X, Trash2, Download,
   FolderInput, CheckSquare, ListChecks, FolderClosed, FileText, MoreVertical, ArrowLeft,
-  ArrowUp, ArrowDown, Copy,
+  ArrowUp, ArrowDown, ArrowUpDown, Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FileRow, FolderRow } from "@/components/drive/DriveRow";
@@ -30,7 +30,8 @@ import { AddResourceDialog } from "@/components/AddResourceDialog";
 import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
 import { planFolderReorder, planReorder } from "@/lib/resourceOrdering";
 import {
-  ariaSortFor, nextSort, sortItems, type SortKey, type SortState,
+  ariaSortFor, directionLabel, loadSort, nextSort, saveSort, sortItems, SORT_LABELS,
+  type SortDir, type SortKey, type SortState,
 } from "@/lib/driveSort";
 import {
   canMoveFolder, collapseWithDescendants, descendantFolderIds, flattenDrive,
@@ -131,7 +132,14 @@ export function DriveBrowser({
   // Null means the hand-arranged order, which is what drag-and-drop writes and
   // what this list has always shown. A column click is a temporary view over
   // that rather than a replacement for it.
-  const [sort, setSort] = useState<SortState | null>(null);
+  // Remembered per viewer, so a chosen order follows you between categories.
+  const [sort, setSortState] = useState<SortState | null>(loadSort);
+  const setSort = (next: SortState | null | ((current: SortState | null) => SortState | null)) =>
+    setSortState((current) => {
+      const value = typeof next === "function" ? next(current) : next;
+      saveSort(value);
+      return value;
+    });
 
   // Which folders are open *in place*. Separate from currentFolderId, which is
   // the folder you have drilled into and are looking at on its own. A folder
@@ -1217,6 +1225,7 @@ export function DriveBrowser({
           onNavigate={(id) => { setCurrentFolderId(id); clearSelection(); }}
         />
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
+          <SortMenu sort={sort} onChange={setSort} />
           {visibleIds.length > 0 && (
             <Button
               variant={selectMode ? "secondary" : "outline"}
@@ -1302,13 +1311,12 @@ export function DriveBrowser({
         <SortHeader sort={sort} column="name" onSort={toggleSort} className="min-w-0 flex-1">Name</SortHeader>
         <SortHeader sort={sort} column="type" onSort={toggleSort} className="hidden w-[110px] shrink-0 sm:flex">Type</SortHeader>
         <SortHeader sort={sort} column="size" onSort={toggleSort} className="hidden w-[120px] shrink-0 md:flex">Size</SortHeader>
-        <SortHeader sort={sort} column="updated" onSort={toggleSort} className="hidden w-[110px] shrink-0 justify-end lg:flex">Updated</SortHeader>
+        <SortHeader sort={sort} column="updated" onSort={toggleSort} className="hidden w-[110px] shrink-0 justify-end lg:flex">Modified</SortHeader>
       </div>
 
       {sort && (
         <p className="px-1 text-[12px] text-muted-foreground">
-          Sorted by {sort.key === "updated" ? "date updated" : sort.key}
-          {sort.dir === "asc" ? ", ascending" : ", descending"}.{" "}
+          Sorted by {SORT_LABELS[sort.key].toLowerCase()}, {directionLabel(sort.key, sort.dir).toLowerCase()}.{" "}
           <button
             type="button"
             className="underline underline-offset-2 hover:text-foreground"
@@ -1494,6 +1502,67 @@ export function DriveBrowser({
 }
 
 /* ---------- Subcomponents ---------- */
+
+const SORT_KEYS: SortKey[] = ["name", "type", "updated", "size"];
+
+/**
+ * Sorting from a menu, as well as from the column headings.
+ *
+ * The headings work, but nothing about them says so, and on a phone three of
+ * the four are hidden for width. This is the same state with every option in
+ * reach: what to sort by, which way round, or back to the arranged order —
+ * which is still where drag-and-drop works.
+ */
+function SortMenu({
+  sort, onChange,
+}: {
+  sort: SortState | null;
+  onChange: (sort: SortState | null) => void;
+}) {
+  const key = sort?.key ?? "arranged";
+  const dir: SortDir = sort?.dir ?? "asc";
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" aria-label="Sort">
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          {sort ? `${SORT_LABELS[sort.key]} · ${directionLabel(sort.key, sort.dir)}` : "Sort"}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+        <DropdownMenuRadioGroup
+          value={key}
+          // A newly chosen key starts the way round people usually want it:
+          // newest and largest first, names and types A → Z. Picking the key
+          // already in use keeps the direction you had.
+          onValueChange={(v) => onChange(v === "arranged" ? null : {
+            key: v as SortKey,
+            dir: v === sort?.key ? dir : v === "updated" || v === "size" ? "desc" : "asc",
+          })}
+        >
+          <DropdownMenuRadioItem value="arranged">Arranged order</DropdownMenuRadioItem>
+          {SORT_KEYS.map((k) => (
+            <DropdownMenuRadioItem key={k} value={k}>{SORT_LABELS[k]}</DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+        {sort && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Order</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={sort.dir}
+              onValueChange={(v) => onChange({ key: sort.key, dir: v as SortDir })}
+            >
+              <DropdownMenuRadioItem value="asc">{directionLabel(sort.key, "asc")}</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="desc">{directionLabel(sort.key, "desc")}</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 /** The drive's own drag provider, for when no page above it supplies one. */
 function MaybeDragProvider({
