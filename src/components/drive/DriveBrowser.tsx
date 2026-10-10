@@ -65,6 +65,8 @@ interface DriveBrowserProps {
    * same URL — still brings you back to it after you have wandered off.
    */
   arrivalKey?: string;
+  /** Called once the highlighted file has been opened, to drop `?open=1`. */
+  onOpenedHighlighted?: () => void;
 }
 
 /** A selection id for a folder. Files are stored under their own id. */
@@ -74,7 +76,7 @@ const folderIdOf = (rowId: string) => rowId.replace("folder-row:", "");
 
 export function DriveBrowser({
   subsection, specialtyId, resources, folders, canManage, openFolderId,
-  highlightId, openHighlighted, arrivalKey,
+  highlightId, openHighlighted, arrivalKey, onOpenedHighlighted,
 }: DriveBrowserProps) {
   const queryClient = useQueryClient();
 
@@ -761,6 +763,15 @@ export function DriveBrowser({
     });
     return () => cancelAnimationFrame(frame);
   }, [highlightOnScreen, highlighted]);
+
+  // The file's row opens its own viewer when it mounts with the signal (a
+  // child's effect runs before this one), so by here the request is spent.
+  const openRequestShown = !!openHighlighted && !!highlightId &&
+    rows.some((row) => row.kind === "file" && row.id === highlightId);
+  useEffect(() => {
+    if (openRequestShown) onOpenedHighlighted?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openRequestShown]);
 
   const renderRows = () => (
     <Section id="section-root" empty={rows.length === 0}>

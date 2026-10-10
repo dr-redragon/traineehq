@@ -5,6 +5,9 @@ import type { Tables } from "@/integrations/supabase/types";
 
 vi.mock("@/integrations/supabase/client", () => ({ supabase: {} }));
 vi.mock("@/hooks/useUserRole", () => ({ useCurrentUser: () => ({ data: null }) }));
+vi.mock("@/components/ResourceViewer", () => ({
+  ResourceViewer: ({ open }: { open: boolean }) => (open ? <div role="dialog">viewer</div> : null),
+}));
 
 import { DriveBrowser } from "./DriveBrowser";
 
@@ -68,7 +71,7 @@ describe("DriveBrowser search highlight", () => {
     updated_at: "2026-09-01T00:00:00Z",
   } as unknown as Tables<"resources">;
 
-  function renderHighlighted() {
+  function renderHighlighted(extra: Partial<React.ComponentProps<typeof DriveBrowser>> = {}) {
     return render(
       <QueryClientProvider client={new QueryClient()}>
         <DriveBrowser
@@ -80,6 +83,7 @@ describe("DriveBrowser search highlight", () => {
           openFolderId="folder-1"
           highlightId="file-1"
           arrivalKey="a"
+          {...extra}
         />
       </QueryClientProvider>,
     );
@@ -96,5 +100,12 @@ describe("DriveBrowser search highlight", () => {
     const { container } = renderHighlighted();
     fireEvent.click(screen.getByText("Induction slides"));
     expect(container.querySelector('[data-drive-row="file-1"]')).not.toHaveAttribute("aria-current");
+  });
+
+  it("opens the file when asked, then reports the request as spent", () => {
+    const onOpened = vi.fn();
+    renderHighlighted({ openHighlighted: true, onOpenedHighlighted: onOpened });
+    expect(screen.getByRole("dialog")).toHaveTextContent("viewer");
+    expect(onOpened).toHaveBeenCalledTimes(1);
   });
 });
