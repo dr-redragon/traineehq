@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo, useRef, useEffect, useContext } from "react";
 import {
   DragProvider, slotForEdge, useDropTarget,
   type DragSource, type DropEvent,
@@ -16,10 +16,11 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ChevronRight, FolderPlus, Upload, Plus, X, Trash2, Download,
   FolderInput, CheckSquare, ListChecks, FolderClosed, FileText, MoreVertical, ArrowLeft,
-  ArrowUp, ArrowDown, ChevronDown,
+  ArrowUp, ArrowDown, Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FileRow, FolderRow } from "@/components/drive/DriveRow";
@@ -35,7 +36,15 @@ import {
   canMoveFolder, collapseWithDescendants, descendantFolderIds, flattenDrive,
   folderCounts, folderPath,
 } from "@/lib/folderTree";
-import { uploadErrorMessage, removeStoredFiles } from "@/lib/storageUtils";
+import {
+  uploadErrorMessage, removeStoredFiles, extractStoragePath, downloadResourceBlob,
+} from "@/lib/storageUtils";
+import {
+  branchTopDown, copiedStoragePath, copyName, looseFiles, topLevelFolders,
+} from "@/lib/driveTransfer";
+import {
+  DriveDragHostContext, isDriveDrag, type DriveDragHandlers,
+} from "@/components/drive/dragHost";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface DriveBrowserProps {
@@ -44,6 +53,13 @@ interface DriveBrowserProps {
   resources: Tables<"resources">[];
   folders: Tables<"resource_folders">[];
   canManage: boolean;
+  /**
+   * Every category in the specialty, for moving and copying between them.
+   * Left out, the browser only offers places inside its own category.
+   */
+  categories?: { id: string; name: string }[];
+  /** Every category's folders, so a move to another category can pick one. */
+  allFolders?: Tables<"resource_folders">[];
   /**
    * A folder to open on arrival, from `?folder=` in the URL.
    *
@@ -76,6 +92,7 @@ const folderIdOf = (rowId: string) => rowId.replace("folder-row:", "");
 
 export function DriveBrowser({
   subsection, specialtyId, resources, folders, canManage, openFolderId,
+  categories = [], allFolders = [],
   highlightId, openHighlighted, arrivalKey, onOpenedHighlighted,
 }: DriveBrowserProps) {
   const queryClient = useQueryClient();
@@ -139,8 +156,15 @@ export function DriveBrowser({
   // Which folder the new one goes inside. Null is the section itself.
   const [newFolderParentId, setNewFolderParentId] = useState<string | null>(null);
 
-  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
-  const [moveTargetIds, setMoveTargetIds] = useState<string[]>([]);
+  // What the "Move to…" / "Copy to…" dialog is acting on. Null when it is shut.
+  const [transfer, setTransfer] = useState<{
+    mode: "move" | "copy";
+    fileIds: string[];
+    folderIds: string[];
+  } | null>(null);
+  // Which category the dialog is showing folders for. Starts on this one.
+  const [transferCategoryId, setTransferCategoryId] = useState(subsection.id);
+  const [transferring, setTransferring] = useState(false);
 
   const [bulkDownloading, setBulkDownloading] = useState(false);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -231,12 +255,7 @@ export function DriveBrowser({
     [resources, selection]
   );
   /** The folders a pending move would carry, for working out legal targets. */
-  const movingFolderIds = useMemo(
-    () => (moveTargetIds.length ? [] : [...selection]
-      .filter((id) => id.startsWith("folder-row:"))
-      .map((id) => id.replace("folder-row:", ""))),
-    [moveTargetIds, selection],
-  );
+  const movingFolderIds = transfer?.mode === "move" ? transfer.folderIds : [];
 
   const selectedFolders = useMemo(
     () => folders.filter((f) => selection.has(`folder-row:${f.id}`)),
@@ -383,6 +402,255 @@ export function DriveBrowser({
     return moved;
   };
 
+  /* ---------- Moving and copying between categories ---------- */
+
+  const categoryName = (id: string) =>
+    id === subsection.id ? subsection.name : categories.find((c) => c.id === id)?.name ?? "that category";
+
+  /**
+   * What is already where something is about to land: the names a copy has to
+   * avoid, and the end of each list for it to join.
+   *
+   * Asked of the database rather than the props, because for any category but
+   * this one the props hold nothing — and for this one, somebody else may have
+   * added to it since the page loaded.
+   */
+  const destinationContents = async (dest: { subsectionId: string; folderId: string | null }) => {
+    const [{ data: folderRows }, { data: fileRows }] = await Promise.all([
+      supabase.from("resource_folders").select("name,sort_order,parent_folder_id")
+        .eq("subsection_id", dest.subsectionId),
+      supabase.from("resources").select("title,sort_order,folder_id")
+        .eq("subsection_id", dest.subsectionId),
+    ]);
+    const siblingsFolders = (folderRows ?? []).filter((f) => (f.parent_folder_id ?? null) === dest.folderId);
+    const siblingFiles = (fileRows ?? []).filter((r) => (r.folder_id ?? null) === dest.folderId);
+    return {
+      folderNames: siblingsFolders.map((f) => f.name),
+      fileTitles: siblingFiles.map((r) => r.title),
+      nextFolderOrder: Math.max(-1, ...siblingsFolders.map((f) => f.sort_order ?? 0)) + 1,
+      nextFileOrder: Math.max(-1, ...siblingFiles.map((r) => r.sort_order ?? 0)) + 1,
+    };
+  };
+
+  /**
+   * A move into a different category.
+   *
+   * A folder takes its whole branch with it. The database refuses a subfolder
+   * whose category differs from its parent's, so the folders go one at a time,
+   * parents first — by the time a subfolder changes category, the folder
+   * holding it already has. Files inside the branch follow in one write.
+   *
+   * Subheadings belong to a category, so whatever moves leaves its old one
+   * behind rather than pointing at a heading that does not exist over there.
+   */
+  const moveToCategory = async (
+    items: { fileIds: string[]; folderIds: string[] },
+    dest: { subsectionId: string; folderId: string | null },
+  ): Promise<number> => {
+    const roots = topLevelFolders(folders, items.folderIds);
+    const fileIds = looseFiles(resources, folders, items.fileIds, roots);
+    const place = await destinationContents(dest);
+    let folderOrder = place.nextFolderOrder;
+    let fileOrder = place.nextFileOrder;
+    let moved = 0;
+
+    for (const root of roots) {
+      const branch = branchTopDown(folders, root);
+      for (const fid of branch) {
+        const upd = fid === root
+          ? { subsection_id: dest.subsectionId, parent_folder_id: dest.folderId, subheading: null, sort_order: folderOrder++ }
+          : { subsection_id: dest.subsectionId, subheading: null };
+        const { error } = await supabase.from("resource_folders").update(upd).eq("id", fid);
+        if (error) throw error;
+      }
+      const { error } = await supabase.from("resources")
+        .update({ subsection_id: dest.subsectionId, subheading: null })
+        .in("folder_id", branch);
+      if (error) throw error;
+      moved += 1;
+    }
+
+    for (const fid of fileIds) {
+      const { error } = await supabase.from("resources").update({
+        subsection_id: dest.subsectionId, folder_id: dest.folderId,
+        subheading: null, sort_order: fileOrder++,
+      }).eq("id", fid);
+      if (error) throw error;
+      moved += 1;
+    }
+    return moved;
+  };
+
+  /**
+   * A copy of one file's row — and of its upload, if it has one.
+   *
+   * The upload is copied rather than shared. Deleting a resource deletes the
+   * object behind it, so two rows pointing at one object would mean deleting
+   * either copy quietly broke the other.
+   */
+  const copyResource = async (
+    source: Tables<"resources">,
+    dest: { subsectionId: string; folderId: string | null; title: string; sortOrder: number },
+    addedBy: string | null,
+  ) => {
+    let fileUrl = source.file_url;
+    const sourcePath = source.file_url ? extractStoragePath(source.file_url) : null;
+    if (sourcePath) {
+      const target = copiedStoragePath(sourcePath, specialtyId, dest.subsectionId, crypto.randomUUID());
+      const bucket = supabase.storage.from("resources");
+      const { error: copyError } = await bucket.copy(sourcePath, target);
+      if (copyError) {
+        // A server-side copy can be refused where an upload is allowed, so the
+        // slow way round is the fallback: fetch it and put it back up.
+        const blob = await downloadResourceBlob(source.file_url!);
+        if (!blob) throw new Error(`Could not copy "${source.title}"`);
+        const { error: uploadError } = await bucket.upload(target, blob);
+        if (uploadError) throw new Error(`Could not copy "${source.title}": ${uploadError.message}`);
+      }
+      fileUrl = target;
+    }
+    const { error } = await supabase.from("resources").insert({
+      title: dest.title,
+      description: source.description,
+      resource_type: source.resource_type,
+      subsection_id: dest.subsectionId,
+      folder_id: dest.folderId,
+      subheading: dest.subsectionId === source.subsection_id && dest.folderId === source.folder_id
+        ? source.subheading : null,
+      file_url: fileUrl,
+      external_url: source.external_url,
+      embed_url: source.embed_url,
+      file_size: source.file_size,
+      sort_order: dest.sortOrder,
+      added_by: addedBy,
+    });
+    if (error) {
+      // The row is what makes an upload reachable; without one it is an orphan.
+      if (fileUrl && fileUrl !== source.file_url) await removeStoredFiles([fileUrl]);
+      throw error;
+    }
+  };
+
+  /**
+   * Copies of files and folders, into any folder of any category.
+   *
+   * A folder is copied with everything in it, branch by branch, each new
+   * folder created before anything that goes inside it. Only the copies at the
+   * top are renamed, and only when they would otherwise sit beside a namesake:
+   * a "Notes" inside a copied folder is still "Notes".
+   */
+  const copyItems = async (
+    items: { fileIds: string[]; folderIds: string[] },
+    dest: { subsectionId: string; folderId: string | null },
+  ): Promise<number> => {
+    const roots = topLevelFolders(folders, items.folderIds);
+    const fileIds = looseFiles(resources, folders, items.fileIds, roots);
+    const { data: { user } } = await supabase.auth.getUser();
+    const place = await destinationContents(dest);
+    const takenFolders = [...place.folderNames];
+    const takenTitles = [...place.fileTitles];
+    let folderOrder = place.nextFolderOrder;
+    let fileOrder = place.nextFileOrder;
+    let copied = 0;
+
+    for (const root of roots) {
+      // The branch is read before anything is written, so copying a folder
+      // into one of its own subfolders copies what was there, once.
+      const branch = branchTopDown(folders, root);
+      const newIds = new Map<string, string>();
+      for (const fid of branch) {
+        const f = folders.find((x) => x.id === fid);
+        if (!f) continue;
+        const isRoot = fid === root;
+        const name = isRoot ? copyName(f.name, takenFolders) : f.name;
+        if (isRoot) takenFolders.push(name);
+        const parent = isRoot ? dest.folderId : newIds.get(f.parent_folder_id ?? "") ?? null;
+        const { data, error } = await supabase.from("resource_folders").insert({
+          name,
+          subsection_id: dest.subsectionId,
+          parent_folder_id: parent,
+          sort_order: isRoot ? folderOrder++ : f.sort_order,
+        }).select("id").single();
+        if (error) throw error;
+        newIds.set(fid, data.id);
+      }
+      for (const r of resources.filter((x) => newIds.has(x.folder_id ?? ""))) {
+        await copyResource(r, {
+          subsectionId: dest.subsectionId,
+          folderId: newIds.get(r.folder_id!)!,
+          title: r.title,
+          sortOrder: r.sort_order ?? 0,
+        }, user?.id ?? null);
+      }
+      copied += 1;
+    }
+
+    for (const fid of fileIds) {
+      const r = resources.find((x) => x.id === fid);
+      if (!r) continue;
+      const title = copyName(r.title, takenTitles);
+      takenTitles.push(title);
+      await copyResource(r, {
+        subsectionId: dest.subsectionId, folderId: dest.folderId, title, sortOrder: fileOrder++,
+      }, user?.id ?? null);
+      copied += 1;
+    }
+    return copied;
+  };
+
+  /**
+   * The one way in for every move and copy that names a destination: the
+   * dialog, a drop on a category, and "Make a copy".
+   */
+  const transferItems = async (
+    mode: "move" | "copy",
+    items: { fileIds: string[]; folderIds: string[] },
+    dest: { subsectionId: string; folderId: string | null },
+  ): Promise<number> => {
+    setTransferring(true);
+    try {
+      let count: number;
+      if (mode === "copy") count = await copyItems(items, dest);
+      else if (dest.subsectionId === subsection.id) count = await moveItemsToTarget(items, { folderId: dest.folderId });
+      else count = await moveToCategory(items, dest);
+
+      if (count) {
+        const where = dest.subsectionId === subsection.id ? "" : ` to ${categoryName(dest.subsectionId)}`;
+        toast.success(`${mode === "copy" ? "Copied" : "Moved"} ${count} item${count === 1 ? "" : "s"}${where}`);
+      }
+      return count;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : `${mode === "copy" ? "Copy" : "Move"} failed`);
+      return 0;
+    } finally {
+      // Partial work is still work: whatever got written before a failure
+      // should show, not wait for the next refresh.
+      queryClient.invalidateQueries({ queryKey: ["resources"] });
+      queryClient.invalidateQueries({ queryKey: ["resource-folders"] });
+      setTransferring(false);
+    }
+  };
+
+  const openTransfer = (mode: "move" | "copy", items: { fileIds: string[]; folderIds: string[] }) => {
+    setTransferCategoryId(subsection.id);
+    setTransfer({ mode, ...items });
+  };
+
+  /** Whatever is selected, split into the two kinds the writes care about. */
+  const selectedItems = () => ({
+    fileIds: selectedFiles.map((r) => r.id),
+    folderIds: selectedFolders.map((f) => f.id),
+  });
+
+  /** "Make a copy": a duplicate beside the original, in the same folder. */
+  const duplicateHere = (kind: "file" | "folder", id: string) => {
+    const folderId = kind === "folder"
+      ? folders.find((f) => f.id === id)?.parent_folder_id ?? null
+      : resources.find((r) => r.id === id)?.folder_id ?? null;
+    const items = kind === "folder" ? { fileIds: [], folderIds: [id] } : { fileIds: [id], folderIds: [] };
+    return transferItems("copy", items, { subsectionId: subsection.id, folderId });
+  };
+
   /* ---------- Drag handlers ---------- */
 
   /**
@@ -432,6 +700,14 @@ export function DriveBrowser({
     const fileIds = source.ids.filter((id) => !isFolderRowId(id));
     const folderIds = source.ids.filter(isFolderRowId).map(folderIdOf);
     if (!fileIds.length && !folderIds.length) return;
+
+    // Onto a category's name in the rail: into the top of that category.
+    if (over.data.kind === "section") {
+      if (over.id === subsection.id) return;
+      const moved = await transferItems("move", { fileIds, folderIds }, { subsectionId: over.id, folderId: null });
+      if (moved) clearSelection();
+      return;
+    }
 
     if (over.edge === "into") {
       const target = dropDestination(over.id);
@@ -533,10 +809,37 @@ export function DriveBrowser({
 
   /** Refuses a folder that would end up inside itself, before it lights up. */
   const acceptsInto = (folderId: string) => (source: DragSource) =>
-    source.ids
+    isDriveDrag(source) && source.ids
       .filter(isFolderRowId)
       .map(folderIdOf)
       .every((id) => canMoveFolder(folders, id, folderId));
+
+  const dragHandlers: DriveDragHandlers = {
+    onDrop: handleDrop,
+    onDragStart: handleDragStart,
+    renderPreview: (source) => (
+      <DragPreview
+        count={source.ids.length}
+        label={
+          isFolderRowId(source.id)
+            ? folders.find((f) => f.id === folderIdOf(source.id))?.name ?? "Folder"
+            : resources.find((r) => r.id === source.id)?.title ?? "File"
+        }
+        kind={isFolderRowId(source.id) ? "folder" : "file"}
+      />
+    ),
+  };
+
+  // Handed up to the page's provider on every render, so a drop is always
+  // judged against the selection and folders as they are now.
+  const dragHost = useContext(DriveDragHostContext);
+  useEffect(() => {
+    if (!dragHost) return;
+    dragHost.current = dragHandlers;
+    return () => {
+      if (dragHost.current === dragHandlers) dragHost.current = null;
+    };
+  });
 
   /* ---------- Native file/folder OS upload ---------- */
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -712,28 +1015,33 @@ export function DriveBrowser({
    * from the list looks like a bug, whereas one you cannot pick explains
    * itself.
    */
+  const sameCategory = transferCategoryId === subsection.id;
+  // Another category's folders come from the page; this one's are the props,
+  // which are what the rest of the browser is drawn from.
+  const targetFolders = sameCategory
+    ? folders
+    : allFolders.filter((f) => f.subsection_id === transferCategoryId);
   const moveTargets = flattenDrive({
-    folders,
+    folders: targetFolders,
     files: [],
-    expanded: new Set(folders.map((f) => f.id)),
+    expanded: new Set(targetFolders.map((f) => f.id)),
     sortFolders,
   })
     .filter((row) => row.kind === "folder")
     .map((row) => ({
       folder: row.folder!,
       depth: row.depth,
-      allowed: movingFolderIds.every((id) => canMoveFolder(folders, id, row.id)),
+      // Only a move inside one category can tie a folder in a knot. A copy is
+      // taken from the branch as it was, and another category is another tree.
+      allowed: !sameCategory || movingFolderIds.every((id) => canMoveFolder(folders, id, row.id)),
     }));
 
-  const runMove = (folderId: string | null) => {
-    const fileIds = moveTargetIds.length ? moveTargetIds : selectedFiles.map((r) => r.id);
-    const folderIds = moveTargetIds.length ? [] : selectedFolders.map((f) => f.id);
-    moveItemsToTarget({ fileIds, folderIds }, { folderId }).then(() => {
-      toast.success("Moved");
-      setMoveDialogOpen(false);
-      setMoveTargetIds([]);
-      clearSelection();
-    });
+  const runTransfer = async (folderId: string | null) => {
+    if (!transfer) return;
+    const { mode, fileIds, folderIds } = transfer;
+    await transferItems(mode, { fileIds, folderIds }, { subsectionId: transferCategoryId, folderId });
+    setTransfer(null);
+    clearSelection();
   };
 
   const toggleExpanded = (id: string) =>
@@ -803,6 +1111,9 @@ export function DriveBrowser({
             onDelete={() => setDeleteFolderId(row.id)}
             onDownload={() => handleDownloadFolder(row.folder!)}
             onNewSubfolder={() => { setNewFolderParentId(row.id); setAddFolderOpen(true); }}
+            onMove={() => openTransfer("move", { fileIds: [], folderIds: [row.id] })}
+            onCopyTo={() => openTransfer("copy", { fileIds: [], folderIds: [row.id] })}
+            onDuplicate={() => duplicateHere("folder", row.id)}
           />
         ) : (
           <FileRow
@@ -819,7 +1130,9 @@ export function DriveBrowser({
             canManage={canManage}
             selectMode={selectMode}
             onDelete={(id) => deleteResource.mutate(id)}
-            onMove={(id) => { setMoveTargetIds([id]); setMoveDialogOpen(true); }}
+            onMove={(id) => openTransfer("move", { fileIds: [id], folderIds: [] })}
+            onCopyTo={(id) => openTransfer("copy", { fileIds: [id], folderIds: [] })}
+            onDuplicate={(id) => duplicateHere("file", id)}
             onDownload={(id) => {
               const r = resources.find((x) => x.id === id);
               if (!r) return;
@@ -873,23 +1186,11 @@ export function DriveBrowser({
           breadcrumb's crumbs are drop targets too. With the provider around
           the list alone, opening any folder drew a crumb outside it and the
           whole page fell over — the root showed no trail, so it never came up
-          until someone clicked in. */}
-      <DragProvider
-        axis="vertical"
-        onDragStart={handleDragStart}
-        onDrop={handleDrop}
-        renderPreview={(source) => (
-          <DragPreview
-            count={source.ids.length}
-            label={
-              isFolderRowId(source.id)
-                ? folders.find((f) => f.id === folderIdOf(source.id))?.name ?? "Folder"
-                : resources.find((r) => r.id === source.id)?.title ?? "File"
-            }
-            kind={isFolderRowId(source.id) ? "folder" : "file"}
-          />
-        )}
-      >
+          until someone clicked in.
+
+          On a specialty page the provider is the page's, so the category rail
+          is in it too; this one is only drawn when there is no such host. */}
+      <MaybeDragProvider host={!!dragHost} handlers={dragHandlers}>
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         {currentFolder && (
@@ -1021,7 +1322,7 @@ export function DriveBrowser({
 
       {/* Body */}
       {renderRows()}
-      </DragProvider>
+      </MaybeDragProvider>
 
       {/* Bulk action bar */}
       {selectedCount > 0 && (
@@ -1037,8 +1338,12 @@ export function DriveBrowser({
             {canManage && (
               <>
                 <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
-                  onClick={() => setMoveDialogOpen(true)}>
+                  onClick={() => openTransfer("move", selectedItems())}>
                   <FolderInput className="h-3.5 w-3.5" /> Move
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+                  onClick={() => openTransfer("copy", selectedItems())}>
+                  <Copy className="h-3.5 w-3.5" /> Copy
                 </Button>
                 <Button variant="destructive" size="sm" className="h-8 gap-1.5 text-xs"
                   onClick={handleBulkDelete} disabled={bulkDeleting}>
@@ -1124,33 +1429,64 @@ export function DriveBrowser({
         </DialogContent>
       </Dialog>
 
-      {/* Move dialog */}
-      <Dialog open={moveDialogOpen} onOpenChange={setMoveDialogOpen}>
+      {/* Move / copy dialog */}
+      <Dialog open={!!transfer} onOpenChange={(o) => { if (!o && !transferring) setTransfer(null); }}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Move {moveTargetIds.length || selectedCount} item{(moveTargetIds.length || selectedCount) === 1 ? "" : "s"}</DialogTitle>
-            <DialogDescription>Choose where they should go.</DialogDescription>
-          </DialogHeader>
+          {(() => {
+            const count = (transfer?.fileIds.length ?? 0) + (transfer?.folderIds.length ?? 0);
+            const verb = transfer?.mode === "copy" ? "Copy" : "Move";
+            return (
+              <DialogHeader>
+                <DialogTitle>{verb} {count} item{count === 1 ? "" : "s"}</DialogTitle>
+                <DialogDescription>
+                  Pick a category, then where in it {transfer?.mode === "copy" ? "the copies" : "they"} should go.
+                </DialogDescription>
+              </DialogHeader>
+            );
+          })()}
+          {categories.length > 1 && (
+            <div className="space-y-1.5">
+              <Label>Category</Label>
+              <Select value={transferCategoryId} onValueChange={setTransferCategoryId}>
+                <SelectTrigger aria-label="Category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}{c.id === subsection.id ? " (this category)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="max-h-72 space-y-1 overflow-y-auto">
             <button
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary"
-              onClick={() => runMove(null)}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary disabled:cursor-wait disabled:opacity-60"
+              disabled={transferring}
+              onClick={() => runTransfer(null)}
             >
-              <FileText className="h-4 w-4" /> {subsection.name} (top of section)
+              <FileText className="h-4 w-4" /> {categoryName(transferCategoryId)} (top of category)
             </button>
             {moveTargets.map(({ folder, depth, allowed }) => (
               <button
                 key={folder.id}
-                disabled={!allowed}
+                disabled={!allowed || transferring}
                 title={allowed ? undefined : "A folder cannot go inside itself"}
                 className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent"
                 style={{ paddingLeft: `${12 + depth * 18}px` }}
-                onClick={() => runMove(folder.id)}
+                onClick={() => runTransfer(folder.id)}
               >
                 <FolderClosed className="h-4 w-4 shrink-0 text-rule" /> {folder.name}
               </button>
             ))}
           </div>
+          {transferring && (
+            <p className="text-[13px] text-muted-foreground">
+              {transfer?.mode === "copy" ? "Copying…" : "Moving…"}
+            </p>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -1158,6 +1494,27 @@ export function DriveBrowser({
 }
 
 /* ---------- Subcomponents ---------- */
+
+/** The drive's own drag provider, for when no page above it supplies one. */
+function MaybeDragProvider({
+  host, handlers, children,
+}: {
+  host: boolean;
+  handlers: DriveDragHandlers;
+  children: React.ReactNode;
+}) {
+  if (host) return <>{children}</>;
+  return (
+    <DragProvider
+      axis="vertical"
+      onDragStart={handlers.onDragStart}
+      onDrop={handlers.onDrop}
+      renderPreview={handlers.renderPreview}
+    >
+      {children}
+    </DragProvider>
+  );
+}
 
 /**
  * One clickable column heading.
@@ -1200,7 +1557,7 @@ function Section({
 }) {
   // The list as a whole. Rows sit on top of it, so this catches only the space
   // around them — which is what "put it in the folder I am looking at" means.
-  const { setNodeRef, dropProps, isOver: active } = useDropTarget({ id, mode: "into" });
+  const { setNodeRef, dropProps, isOver: active } = useDropTarget({ id, mode: "into", accepts: isDriveDrag });
 
   return (
     <div
@@ -1266,7 +1623,7 @@ function Crumb({
   label: string;
   onClick: () => void;
 }) {
-  const { setNodeRef, dropProps, isOver: active } = useDropTarget({ id: `crumb:${id}`, mode: "into" });
+  const { setNodeRef, dropProps, isOver: active } = useDropTarget({ id: `crumb:${id}`, mode: "into", accepts: isDriveDrag });
   return (
     <button
       ref={setNodeRef}
