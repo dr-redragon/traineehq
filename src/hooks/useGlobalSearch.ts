@@ -15,6 +15,7 @@ interface ResourceRow {
   id: string;
   title: string;
   subsection_id: string;
+  folder_id: string | null;
   subsections: { specialty_id: string; specialties: { short_name: string } };
 }
 
@@ -23,6 +24,7 @@ interface FolderRow {
   id: string;
   name: string;
   subsection_id: string;
+  parent_folder_id: string | null;
   subsections: { specialty_id: string; specialties: { short_name: string } };
 }
 
@@ -32,7 +34,16 @@ export interface SearchHit {
   kind: SearchKind;
   label: string;
   sublabel?: string;
+  /** Where choosing the result takes you. */
   path: string;
+  /**
+   * For things that live in the drive: the place that holds it, with the
+   * item picked out, so a reader can see what sits next to it. Absent for
+   * everything else, where `path` already is the place.
+   */
+  locatePath?: string;
+  /** For a file: its location, with the file opened as well. */
+  openPath?: string;
   /** A specialty's own colour, for its icon. */
   color?: string;
   iconName?: string | null;
@@ -48,6 +59,23 @@ export const KIND_LABELS: Record<SearchKind, string> = {
 
 /** The order groups appear in — most specific first. */
 export const KIND_ORDER: SearchKind[] = ["specialty", "folder", "resource", "contact", "discussion"];
+
+/**
+ * A place in a specialty's drive. `folder` is the folder to stand in (none is
+ * the top of the section), `highlight` the row to pick out once there, and
+ * `open` asks for that file to be opened as well.
+ */
+export function drivePath(
+  specialtyId: string,
+  subsectionId: string,
+  { folder, highlight, open }: { folder?: string | null; highlight?: string; open?: boolean } = {},
+): string {
+  const params = new URLSearchParams({ subsection: subsectionId });
+  if (folder) params.set("folder", folder);
+  if (highlight) params.set("highlight", highlight);
+  if (open) params.set("open", "1");
+  return `/specialty/${specialtyId}?${params}`;
+}
 
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
@@ -77,8 +105,14 @@ function useDebounce<T>(value: T, delay: number): T {
  * specialty missing from the rail still turned up, along with its files and
  * its threads.
  */
-export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
-  const query = useDebounce(rawQuery.trim(), 200);
+export function useGlobalSearch(
+  rawQuery: string,
+  { enabled = true, full = false }: { enabled?: boolean; full?: boolean } = {},
+) {
+  const query = useDebounce(rawQuery.trim(), full ? 0 : 200);
+  // The dropdown shows a handful of each kind; the results page is where the
+  // rest go, so it asks for many more.
+  const limit = (n: number) => (full ? 50 : n);
 
   const { data: visibleSpecialties, isSuccess: scopeLoaded, isFetching: scopeFetching } =
     useVisibleSpecialties();
@@ -101,8 +135,8 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
         ? []
         : (visibleSpecialties ?? [])
             .filter((s) => matchesTerm(query, s.short_name, s.name))
-            .slice(0, 4),
-    [on, visibleSpecialties, query],
+            .slice(0, full ? 50 : 4),
+    [on, visibleSpecialties, query, full],
   );
 
   // Folders are searched as their own kind rather than being folded in with
@@ -110,37 +144,37 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
   // folder" is a place, not a document — and it was the one thing in the drive
   // the box could not find, because this hook never asked for the table.
   const folders = useQuery({
-    queryKey: ["search-folders", query, idList],
+    queryKey: ["search-folders", query, idList, full],
     queryFn: async () => {
       const { data } = await supabase
         .from("resource_folders")
-        .select("id, name, subsection_id, subsections!inner(specialty_id, specialties!inner(short_name))")
+        .select("id, name, subsection_id, parent_folder_id, subsections!inner(specialty_id, specialties!inner(short_name))")
         .ilike("name", `%${query}%`)
         .in("subsections.specialty_id", idList)
-        .limit(4);
+        .limit(limit(4));
       return data ?? [];
     },
     enabled: on,
   });
 
   const resources = useQuery({
-    queryKey: ["search-resources", query, idList],
+    queryKey: ["search-resources", query, idList, full],
     queryFn: async () => {
       const { data } = await supabase
         .from("resources")
-        .select("id, title, resource_type, subsection_id, subsections!inner(specialty_id, specialties!inner(short_name))")
+        .select("id, title, resource_type, subsection_id, folder_id, subsections!inner(specialty_id, specialties!inner(short_name))")
         .ilike("title", `%${query}%`)
         // Filtering through the inner join, so a file in a withdrawn section
         // is never sent in the first place.
         .in("subsections.specialty_id", idList)
-        .limit(6);
+        .limit(limit(6));
       return data ?? [];
     },
     enabled: on,
   });
 
   const contacts = useQuery({
-    queryKey: ["search-contacts", query, idList],
+    queryKey: ["search-contacts", query, idList, full],
     queryFn: async () => {
       const { data } = await supabase
         .from("contacts")
@@ -155,21 +189,21 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
         // second `or` is a separate clause, which PostgREST ands with the
         // first rather than widening it.
         .or(`specialty_id.is.null,specialty_id.in.(${idList.join(",")})`)
-        .limit(6);
+        .limit(limit(6));
       return data ?? [];
     },
     enabled: on,
   });
 
   const discussions = useQuery({
-    queryKey: ["search-discussions", query, idList],
+    queryKey: ["search-discussions", query, idList, full],
     queryFn: async () => {
       const { data } = await supabase
         .from("discussions")
         .select("id, title, specialty_id")
         .ilike("title", `%${query}%`)
         .in("specialty_id", idList)
-        .limit(4);
+        .limit(limit(4));
       return data ?? [];
     },
     enabled: on,
@@ -196,7 +230,7 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
     // The general directory belongs to everyone signed in, and the Contacts
     // page lists it for everyone, so the box has to as well.
     { allowUnscoped: true },
-  ).slice(0, 4);
+  ).slice(0, limit(4));
   const visibleDiscussions = keepVisible(
     discussions.data ?? [],
     (d) => d.specialty_id,
@@ -224,18 +258,28 @@ export function useGlobalSearch(rawQuery: string, { enabled = true } = {}) {
       sublabel: f.subsections?.specialties?.short_name,
       // `folder` opens it rather than just landing on the section it lives in,
       // which for a folder is the whole point of the result.
-      path: `/specialty/${f.subsections.specialty_id}?subsection=${f.subsection_id}&folder=${f.id}`,
+      path: drivePath(f.subsections.specialty_id, f.subsection_id, { folder: f.id }),
+      locatePath: drivePath(f.subsections.specialty_id, f.subsection_id, {
+        folder: f.parent_folder_id, highlight: f.id,
+      }),
     });
   }
   for (const r of visibleResources) {
+    const place = { folder: r.folder_id, highlight: r.id };
+    // Into the folder that holds it, with the file picked out, rather than
+    // the top of the section with the file somewhere underneath.
+    const located = drivePath(r.subsections.specialty_id, r.subsection_id, place);
     hits.push({
       key: `resource-${r.id}`,
       kind: "resource",
       label: r.title,
       sublabel: r.subsections?.specialties?.short_name,
-      path: `/specialty/${r.subsections.specialty_id}?subsection=${r.subsection_id}`,
+      path: located,
+      locatePath: located,
+      openPath: drivePath(r.subsections.specialty_id, r.subsection_id, { ...place, open: true }),
     });
   }
+
   for (const c of visibleContacts) {
     hits.push({
       key: `contact-${c.id}`,

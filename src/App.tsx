@@ -37,6 +37,7 @@ const Landing = lazy(() => import("./pages/Landing"));
 const Index = lazy(() => import("./pages/Index"));
 const SpecialtyDetail = lazy(() => import("./pages/SpecialtyDetail"));
 const KeyContacts = lazy(() => import("./pages/KeyContacts"));
+const SearchResults = lazy(() => import("./pages/SearchResults"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
 const MyProfile = lazy(() => import("./pages/MyProfile"));
 const CommunityHub = lazy(() => import("./pages/CommunityHub"));
@@ -182,6 +183,8 @@ const App = () => (
             <Route path="/dashboard" element={<RequireAuth><Index /></RequireAuth>} />
             <Route path="/specialty/:id" element={<RequireAuth><SpecialtyDetail /></RequireAuth>} />
             <Route path="/contacts" element={<RequireAuth><KeyContacts /></RequireAuth>} />
+            {/* Every match for a search, reached by pressing Enter in the header's box. */}
+            <Route path="/search" element={<RequireAuth><SearchResults /></RequireAuth>} />
             <Route path="/community" element={<RequireAuth><CommunityHub /></RequireAuth>} />
             {/* A specialty's board, on its own address so it can be linked and
                 bookmarked rather than reached by scrolling past the files. */}
