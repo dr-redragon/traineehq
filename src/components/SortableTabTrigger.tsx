@@ -2,7 +2,9 @@ import { type ReactNode } from "react";
 import { GripVertical } from "lucide-react";
 
 import { TabsTrigger } from "@/components/ui/tabs";
-import { DropIndicator, useSortableItem } from "@/lib/dnd";
+import {
+  DropIndicator, useDragState, useSortableItem, type DragData, type DragSource,
+} from "@/lib/dnd";
 import { cn } from "@/lib/utils";
 
 interface SortableTabTriggerProps {
@@ -18,6 +20,16 @@ interface SortableTabTriggerProps {
   meta?: ReactNode;
   /** The section's name, for the handle's label. */
   label?: string;
+  /** Carried with the drag, and seen by whatever it is dropped on. */
+  data?: DragData;
+  /**
+   * Drags from elsewhere that this tab takes *in* rather than sorts around —
+   * files and folders dropped on a category's name to move them there.
+   *
+   * While one of those is in the hand the whole tab is a single target, with
+   * no before or after: there is no gap between categories to put a file in.
+   */
+  dropInto?: (source: DragSource) => boolean;
 }
 
 /**
@@ -38,21 +50,33 @@ interface SortableTabTriggerProps {
  * gesture on a phone than any drag in a 40px-tall strip.
  */
 export function SortableTabTrigger({
-  id, value, children, canDrag, className, meta, index, label,
+  id, value, children, canDrag, className, meta, index, label, data, dropInto,
 }: SortableTabTriggerProps) {
+  const { source } = useDragState();
+  const taking = !!source && !!dropInto?.(source);
   const { ref, itemProps, dropProps, handleProps, edge, isDragging } = useSortableItem({
     id,
     index,
+    data,
     disabled: !canDrag,
     label: label ? `Reorder ${label}` : "Reorder section",
+    mode: taking ? "into" : "between",
+    // Another tab, for a reorder; or something this tab takes in. A file over
+    // a tab that will not have it must not be offered a gap beside it either.
+    accepts: (dragged) => dragged.data.kind === data?.kind || !!dropInto?.(dragged as DragSource),
   });
+  const highlighted = canDrag && edge === "into";
 
   return (
     <div
       ref={ref}
       {...itemProps}
       {...(canDrag ? dropProps : {})}
-      className={cn("relative flex items-center", className)}
+      className={cn(
+        "relative flex items-center transition-colors",
+        highlighted && "bg-accent-strong ring-2 ring-inset ring-rule",
+        className,
+      )}
     >
       <DropIndicator edge={canDrag ? edge : null} />
       {canDrag && (

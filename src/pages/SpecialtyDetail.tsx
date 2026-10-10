@@ -9,6 +9,9 @@ import { SpecialtyDiscussionPreview } from "@/components/SpecialtyDiscussionPrev
 import { SpecialtyNoticeBoard } from "@/components/SpecialtyNoticeBoard";
 import { SectionsEditor } from "@/components/SectionsEditor";
 import { DriveBrowser } from "@/components/drive/DriveBrowser";
+import {
+  DriveDragHostContext, isDriveDrag, isSectionDrag, type DriveDragHandlers,
+} from "@/components/drive/dragHost";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +55,10 @@ const SpecialtyDetail = () => {
   const [deleteSubId, setDeleteSubId] = useState<string | null>(null);
   const [deleteAction, setDeleteAction] = useState<"move" | "delete">("move");
   const [moveTargetId, setMoveTargetId] = useState<string>("");
+
+  // The open category's drive hands its drop handling up here, so a file
+  // dragged out of it can land on another category in the rail.
+  const driveDrag = useRef<DriveDragHandlers | null>(null);
 
   const tabsListRef = useRef<HTMLDivElement>(null);
   const [tabsScroll, setTabsScroll] = useState({
@@ -279,7 +286,7 @@ const SpecialtyDetail = () => {
 
   /** A section dropped in the rail: the gap it was let go over becomes its place. */
   const handleSubsectionDrop = ({ source, over }: DropEvent) => {
-    if (!over || !subsections) return;
+    if (!over || !subsections || !isSectionDrag(over)) return;
     const slot = slotForEdge(
       over.index ?? subsections.findIndex((sub) => sub.id === over.id),
       over.edge === "into" ? "before" : over.edge,
@@ -343,6 +350,7 @@ const SpecialtyDetail = () => {
   const Icon = getIcon(specialty.icon_name);
   const color = specialty.color ?? "174 60% 40%";
   const defaultTab = subsections?.[0]?.name ?? "Key Contacts";
+  const openSubsectionId = subsections?.find((s) => s.name === (activeTab ?? defaultTab))?.id;
 
   // What the sub-rail shows at the end of each category row. The design puts a
   // count there, and on a rail of eight it is the only way to tell a category
@@ -425,6 +433,21 @@ const SpecialtyDetail = () => {
 
             Below `lg` the rail lies back down as a scrolling strip, because a
             244px column beside content does not fit on a phone. */}
+        {/* One drag surface for the rail and the open category together:
+            sections are reordered by dragging them in the rail, and files and
+            folders are moved to another category by dropping them on its
+            name. Each drag is routed by what was picked up. */}
+        <DriveDragHostContext.Provider value={driveDrag}>
+        <DragProvider
+          axis="vertical"
+          onDragStart={(source) => { if (!isSectionDrag(source)) driveDrag.current?.onDragStart(source); }}
+          onDrop={(event) => {
+            if (isSectionDrag(event.source)) handleSubsectionDrop(event);
+            else driveDrag.current?.onDrop(event);
+          }}
+          onKeyboardMove={moveSubsectionBy}
+          renderPreview={(source) => (isSectionDrag(source) ? null : driveDrag.current?.renderPreview(source) ?? null)}
+        >
         <Tabs
           value={activeTab ?? defaultTab}
           onValueChange={setActiveTab}
@@ -481,26 +504,24 @@ const SpecialtyDetail = () => {
 
               <TabsList className="ds-subrail tabs-scrollbar hidden h-auto w-full flex-row items-stretch gap-0 overflow-x-auto border-b-0 p-0 lg:flex lg:flex-col lg:overflow-visible">
                 {canManage && subsections?.length ? (
-                  <DragProvider
-                    axis="vertical"
-                    onDrop={handleSubsectionDrop}
-                    onKeyboardMove={moveSubsectionBy}
-                  >
-                    {subsections.map((sub, index) => (
-                      <SortableTabTrigger
-                        key={sub.id}
-                        id={sub.id}
-                        index={index}
-                        value={sub.name}
-                        label={sub.name}
-                        canDrag
-                        className="w-full"
-                        meta={<span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>}
-                      >
-                        {sub.name}
-                      </SortableTabTrigger>
-                    ))}
-                  </DragProvider>
+                  subsections.map((sub, index) => (
+                    <SortableTabTrigger
+                      key={sub.id}
+                      id={sub.id}
+                      index={index}
+                      value={sub.name}
+                      label={sub.name}
+                      canDrag
+                      data={{ kind: "section" }}
+                      // Files and folders from the open category can be
+                      // dropped on any other category to move them there.
+                      dropInto={(source) => isDriveDrag(source) && sub.id !== openSubsectionId}
+                      className="w-full"
+                      meta={<span className="shrink-0 text-[12px] font-normal text-muted-foreground">{countOf(sub.id)}</span>}
+                    >
+                      {sub.name}
+                    </SortableTabTrigger>
+                  ))
                 ) : (
                   subsections?.map((sub) => (
                     <TabsTrigger key={sub.id} value={sub.name}>
@@ -588,6 +609,8 @@ const SpecialtyDetail = () => {
                   openFolderId={searchParams.get("subsection") === sub.id ? searchParams.get("folder") : null}
                   resources={subResources}
                   folders={subFolders}
+                  categories={subsections.map((s) => ({ id: s.id, name: s.name }))}
+                  allFolders={resourceFolders ?? []}
                   canManage={!!canManage}
                 />
               </TabsContent>
@@ -610,6 +633,8 @@ const SpecialtyDetail = () => {
             </div>
           </div>
         </Tabs>
+        </DragProvider>
+        </DriveDragHostContext.Provider>
 
         {/* The discussion is the specialty's, not the open category's, so it
             sits below the whole grid at full width rather than inside the

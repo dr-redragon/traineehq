@@ -9,10 +9,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FolderClosed, FolderOpen, ChevronRight, FolderPlus,
-  MoreVertical, Trash2, Eye, Pencil, Bookmark, Download, FolderInput,
+  MoreVertical, Trash2, Eye, Pencil, Bookmark, Download, FolderInput, Copy, CopyPlus,
 } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { DropIndicator, useSortableItem, type DragSource } from "@/lib/dnd";
+import { isDriveDrag } from "@/components/drive/dragHost";
 import { ResourceViewer } from "@/components/ResourceViewer";
 import { EditResourceDialog } from "@/components/EditResourceDialog";
 import { toast } from "sonner";
@@ -73,12 +74,16 @@ interface FileRowProps extends BaseRowProps {
   resource: Tables<"resources">;
   onDelete: (id: string) => void;
   onMove: (id: string) => void;
+  /** Opens the destination picker to put a copy somewhere else. */
+  onCopyTo: (id: string) => void;
+  /** A copy beside the original. */
+  onDuplicate: (id: string) => void;
   onDownload: (id: string) => void;
 }
 
 export function FileRow({
   resource, selected, onClick, canManage, selectMode, depth = 0, index, dragGroup,
-  reorderable = true, onDelete, onMove, onDownload,
+  reorderable = true, onDelete, onMove, onCopyTo, onDuplicate, onDownload,
 }: FileRowProps) {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -95,6 +100,7 @@ export function FileRow({
     data: { kind: "file", resourceId: resource.id },
     mode: "between",
     dropDisabled: !reorderable,
+    accepts: isDriveDrag,
   });
 
   const style = {
@@ -210,6 +216,12 @@ export function FileRow({
                     <DropdownMenuItem onClick={() => onMove(resource.id)}>
                       <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to…
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onDuplicate(resource.id)}>
+                      <CopyPlus className="h-3.5 w-3.5 mr-2" /> Make a copy
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => onCopyTo(resource.id)}>
+                      <Copy className="h-3.5 w-3.5 mr-2" /> Copy to…
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive"
                       onClick={() => onDelete(resource.id)}>
@@ -240,6 +252,12 @@ export function FileRow({
               <ContextMenuItem onClick={() => onMove(resource.id)}>
                 <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to…
               </ContextMenuItem>
+              <ContextMenuItem onClick={() => onDuplicate(resource.id)}>
+                <CopyPlus className="h-3.5 w-3.5 mr-2" /> Make a copy
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => onCopyTo(resource.id)}>
+                <Copy className="h-3.5 w-3.5 mr-2" /> Copy to…
+              </ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem className="text-destructive" onClick={() => onDelete(resource.id)}>
                 <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
@@ -268,6 +286,11 @@ interface FolderRowProps extends BaseRowProps {
   onRename: () => void;
   onDelete: () => void;
   onDownload: () => void;
+  onMove: () => void;
+  /** Opens the destination picker to put a copy somewhere else. */
+  onCopyTo: () => void;
+  /** A copy beside the original, with everything inside it. */
+  onDuplicate: () => void;
   downloading?: boolean;
   /** Refuses a drag that would put a folder inside itself. */
   accepts?: (source: DragSource) => boolean;
@@ -276,7 +299,7 @@ interface FolderRowProps extends BaseRowProps {
 export function FolderRow({
   folder, selected, onClick, canManage, selectMode, count, onOpen, onRename, onDelete, onDownload,
   downloading, depth = 0, hasChildren = false, expanded = false, index, dragGroup,
-  reorderable = true, onToggleExpanded, onNewSubfolder, accepts,
+  reorderable = true, onToggleExpanded, onNewSubfolder, accepts, onMove, onCopyTo, onDuplicate,
 }: FolderRowProps) {
   /**
    * A folder is both a place in the order and a place to put things, which is
@@ -406,6 +429,15 @@ export function FolderRow({
                   <DropdownMenuItem onClick={onDownload} disabled={downloading}>
                     <Download className="h-3.5 w-3.5 mr-2" /> Download folder
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onMove}>
+                    <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to…
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onDuplicate}>
+                    <CopyPlus className="h-3.5 w-3.5 mr-2" /> Make a copy
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={onCopyTo}>
+                    <Copy className="h-3.5 w-3.5 mr-2" /> Copy to…
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem className="text-destructive" onClick={onDelete}>
                     <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete folder
@@ -428,6 +460,15 @@ export function FolderRow({
             <ContextMenuSeparator />
             <ContextMenuItem onClick={onRename}>
               <Pencil className="h-3.5 w-3.5 mr-2" /> Rename
+            </ContextMenuItem>
+            <ContextMenuItem onClick={onMove}>
+              <FolderInput className="h-3.5 w-3.5 mr-2" /> Move to…
+            </ContextMenuItem>
+            <ContextMenuItem onClick={onDuplicate}>
+              <CopyPlus className="h-3.5 w-3.5 mr-2" /> Make a copy
+            </ContextMenuItem>
+            <ContextMenuItem onClick={onCopyTo}>
+              <Copy className="h-3.5 w-3.5 mr-2" /> Copy to…
             </ContextMenuItem>
             <ContextMenuSeparator />
             <ContextMenuItem className="text-destructive" onClick={onDelete}>

@@ -71,8 +71,9 @@ export interface DragProviderProps {
   onDragStart?: (source: DragSource) => void;
   onDragCancel?: () => void;
   /**
-   * The thing that follows the pointer. Left out, the row itself is cloned,
-   * which is nearly always the right answer and always the honest one.
+   * The thing that follows the pointer. Left out — or returning null for a
+   * particular drag — the row itself is cloned, which is nearly always the
+   * right answer and always the honest one.
    */
   renderPreview?: (source: DragSource) => ReactNode;
   /**
@@ -483,6 +484,7 @@ export function DragProvider({
   }), [scopeId, axis, registerDrop, unregisterDrop, startPointerDrag, keyboardMove, announce]);
 
   const source = state.source;
+  const customPreview = source && renderPreview ? renderPreview(source) : null;
 
   return (
     <ManagerContext.Provider value={manager}>
@@ -513,7 +515,7 @@ export function DragProvider({
             }}
           >
             <div className="dnd-preview-lift">
-              {renderPreview ? renderPreview(source) : (
+              {customPreview != null && customPreview !== false ? customPreview : (
                 <div
                   ref={(host) => {
                     if (!host || host.childElementCount > 0) return;

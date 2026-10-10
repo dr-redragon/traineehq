@@ -25,6 +25,20 @@ const folder = {
   updated_at: "2026-09-01T00:00:00Z",
 } as Tables<"resource_folders">;
 
+const otherFolder = {
+  id: "folder-2",
+  name: "Past papers",
+  subsection_id: "sub-2",
+  parent_folder_id: null,
+  sort_order: 0,
+  updated_at: "2026-09-01T00:00:00Z",
+} as Tables<"resource_folders">;
+
+const categories = [
+  { id: "sub-1", name: "Calman day" },
+  { id: "sub-2", name: "Exams" },
+];
+
 function renderBrowser(canManage: boolean) {
   return render(
     <QueryClientProvider client={new QueryClient()}>
@@ -33,6 +47,8 @@ function renderBrowser(canManage: boolean) {
         specialtyId="spec-1"
         resources={[]}
         folders={[folder]}
+        categories={categories}
+        allFolders={[folder, otherFolder]}
         canManage={canManage}
       />
     </QueryClientProvider>,
@@ -48,5 +64,19 @@ describe("DriveBrowser", () => {
     expect(trail).toHaveTextContent("Calman day");
     expect(trail).toHaveTextContent("Presentations");
     expect(screen.getByRole("button", { name: "Up one level" })).toBeInTheDocument();
+  });
+
+  it.each(["Move", "Copy"])("offers every category as a destination (%s)", (verb) => {
+    renderBrowser(true);
+    // A modified click selects rather than opening, which brings up the bar.
+    fireEvent.click(screen.getByText("Presentations"), { ctrlKey: true });
+    fireEvent.click(screen.getByRole("button", { name: verb }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent(`${verb} 1 item`);
+    expect(screen.getByRole("combobox", { name: "Category" })).toHaveTextContent("Calman day");
+    // This category's own folders until another one is picked.
+    expect(dialog).toHaveTextContent("Calman day (top of category)");
+    expect(dialog).not.toHaveTextContent("Past papers");
   });
 });
