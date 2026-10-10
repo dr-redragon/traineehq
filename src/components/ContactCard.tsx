@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
-import { Mail, Phone, ExternalLink, Star } from "lucide-react";
+import { Mail, Phone, Star, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,9 +11,15 @@ import type { Tables } from "@/integrations/supabase/types";
 
 interface ContactCardProps {
   contact: Tables<"contacts">;
+  /** Shown when the viewer may edit this contact. */
+  onEdit?: () => void;
+  /** Shown when the viewer may remove this contact. */
+  onDelete?: () => void;
+  /** A short note under the organisation, e.g. that it shows on every specialty. */
+  note?: string;
 }
 
-export function ContactCard({ contact }: ContactCardProps) {
+export function ContactCard({ contact, onEdit, onDelete, note }: ContactCardProps) {
   const { data: user } = useCurrentUser();
   const queryClient = useQueryClient();
   const category = contactCategories.find((c) => c.key === contact.category);
@@ -65,11 +71,19 @@ export function ContactCard({ contact }: ContactCardProps) {
           </div>
           <div className="flex-1 min-w-0 space-y-1.5">
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="min-w-0">
                 <h3 className="text-sm font-semibold">{contact.name}</h3>
                 <p className="text-xs text-muted-foreground">{contact.role}</p>
+                {/* Under the role rather than beside the buttons: a label as
+                    long as "Training Programme Director" next to three icon
+                    buttons pushed the last one off the card. */}
+                {category && (
+                  <Badge variant="secondary" className="mt-1.5 text-[10px]">
+                    {category.label}
+                  </Badge>
+                )}
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -79,27 +93,41 @@ export function ContactCard({ contact }: ContactCardProps) {
                 >
                   <Star className={`h-4 w-4 ${isStarred ? "fill-current" : ""}`} />
                 </Button>
-                {category && (
-                  <Badge variant="secondary" className="text-[10px] shrink-0">
-                    {category.label}
-                  </Badge>
+                {onEdit && (
+                  <Button
+                    variant="ghost" size="icon" className="h-7 w-7 shrink-0"
+                    onClick={onEdit} title="Edit contact" aria-label={`Edit ${contact.name}`}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+                {onDelete && (
+                  <Button
+                    variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={onDelete} title="Remove contact" aria-label={`Remove ${contact.name}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
                 )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-              <span className="inline-block h-1.5 w-1.5 bg-rule" />
-              {contact.organisation}
-            </p>
-            <div className="flex items-center gap-4 pt-1">
+            {contact.organisation && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <span className="inline-block h-1.5 w-1.5 bg-rule" />
+                {contact.organisation}
+              </p>
+            )}
+            {note && <p className="text-[11px] italic text-muted-foreground">{note}</p>}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-1">
               <a href={`mailto:${contact.email}`} className="text-xs text-muted-foreground hover:text-accent-deep flex items-center gap-1.5 transition-colors">
                 <Mail className="h-3 w-3" />
                 {contact.email}
               </a>
               {contact.phone && (
-                <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <a href={`tel:${contact.phone.replace(/\s+/g, "")}`} className="text-xs text-muted-foreground hover:text-accent-deep flex items-center gap-1.5 transition-colors">
                   <Phone className="h-3 w-3" />
                   {contact.phone}
-                </span>
+                </a>
               )}
             </div>
           </div>

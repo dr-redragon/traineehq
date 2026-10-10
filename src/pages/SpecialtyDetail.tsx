@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { DashboardLayout } from "@/components/DashboardLayout";
-import { ContactCard } from "@/components/ContactCard";
+import { SpecialtyContacts } from "@/components/SpecialtyContacts";
 import { SpecialtyDiscussionPreview } from "@/components/SpecialtyDiscussionPreview";
 import { SpecialtyNoticeBoard } from "@/components/SpecialtyNoticeBoard";
 import { SectionsEditor } from "@/components/SectionsEditor";
@@ -637,17 +637,8 @@ const SpecialtyDetail = () => {
           })}
 
 
-          <TabsContent value="Key Contacts" className="mt-4 space-y-4">
-            <h3 className="font-display text-lg font-extrabold tracking-tight">Key Contacts — {specialty.short_name}</h3>
-            {!contacts?.length ? (
-              <p className="py-6 text-sm text-muted-foreground">No contacts added yet.</p>
-            ) : (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                {contacts.map((c) => (
-                  <ContactCard key={c.id} contact={c} />
-                ))}
-              </div>
-            )}
+          <TabsContent value="Key Contacts" className="mt-4">
+            <SpecialtyContacts specialty={specialty} contacts={contacts ?? []} canManage={!!canManage} />
           </TabsContent>
             </div>
           </div>
