@@ -51,6 +51,13 @@ create table if not exists storage.objects (
   name      text
 );
 
+-- Supabase ships storage.objects with row-level security on and the browser
+-- roles granted, so its policies are the whole boundary. Mirrored here so the
+-- bucket policies are exercised rather than bypassed by the table owner.
+alter table storage.objects enable row level security;
+alter table storage.objects force row level security;
+grant select, insert, update, delete on storage.objects to authenticated;
+
 create or replace function storage.foldername(name text)
 returns text[]
 language sql
