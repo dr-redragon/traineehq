@@ -25,10 +25,12 @@ MIGRATIONS="$REPO_ROOT/supabase/migrations"
 # The migrations under test, re-applied for idempotency.
 NEW_MIGRATIONS=(
   20261011090000_resources_storage_object_path.sql
+  20261011100000_register_checkin_hardening.sql
 )
 
 ASSERTIONS=(
   storage-assertions.sql
+  register-checkin-assertions.sql
 )
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }

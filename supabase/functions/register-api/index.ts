@@ -80,6 +80,20 @@ const isPlaceholderEmail = (v: unknown) =>
 const feedbackUrl = (sessionId: string) =>
   `${APP_BASE_URL}/registers/feedback?s=${encodeURIComponent(sessionId)}`;
 
+/**
+ * Whether anonymous sign-in is open for a teaching day dated `sessionDate`
+ * (YYYY-MM-DD): the day itself, with a day's slack either side so a session
+ * near midnight, or a clock in another time zone, is not turned away.
+ */
+const CHECK_IN_SLACK_DAYS = 1;
+function checkInWindowOpen(sessionDate: string, now = new Date()): boolean {
+  const day = Date.parse(`${sessionDate}T00:00:00Z`);
+  if (Number.isNaN(day)) return false;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return now.getTime() >= day - CHECK_IN_SLACK_DAYS * dayMs &&
+    now.getTime() < day + (1 + CHECK_IN_SLACK_DAYS) * dayMs;
+}
+
 function ukDate(value: string): string {
   return new Date(`${value}T00:00:00Z`).toLocaleDateString("en-GB", {
     day: "numeric", month: "long", year: "numeric", timeZone: "UTC",
@@ -212,6 +226,13 @@ async function handleCheckIn(db: SupabaseClient, body: Record<string, unknown>) 
     .eq("id", sessionId).maybeSingle();
   if (!session) return json({ error: "This sign-in link is not valid any more" }, 404);
 
+  // A sign-in link is a QR code on a slide: it travels. Without a window it
+  // stays a standing licence to mark anyone on the roster present for that day,
+  // months later. Organisers record attendance outside it with mark-attended.
+  if (!checkInWindowOpen(session.session_date)) {
+    return json({ error: "Sign-in for this teaching day is closed — ask the organiser to mark you present" }, 403);
+  }
+
   // "My name is not on the list" joins the roster here, as they sign in —
   // present for this teaching day and listed for every future one. Matching is
   // by name, so a name already on the roster attaches rather than duplicating.
@@ -232,9 +253,12 @@ async function handleCheckIn(db: SupabaseClient, body: Record<string, unknown>) 
     });
   }
 
-  // Resolved server-side: a typed address is saved onto the roster record, a
-  // blank one falls back to whatever is on file. The stored address never
-  // reaches the browser — it travels only as far as the attendee row.
+  // Resolved server-side: an address already on file always wins, and a typed
+  // one is kept only when the roster holds none. Letting a typed address
+  // replace a stored one would let anybody holding the link redirect another
+  // trainee's certificate and chasers to an inbox of their choosing. The
+  // stored address never reaches the browser — it travels only as far as the
+  // attendee row, and the response below names the attendee without it.
   let email = typedEmail;
   try {
     const { data: resolved } = await db.rpc("register_resolve_trainee_email", {
@@ -252,9 +276,12 @@ async function handleCheckIn(db: SupabaseClient, body: Record<string, unknown>) 
       session_id: sessionId, name, email, grade,
       checked_in_at: new Date().toISOString(),
     }, { onConflict: "session_id,email" })
-    .select("id, name, email, grade").single();
+    .select("id, name").single();
 
-  if (error) return json({ error: error.message }, 500);
+  if (error) {
+    console.error("check-in attendee upsert failed", error);
+    return json({ error: "Could not sign you in — please try again" }, 500);
+  }
   return json({ ok: true, attendee: data, enrolled, session: { title: session.title } });
 }
 
