@@ -13,6 +13,7 @@ import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { Constants } from "@/integrations/supabase/types";
 import type { Tables } from "@/integrations/supabase/types";
 import { uploadErrorMessage, removeStoredFiles } from "@/lib/storageUtils";
+import { linkFromInput } from "@/lib/safeUrl";
 
 interface EditResourceDialogProps {
   resource: Tables<"resources">;
@@ -92,6 +93,7 @@ export function EditResourceDialog({ resource, open, onOpenChange }: EditResourc
 
   const updateResource = useMutation({
     mutationFn: async () => {
+      const link = linkFromInput(externalUrl);
       setSaving(true);
       const previousUrl = resource.file_url;
       let fileUrl = resource.file_url;
@@ -115,7 +117,7 @@ export function EditResourceDialog({ resource, open, onOpenChange }: EditResourc
         title: title.trim(),
         description: description.trim() || null,
         resource_type: resourceType as any,
-        external_url: externalUrl.trim() || null,
+        external_url: link,
         file_url: fileUrl,
         subsection_id: subsectionId,
         // Keep the displayed size in step with the file actually stored.

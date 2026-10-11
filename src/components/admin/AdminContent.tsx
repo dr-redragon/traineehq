@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Plus, Pencil, Trash2, FileText, Video, LinkIcon, BookOpen, CheckSquare, FolderOpen, Presentation } from "lucide-react";
 import { toast } from "sonner";
+import { linkFromInput } from "@/lib/safeUrl";
 import type { Tables } from "@/integrations/supabase/types";
 
 const typeIcons: Record<string, typeof FileText> = {
@@ -60,11 +61,12 @@ export function AdminContent() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const link = linkFromInput(form.external_url);
       if (editing) {
         const { error } = await supabase.from("resources").update({
           title: form.title, description: form.description,
           resource_type: form.resource_type as Tables<"resources">["resource_type"],
-          external_url: form.external_url || null,
+          external_url: link,
         }).eq("id", editing.id);
         if (error) throw error;
       } else {
@@ -72,7 +74,7 @@ export function AdminContent() {
           subsection_id: selectedSubsection,
           title: form.title, description: form.description,
           resource_type: form.resource_type as Tables<"resources">["resource_type"],
-          external_url: form.external_url || null,
+          external_url: link,
         });
         if (error) throw error;
       }

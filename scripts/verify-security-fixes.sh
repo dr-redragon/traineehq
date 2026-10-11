@@ -27,12 +27,14 @@ NEW_MIGRATIONS=(
   20261011090000_resources_storage_object_path.sql
   20261011100000_register_checkin_hardening.sql
   20261011110000_deanery_scoped_admins.sql
+  20261011120000_link_scheme_constraints.sql
 )
 
 ASSERTIONS=(
   storage-assertions.sql
   register-checkin-assertions.sql
   deanery-admin-assertions.sql
+  link-scheme-assertions.sql
 )
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }

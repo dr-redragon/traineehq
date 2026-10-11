@@ -1,10 +1,25 @@
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import fs from "fs";
 import { componentTagger } from "lovable-tagger";
 import type { Plugin } from "vite";
 import { PUBLIC_PAGES, renderPublicPageHtml, renderSitemap } from "./src/lib/publicPages";
+import { withCspMeta } from "./src/lib/contentSecurityPolicy";
+
+// Writes the Content Security Policy into index.html for production builds
+// (and so into every public page copied from it). Not in dev: Vite's dev
+// server injects its own inline scripts for HMR. See src/lib/contentSecurityPolicy.ts.
+function contentSecurityPolicy(supabaseUrl: string): Plugin {
+  return {
+    name: "content-security-policy",
+    apply: "build",
+    transformIndexHtml: {
+      order: "post",
+      handler: (html) => withCspMeta(html, supabaseUrl),
+    },
+  };
+}
 
 // Writes welcome.html, contact.html, ... and sitemap.xml next to index.html, so
 // the pages search engines may index are served with a 200 and their own head.
@@ -37,7 +52,12 @@ export default defineConfig(({ mode }) => ({
       overlay: false,
     },
   },
-  plugins: [react(), publicPages(), mode === "development" && componentTagger()].filter(Boolean),
+  plugins: [
+    react(),
+    contentSecurityPolicy(loadEnv(mode, process.cwd(), "VITE_").VITE_SUPABASE_URL),
+    publicPages(),
+    mode === "development" && componentTagger(),
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
