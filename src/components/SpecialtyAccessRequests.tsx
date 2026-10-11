@@ -104,15 +104,26 @@ export function SpecialtyAccessRequests({
       if (!specialtyId) throw new Error("Choose a specialty first.");
       const trimmed = reason.trim();
       if (trimmed.length > MAX_REASON) throw new Error(`Reason must be under ${MAX_REASON} characters.`);
-      const { error } = await supabase.from("specialty_access_requests").insert({
-        user_id: userId,
-        specialty_id: specialtyId,
-        reason: trimmed || null,
-      });
+      const { data, error } = await supabase
+        .from("specialty_access_requests")
+        .insert({
+          user_id: userId,
+          specialty_id: specialtyId,
+          reason: trimmed || null,
+        })
+        .select("id")
+        .single();
       if (error) {
         if (error.code === "23505") throw new Error("You already have a pending request for this specialty.");
         throw error;
       }
+      // Tells the reviewers, and confirms to the requester. A failed email
+      // must not undo a request that was made, so it is only logged.
+      supabase.functions
+        .invoke("access-request-email", {
+          body: { type: "specialty_request_submitted", request_id: data.id },
+        })
+        .catch((e) => console.error("Email notification error:", e));
     },
     onSuccess: () => {
       toast.success("Request sent. An administrator will review it.");

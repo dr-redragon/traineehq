@@ -30,7 +30,11 @@ const MAX_NAME = 200;
 const MAX_NOTE = 2000;
 
 interface EmailPayload {
-  type: "submission_confirmation" | "new_request_alert" | "approved" | "rejected";
+  type:
+    | "submission_confirmation" | "new_request_alert" | "approved" | "rejected"
+    | "specialty_request_submitted" | "specialty_request_decided";
+  /** The specialty_access_requests row, for the two specialty_request_* types. */
+  request_id?: string;
   applicant_email: string;
   applicant_name: string;
   specialty_name?: string;
@@ -111,6 +115,160 @@ async function sendEmail(to: string, subject: string, html: string) {
     throw new Error(`Resend API error [${res.status}]: ${body}`);
   }
   return res.json();
+}
+
+/** The caller's user id from their JWT, or null. */
+async function getCallerId(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  req: Request,
+): Promise<string | null> {
+  const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+  const { data, error } = await admin.auth.getUser(token);
+  return error || !data?.user ? null : data.user.id;
+}
+
+function specialtyRequestAlertHtml(
+  name: string, email: string, specialty: string, reason: string | null, siteUrl: string,
+) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a2e;margin-bottom:16px">Specialty Access Request</h2>
+      <p style="color:#4a4a5a;line-height:1.6">
+        <strong>${esc(name)}</strong> (${esc(email)}) has asked to join <strong>${esc(specialty)}</strong>.
+      </p>
+      ${reason ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><em>${esc(reason)}</em></p>` : ""}
+      <p style="color:#4a4a5a;line-height:1.6">
+        Review it in the Admin Panel or Facilitator Panel${siteUrl ? `: <a href="${esc(siteUrl)}">${esc(siteUrl)}</a>` : "."}
+      </p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+    </div>`;
+}
+
+function specialtyRequestReceivedHtml(name: string, specialty: string) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a2e;margin-bottom:16px">Request Received</h2>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
+      <p style="color:#4a4a5a;line-height:1.6">
+        Your request to join <strong>${esc(specialty)}</strong> has been sent for review.
+        You'll get another email once it has been decided.
+      </p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+    </div>`;
+}
+
+function specialtyRequestDecidedHtml(
+  name: string, specialty: string, approved: boolean, note: string | null,
+) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a2e;margin-bottom:16px">${approved ? "Specialty Access Approved ✅" : "Specialty Access Request Update"}</h2>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
+      <p style="color:#4a4a5a;line-height:1.6">
+        ${approved
+          ? `Your request to join <strong>${esc(specialty)}</strong> has been approved. It is in your sidebar the next time you sign in or refresh the page.`
+          : `Your request to join <strong>${esc(specialty)}</strong> was not approved at this time.`}
+      </p>
+      ${note ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><strong>Note:</strong> <em>${esc(note)}</em></p>` : ""}
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+    </div>`;
+}
+
+/**
+ * Emails about a request to join another specialty, made from the profile page.
+ *
+ * Nothing is taken from the request body but the row id: who to write to, and
+ * what to say, are read from the database. "submitted" may only be sent by the
+ * person who made the request, while it is still pending; "decided" only by
+ * somebody who may review that specialty, once it has been decided.
+ */
+async function handleSpecialtyRequest(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  req: Request,
+  payload: EmailPayload,
+) {
+  const callerId = await getCallerId(admin, req);
+  if (!callerId) return json({ error: "Not authorised" }, 403);
+
+  const requestId = String(payload.request_id ?? "");
+  const { data: request } = await admin
+    .from("specialty_access_requests")
+    .select("id, user_id, specialty_id, reason, status, review_note")
+    .eq("id", requestId)
+    .maybeSingle();
+  if (!request) return json({ error: "Request not found" }, 404);
+
+  const [{ data: person }, { data: spec }] = await Promise.all([
+    admin.from("profiles").select("first_name, last_name, email").eq("user_id", request.user_id).maybeSingle(),
+    admin.from("specialties").select("id, short_name, deanery_id, parent_specialty_id").eq("id", request.specialty_id).maybeSingle(),
+  ]);
+  const name = `${person?.first_name ?? ""} ${person?.last_name ?? ""}`.trim() || "there";
+  const specialtyName = spec?.short_name ?? "a specialty";
+
+  if (payload.type === "specialty_request_submitted") {
+    if (callerId !== request.user_id || request.status !== "pending") {
+      return json({ error: "Not authorised" }, 403);
+    }
+
+    // The same people can_review_specialty() lets decide it: super admins, the
+    // admins of its deanery, and its facilitators (or its parent's).
+    const { data: roles } = await admin
+      .from("user_roles")
+      .select("user_id, role, deanery_id")
+      .in("role", ["admin", "super_admin"]);
+    const adminIds = (roles ?? [])
+      .filter((r: { role: string; deanery_id: string | null }) =>
+        r.role === "super_admin" || r.deanery_id === null || r.deanery_id === spec?.deanery_id)
+      .map((r: { user_id: string }) => r.user_id);
+    const specIds = [spec?.id, spec?.parent_specialty_id].filter(Boolean) as string[];
+    const { data: facs } = specIds.length
+      ? await admin.from("facilitator_specialties").select("user_id").in("specialty_id", specIds)
+      : { data: [] };
+    const notifyIds = [...new Set([...adminIds, ...(facs ?? []).map((f: { user_id: string }) => f.user_id)])]
+      .filter((id) => id !== request.user_id);
+
+    if (notifyIds.length) {
+      const { data: profiles } = await admin.from("profiles").select("email").in("user_id", notifyIds);
+      // Fixed rather than read from the request's Origin, which the caller controls.
+      const siteUrl = Deno.env.get("SITE_URL") ?? "https://traineehq.com";
+      const html = specialtyRequestAlertHtml(name, person?.email ?? "", specialtyName, request.reason, siteUrl);
+      for (const p of profiles ?? []) {
+        if (!p.email) continue;
+        try { await sendEmail(p.email, `Specialty access request: ${name} → ${specialtyName}`, html); }
+        catch (e) { console.error(`Failed to notify ${p.email}:`, e); }
+      }
+    } else {
+      console.warn(`No reviewer to notify about specialty request ${request.id}.`);
+    }
+
+    if (person?.email) {
+      await sendEmail(
+        person.email,
+        `Request received: ${specialtyName} — HST Training Hub`,
+        specialtyRequestReceivedHtml(name, specialtyName),
+      );
+    }
+    return json({ success: true });
+  }
+
+  // specialty_request_decided
+  const { data: mayReview } = await admin.rpc("can_review_specialty", {
+    _user_id: callerId, _specialty_id: request.specialty_id,
+  });
+  if (!mayReview || request.status === "pending") {
+    return json({ error: "Not authorised" }, 403);
+  }
+  if (!person?.email) return json({ success: true, skipped: "no email address" });
+  const approved = request.status === "approved";
+  await sendEmail(
+    person.email,
+    approved
+      ? `Access approved: ${specialtyName} — HST Training Hub`
+      : `Specialty access request update — HST Training Hub`,
+    specialtyRequestDecidedHtml(name, specialtyName, approved, request.review_note),
+  );
+  return json({ success: true });
 }
 
 function submissionConfirmationHtml(name: string) {
@@ -194,6 +352,13 @@ Deno.serve(async (req) => {
   try {
     const payload: EmailPayload = await req.json();
     const { type } = payload;
+
+    // Requests to join another specialty identify everything by the row id,
+    // so they are handled before the applicant-email checks below.
+    if (type === "specialty_request_submitted" || type === "specialty_request_decided") {
+      return await handleSpecialtyRequest(getSupabaseAdmin(), req, payload);
+    }
+
     const applicantEmail = String(payload.applicant_email ?? "").trim().toLowerCase();
     const applicantName = String(payload.applicant_name ?? "").trim().slice(0, MAX_NAME);
 

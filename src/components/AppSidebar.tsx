@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, ChevronDown, ChevronRight,
-  LogOut, User, Shield, MessageSquare, ClipboardCheck, ClipboardList
+  LogOut, User, Shield, MessageSquare, ClipboardCheck, ClipboardList, UserCheck
 } from "lucide-react";
 import logoWhite from "@/assets/logo-white.png";
 import { getIcon } from "@/lib/iconMap";
@@ -73,7 +73,7 @@ export function AppSidebar() {
   // person is allowed to see. See useVisibleSpecialties.
   const { data: specialties } = useVisibleSpecialties();
 
-  // Requests waiting on an admin. Only fetched for admins; zero hides the badge.
+  // Requests waiting on this reviewer (admin or facilitator); zero hides the badge.
   const { data: pending } = usePendingRequestCounts();
 
   // Separate top-level and children
@@ -278,6 +278,21 @@ export function AppSidebar() {
                     <NavLink to="/classic-registers" activeClassName={RAIL_ACTIVE}>
                       <ClipboardList className="h-4 w-4" />
                       {!collapsed && <span>Registers (Classic)</span>}
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {role === "facilitator" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/facilitator" activeClassName={RAIL_ACTIVE} className="relative">
+                      <UserCheck className="h-4 w-4" />
+                      {!collapsed && <span className="flex-1">Facilitator Panel</span>}
+                      <CountBadge
+                        count={pending?.total}
+                        label="pending requests"
+                        className={collapsed ? "absolute right-0 top-0 h-3.5 min-w-3.5 px-1 text-[9px]" : ""}
+                      />
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

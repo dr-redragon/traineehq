@@ -71,8 +71,13 @@ export function AdminSpecialtyRequests() {
       });
       if (error) throw error;
     },
-    onSuccess: (_, { approve }) => {
+    onSuccess: (_, { id, approve }) => {
       toast.success(approve ? "Request approved — access granted" : "Request declined");
+      supabase.functions
+        .invoke("access-request-email", {
+          body: { type: "specialty_request_decided", request_id: id },
+        })
+        .catch((e) => console.error("Email notification error:", e));
       queryClient.invalidateQueries({ queryKey: ["specialty-access-requests"] });
       queryClient.invalidateQueries({ queryKey: pendingRequestsQueryKey });
     },

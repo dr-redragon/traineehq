@@ -39,6 +39,7 @@ const SpecialtyDetail = lazy(() => import("./pages/SpecialtyDetail"));
 const KeyContacts = lazy(() => import("./pages/KeyContacts"));
 const SearchResults = lazy(() => import("./pages/SearchResults"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const FacilitatorPanel = lazy(() => import("./pages/FacilitatorPanel"));
 const MyProfile = lazy(() => import("./pages/MyProfile"));
 const CommunityHub = lazy(() => import("./pages/CommunityHub"));
 const SpecialtyDiscussion = lazy(() => import("./pages/SpecialtyDiscussion"));
@@ -289,6 +290,18 @@ const App = () => (
               element={
                 <RequireAuth roles={["admin", "super_admin"]}>
                   <AdminPanel />
+                </RequireAuth>
+              }
+            />
+
+            {/* Facilitators: the admin panel cut down to what they may do —
+                reviewing requests for their specialties, and the way into
+                the content they can edit. */}
+            <Route
+              path="/facilitator"
+              element={
+                <RequireAuth roles={["facilitator"]}>
+                  <FacilitatorPanel />
                 </RequireAuth>
               }
             />

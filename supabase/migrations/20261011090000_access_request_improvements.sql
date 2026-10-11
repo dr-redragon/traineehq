@@ -60,6 +60,9 @@ begin
 end;
 $$;
 
+-- A trigger function, not an API: nobody should call it over /rpc.
+revoke execute on function public.access_requests_reject_existing_account() from public, anon, authenticated;
+
 drop trigger if exists reject_existing_account on public.access_requests;
 create trigger reject_existing_account
   before insert on public.access_requests
@@ -129,7 +132,9 @@ as $$
 $$;
 
 revoke execute on function public.can_review_specialty(uuid, uuid) from public, anon;
-grant execute on function public.can_review_specialty(uuid, uuid) to authenticated;
+grant execute on function public.can_review_specialty(uuid, uuid) to authenticated, service_role;
+-- service_role: the access-request-email function asks it before emailing
+-- the outcome of a decision.
 
 -- Is this a specialty that can be asked for? Security definer because the
 -- person asking cannot read it yet: a subquery on specialties inside the

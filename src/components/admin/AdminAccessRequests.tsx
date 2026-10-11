@@ -9,7 +9,12 @@ import { CheckCircle, XCircle, Clock, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { pendingRequestsQueryKey } from "@/hooks/usePendingRequests";
 
-export function AdminAccessRequests() {
+/**
+ * @param specialtyIds When set, only requests for these specialties are shown
+ *   — the facilitator panel passes the specialties its reader runs. Admins see
+ *   every request, including those with no specialty chosen.
+ */
+export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] } = {}) {
   const queryClient = useQueryClient();
   const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
@@ -76,11 +81,15 @@ export function AdminAccessRequests() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const filtered = requests?.filter((r: any) =>
-    filter === "all" ? true : r.status === filter
-  ) ?? [];
+  const inScope = (requests ?? []).filter((r: any) =>
+    !specialtyIds || (r.specialty_id && specialtyIds.includes(r.specialty_id))
+  );
 
-  const pendingCount = requests?.filter((r: any) => r.status === "pending").length ?? 0;
+  const filtered = inScope.filter((r: any) =>
+    filter === "all" ? true : r.status === filter
+  );
+
+  const pendingCount = inScope.filter((r: any) => r.status === "pending").length;
 
   const statusBadge = (status: string) => {
     switch (status) {
