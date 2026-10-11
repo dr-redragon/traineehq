@@ -55,21 +55,12 @@ export function AdminAccessRequests() {
     onSuccess: (_, { id, status }) => {
       toast.success(`Request ${status}`);
       queryClient.invalidateQueries({ queryKey: ["access-requests"] });
-      // Send approval/rejection email to applicant
-      const req = requests?.find((r: any) => r.id === id);
-      if (req) {
-        supabase.functions.invoke("access-request-email", {
-          body: {
-            type: status,
-            applicant_email: req.email,
-            applicant_name: `${req.first_name} ${req.last_name}`,
-            specialty_id: req.specialty_id || undefined,
-            deanery_id: req.deanery_id || undefined,
-            specialty_name: getSpecialtyName(req.specialty_id),
-            review_note: status === "rejected" ? (reviewNote[id]?.trim() || undefined) : undefined,
-          },
-        }).catch((e) => console.error("Email notification error:", e));
-      }
+      // Send approval/rejection email to applicant. The function reads the
+      // applicant, specialty and note from the request row it is named by, and
+      // checks the reviewer may decide that request — nothing else is sent.
+      supabase.functions.invoke("access-request-email", {
+        body: { type: status, request_id: id },
+      }).catch((e) => console.error("Email notification error:", e));
     },
     onError: (e: Error) => toast.error(e.message),
   });
