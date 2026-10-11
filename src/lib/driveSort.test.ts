@@ -1,7 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 
 import {
-  ariaSortFor, compareItems, nextSort, sortItems, type SortableItem,
+  ariaSortFor, compareItems, directionLabel, loadSort, nextSort, saveSort, sortItems,
+  type SortableItem,
 } from "./driveSort";
 
 const folder = (name: string, sortOrder = 0): SortableItem =>
@@ -133,5 +134,35 @@ describe("compareItems directly", () => {
     const b = file("b", { size: 2 });
     const sort = { key: "size", dir: "asc" } as const;
     expect(Math.sign(compareItems(a, b, sort))).toBe(-Math.sign(compareItems(b, a, sort)));
+  });
+});
+
+describe("directionLabel", () => {
+  it("says which end comes first in plain words", () => {
+    expect(directionLabel("name", "asc")).toBe("A → Z");
+    expect(directionLabel("updated", "desc")).toBe("Newest first");
+    expect(directionLabel("size", "asc")).toBe("Smallest first");
+  });
+});
+
+describe("remembered sort", () => {
+  afterEach(() => localStorage.clear());
+
+  it("comes back as it was saved", () => {
+    saveSort({ key: "size", dir: "desc" });
+    expect(loadSort()).toEqual({ key: "size", dir: "desc" });
+  });
+
+  it("forgets on going back to the arranged order", () => {
+    saveSort({ key: "name", dir: "asc" });
+    saveSort(null);
+    expect(loadSort()).toBeNull();
+  });
+
+  it("ignores anything it does not recognise", () => {
+    localStorage.setItem("drive-sort", JSON.stringify({ key: "colour", dir: "asc" }));
+    expect(loadSort()).toBeNull();
+    localStorage.setItem("drive-sort", "not json");
+    expect(loadSort()).toBeNull();
   });
 });
