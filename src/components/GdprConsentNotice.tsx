@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import { useProfile, profileQueryKey } from "@/hooks/useProfile";
@@ -77,14 +78,12 @@ export function GdprConsentNotice() {
             {hasPublishedPolicies() && (
               <>
                 {" "}
-                <a
-                  href={PRIVACY_POLICY_URL}
-                  target="_blank"
-                  rel="noreferrer"
+                <Link
+                  to={PRIVACY_POLICY_URL}
                   className="text-accent-deep underline underline-offset-4"
                 >
                   Read the full privacy policy
-                </a>
+                </Link>
                 .
               </>
             )}

@@ -55,6 +55,18 @@ export const PUBLIC_PAGES: PublicPage[] = [
     description:
       "Get in touch with the HST Training Hub programme admin team about the hub, your account or a resource.",
   },
+  {
+    path: "/privacy",
+    title: "Privacy Policy | HST Training Hub",
+    description:
+      "What the HST Training Hub holds about you, why, who it is shared with, how long it is kept and how to exercise your data protection rights.",
+  },
+  {
+    path: "/terms",
+    title: "Terms of Use | HST Training Hub",
+    description:
+      "The terms that apply to using the HST Training Hub, the resource hub for NHS Higher Specialty Trainees.",
+  },
 ];
 
 export function findPublicPage(pathname: string): PublicPage | undefined {

@@ -39,6 +39,7 @@ const SpecialtyDetail = lazy(() => import("./pages/SpecialtyDetail"));
 const KeyContacts = lazy(() => import("./pages/KeyContacts"));
 const SearchResults = lazy(() => import("./pages/SearchResults"));
 const AdminPanel = lazy(() => import("./pages/AdminPanel"));
+const FacilitatorPanel = lazy(() => import("./pages/FacilitatorPanel"));
 const MyProfile = lazy(() => import("./pages/MyProfile"));
 const CommunityHub = lazy(() => import("./pages/CommunityHub"));
 const SpecialtyDiscussion = lazy(() => import("./pages/SpecialtyDiscussion"));
@@ -57,6 +58,8 @@ const ClassicFeedback = lazy(() => import("./pages/classic/Feedback"));
 const ClassicSignIn = lazy(() => import("./pages/classic/SignIn"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfUse = lazy(() => import("./pages/TermsOfUse"));
 const RegisterLayout = lazy(() =>
   import("./components/register/RegisterLayout").then((m) => ({ default: m.RegisterLayout })),
 );
@@ -178,6 +181,10 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* The policies every footer links to. Public: they have to be
+                readable before anybody has an account. */}
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfUse />} />
 
             {/* Signed in */}
             <Route path="/dashboard" element={<RequireAuth><Index /></RequireAuth>} />
@@ -283,6 +290,18 @@ const App = () => (
               element={
                 <RequireAuth roles={["admin", "super_admin"]}>
                   <AdminPanel />
+                </RequireAuth>
+              }
+            />
+
+            {/* Facilitators: the admin panel cut down to what they may do —
+                reviewing requests for their specialties, and the way into
+                the content they can edit. */}
+            <Route
+              path="/facilitator"
+              element={
+                <RequireAuth roles={["facilitator"]}>
+                  <FacilitatorPanel />
                 </RequireAuth>
               }
             />

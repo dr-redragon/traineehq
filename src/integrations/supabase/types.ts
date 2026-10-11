@@ -746,6 +746,53 @@ export type Database = {
           },
         ]
       }
+      specialty_access_requests: {
+        Row: {
+          created_at: string
+          id: string
+          reason: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          specialty_id: string
+          status: Database["public"]["Enums"]["request_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          specialty_id: string
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reason?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          specialty_id?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "specialty_access_requests_specialty_id_fkey"
+            columns: ["specialty_id"]
+            isOneToOne: false
+            referencedRelation: "specialties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       specialty_notices: {
         Row: {
           author_id: string
@@ -1002,6 +1049,15 @@ export type Database = {
         Args: { _subsection_id: string; _user_id: string }
         Returns: boolean
       }
+      can_review_specialty: {
+        Args: { _specialty_id: string; _user_id: string }
+        Returns: boolean
+      }
+      decide_specialty_access_request: {
+        Args: { _approve: boolean; _note?: string | null; _request_id: string }
+        Returns: undefined
+      }
+      email_has_account: { Args: { _email: string }; Returns: boolean }
       get_profile_display_names: {
         Args: never
         Returns: {
@@ -1022,6 +1078,18 @@ export type Database = {
         Args: { _specialty_id: string; _user_id: string }
         Returns: boolean
       }
+      requestable_specialties: {
+        Args: never
+        Returns: {
+          deanery_id: string
+          deanery_name: string
+          id: string
+          name: string
+          parent_specialty_id: string | null
+          short_name: string
+        }[]
+      }
+      specialty_is_live: { Args: { _specialty_id: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "trainee" | "facilitator" | "super_admin"

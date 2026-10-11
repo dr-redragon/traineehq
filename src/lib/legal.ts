@@ -1,19 +1,40 @@
 /**
  * Where the published policies live, and what this application actually holds.
  *
- * THE POLICIES DO NOT EXIST YET. That is why these are empty strings rather
- * than plausible-looking `/privacy` routes: a page that says "Privacy Policy"
- * and then describes handling nobody has approved is worse than no page at
- * all, because it tells people their data is treated in ways the organisation
- * has not actually committed to.
+ * The Privacy Policy and Terms of Use are pages of this app (pages/PrivacyPolicy
+ * and pages/TermsOfUse). The cookie policy is a section of the privacy policy
+ * rather than a third document: the site sets essential storage only, and one
+ * paragraph says so. Every link in the application — the landing page, the
+ * sign-in page, the consent notice — reads these constants.
  *
- * Publish them, put the URLs here, and every link in the application — the
- * landing page, the sign-in page, the consent notice — becomes live at once.
- * Nothing else needs changing.
+ * The text was written from what the code does: the tables in the schema, the
+ * services the edge functions call, what the browser stores. What it cannot
+ * know — who the data controller is and on which lawful basis it relies — is
+ * gathered in POLICY_CONTROLLER and POLICY_LAWFUL_BASIS below so it is decided
+ * in one place. Have both confirmed by whoever owns information governance
+ * for the programme (see docs/GO-LIVE.md 6.4), and bump POLICY_UPDATED with
+ * every change to either page.
  */
-export const PRIVACY_POLICY_URL = "";
-export const TERMS_URL = "";
-export const COOKIE_POLICY_URL = "";
+export const PRIVACY_POLICY_URL = "/privacy";
+export const TERMS_URL = "/terms";
+export const COOKIE_POLICY_URL = "/privacy#cookies";
+
+/** Shown at the top of both documents. */
+export const POLICY_UPDATED = "11 October 2026";
+
+/** Who is responsible for the data, as the policies name them. */
+export const POLICY_CONTROLLER =
+  "the TraineeHQ programme administration team, who run TraineeHQ (traineehq.com) " +
+  "on behalf of the higher specialty training programmes it serves";
+
+/**
+ * The lawful basis the privacy policy states. Not consent: the consent notice
+ * explains why (see GdprConsentNotice).
+ */
+export const POLICY_LAWFUL_BASIS =
+  "our legitimate interests in organising and supporting postgraduate medical " +
+  "training (UK GDPR Article 6(1)(f)) and, where the programme is run by a public " +
+  "body, the performance of a task carried out in the public interest (Article 6(1)(e))";
 
 export const hasPublishedPolicies = () => Boolean(PRIVACY_POLICY_URL);
 

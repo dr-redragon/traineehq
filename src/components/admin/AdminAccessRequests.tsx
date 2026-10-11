@@ -7,8 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Clock, Mail, User } from "lucide-react";
 import { toast } from "sonner";
+import { pendingRequestsQueryKey } from "@/hooks/usePendingRequests";
 
-export function AdminAccessRequests() {
+/**
+ * @param specialtyIds When set, only requests for these specialties are shown
+ *   — the facilitator panel passes the specialties its reader runs. Admins see
+ *   every request, including those with no specialty chosen.
+ */
+export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] } = {}) {
   const queryClient = useQueryClient();
   const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
@@ -55,6 +61,7 @@ export function AdminAccessRequests() {
     onSuccess: (_, { id, status }) => {
       toast.success(`Request ${status}`);
       queryClient.invalidateQueries({ queryKey: ["access-requests"] });
+      queryClient.invalidateQueries({ queryKey: pendingRequestsQueryKey });
       // Send approval/rejection email to applicant
       const req = requests?.find((r: any) => r.id === id);
       if (req) {
@@ -74,11 +81,15 @@ export function AdminAccessRequests() {
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const filtered = requests?.filter((r: any) =>
-    filter === "all" ? true : r.status === filter
-  ) ?? [];
+  const inScope = (requests ?? []).filter((r: any) =>
+    !specialtyIds || (r.specialty_id && specialtyIds.includes(r.specialty_id))
+  );
 
-  const pendingCount = requests?.filter((r: any) => r.status === "pending").length ?? 0;
+  const filtered = inScope.filter((r: any) =>
+    filter === "all" ? true : r.status === filter
+  );
+
+  const pendingCount = inScope.filter((r: any) => r.status === "pending").length;
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -97,7 +108,7 @@ export function AdminAccessRequests() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold">Access Requests</h3>
+          <h3 className="font-semibold">Account Requests</h3>
           <p className="text-xs text-muted-foreground">
             {pendingCount > 0 ? `${pendingCount} pending request${pendingCount > 1 ? "s" : ""}` : "No pending requests"}
           </p>

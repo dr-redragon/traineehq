@@ -1,12 +1,13 @@
+import { Link } from "react-router-dom";
 import { PRIVACY_POLICY_URL, TERMS_URL, COOKIE_POLICY_URL } from "@/lib/legal";
 
 /**
  * A policy link, or the words on their own.
  *
- * The policies are not published yet (see src/lib/legal.ts). An anchor with
- * href="#" looks live, scrolls the page to the top when clicked, and tells the
- * reader a document exists. Until a URL is set these render as plain text —
- * honest, and unmistakably not a link.
+ * The policies are pages of this app (see src/lib/legal.ts), so this is a
+ * router link rather than an anchor that opens a new tab. Should a URL ever be
+ * blanked out again it renders as plain text: an anchor with href="#" looks
+ * live and tells the reader a document exists.
  */
 export function PolicyLink({
   kind, className,
@@ -27,8 +28,8 @@ export function PolicyLink({
   if (!href) return <span className="opacity-70">{label}</span>;
 
   return (
-    <a href={href} target="_blank" rel="noreferrer" className={className}>
+    <Link to={href} className={className}>
       {label}
-    </a>
+    </Link>
   );
 }
