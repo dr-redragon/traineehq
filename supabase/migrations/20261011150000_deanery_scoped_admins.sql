@@ -293,7 +293,7 @@ create policy "managers write subsections"
 -- can_manage_resource(), redefined above.
 
 -- The files themselves. Admin reach now goes through the subsection named in
--- the object's path, like everybody else's (see 20261011090000).
+-- the object's path, like everybody else's (see 20261011130000).
 drop policy if exists "resources readable by permitted users" on storage.objects;
 create policy "resources readable by permitted users"
   on storage.objects for select to authenticated

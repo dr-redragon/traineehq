@@ -1,4 +1,4 @@
--- Assertions for 20261011100000_register_checkin_hardening.sql.
+-- Assertions for 20261011140000_register_checkin_hardening.sql.
 --
 -- The point: holding a sign-in link lets somebody sign THEMSELVES in. It must
 -- not let them repoint another trainee's address, and it must not reach the

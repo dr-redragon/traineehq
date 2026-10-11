@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
       .select("role, deanery_id")
       .eq("user_id", caller.id);
 
-    // The same model the RLS policies enforce (20261011110000): an admin of a
+    // The same model the RLS policies enforce (20261011150000): an admin of a
     // deanery acts within it; a global admin (no deanery) across all of them;
     // only a super admin mints global or super admins. This function runs under
     // the service role, so those rules are re-applied here or not at all.

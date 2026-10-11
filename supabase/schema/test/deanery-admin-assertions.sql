@@ -1,4 +1,4 @@
--- Assertions for 20261011110000_deanery_scoped_admins.sql.
+-- Assertions for 20261011150000_deanery_scoped_admins.sql.
 --
 -- The point: an admin of one deanery manages that deanery and nothing beyond
 -- it, cannot make themselves more than that, and cannot touch the people
@@ -266,5 +266,44 @@ begin
    where user_id = 'ad000000-0000-4000-8000-000000000006' and role = 'admin';
   if not found then raise exception 'FAIL 7: a super admin could not remove a global admin'; end if;
   raise notice 'ok  7  super admins keep full control of roles';
+end $$;
+rollback;
+
+-- ----------------------------------------------------------------------------
+-- 8. Contacts: A's admin manages A's specialty contacts, not B's, and not the
+--    general directory (no deanery, no specialty), which is global admins' alone
+-- ----------------------------------------------------------------------------
+insert into public.contacts (id, name, role, category, organisation, email, specialty_id, deanery_id) values
+  ('c1000000-0000-4000-8000-0000000000aa', 'A TPD', 'TPD', 'tpd', 'Trust', 'a@example.invalid', '5d000000-0000-4000-8000-0000000000aa', null),
+  ('c1000000-0000-4000-8000-0000000000bb', 'B TPD', 'TPD', 'tpd', 'Trust', 'b@example.invalid', '5d000000-0000-4000-8000-0000000000bb', null),
+  ('c1000000-0000-4000-8000-000000000000', 'General', 'Office', 'deanery', 'HEE', 'g@example.invalid', null, null);
+
+begin;
+set local role authenticated;
+set local test.uid = 'ad000000-0000-4000-8000-0000000000aa';
+do $$
+declare _n int;
+begin
+  update public.contacts set phone = '1' where id = 'c1000000-0000-4000-8000-0000000000aa';
+  get diagnostics _n = row_count;
+  if _n <> 1 then raise exception 'FAIL 8: admin of A cannot edit A''s contact'; end if;
+
+  update public.contacts set phone = '1' where id in (
+    'c1000000-0000-4000-8000-0000000000bb', 'c1000000-0000-4000-8000-000000000000');
+  get diagnostics _n = row_count;
+  if _n <> 0 then raise exception 'FAIL 8: admin of A edited B''s or the general directory''s contact'; end if;
+end $$;
+rollback;
+
+begin;
+set local role authenticated;
+set local test.uid = 'ad000000-0000-4000-8000-000000000006';
+do $$
+declare _n int;
+begin
+  update public.contacts set phone = '2' where id = 'c1000000-0000-4000-8000-000000000000';
+  get diagnostics _n = row_count;
+  if _n <> 1 then raise exception 'FAIL 8: a global admin cannot edit the general directory'; end if;
+  raise notice 'ok  8  contacts follow the deanery; the general directory is global admins'' alone';
 end $$;
 rollback;

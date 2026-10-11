@@ -24,17 +24,20 @@ MIGRATIONS="$REPO_ROOT/supabase/migrations"
 
 # The migrations under test, re-applied for idempotency.
 NEW_MIGRATIONS=(
-  20261011090000_resources_storage_object_path.sql
-  20261011100000_register_checkin_hardening.sql
-  20261011110000_deanery_scoped_admins.sql
-  20261011120000_link_scheme_constraints.sql
+  20261011130000_resources_storage_object_path.sql
+  20261011140000_register_checkin_hardening.sql
+  20261011150000_deanery_scoped_admins.sql
+  20261011160000_link_scheme_constraints.sql
 )
 
+# The new assertions, plus the existing ones for the policies these
+# migrations rewrite, run against the schema as it now stands.
 ASSERTIONS=(
   storage-assertions.sql
   register-checkin-assertions.sql
   deanery-admin-assertions.sql
   link-scheme-assertions.sql
+  access-request-improvements-assertions.sql
 )
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }
@@ -88,8 +91,14 @@ for f in "${NEW_MIGRATIONS[@]}"; do
 done
 
 echo "==> assertions"
+# Each file brings its own fixture, and fixtures written for other verifiers
+# may reuse ids, so every file gets a fresh copy of the fully migrated schema.
+run "psql -h $SOCKET -p $PORT -U postgres -d postgres -q -c 'alter database security is_template true'"
+n=0
 for f in "${ASSERTIONS[@]}"; do
-  apply security "$SCHEMA/test/$f"
+  n=$((n + 1))
+  run "$PGBIN/createdb -h $SOCKET -p $PORT -U postgres -T security assert_$n"
+  apply "assert_$n" "$SCHEMA/test/$f"
 done
 
 echo

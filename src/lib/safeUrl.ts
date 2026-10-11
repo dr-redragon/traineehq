@@ -9,7 +9,7 @@
  *
  * So only absolute http(s) URLs are honoured. Everything else yields null and
  * the caller shows nothing. The database refuses other schemes too (see
- * 20261011120000); this is the second layer, for rows written before that.
+ * 20261011160000); this is the second layer, for rows written before that.
  */
 export function safeExternalUrl(value: unknown): string | null {
   if (typeof value !== "string") return null;

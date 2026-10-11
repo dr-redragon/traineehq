@@ -1,4 +1,4 @@
--- Assertions for 20261011120000_link_scheme_constraints.sql.
+-- Assertions for 20261011160000_link_scheme_constraints.sql.
 --
 -- The point: nothing but a web address (or, for file_url, a storage path) can
 -- be stored in a column the app renders as a link.

@@ -3,12 +3,14 @@ import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import {
   LayoutDashboard, Users, ChevronDown, ChevronRight,
-  LogOut, User, Shield, MessageSquare, ClipboardCheck, ClipboardList
+  LogOut, User, Shield, MessageSquare, ClipboardCheck, ClipboardList, UserCheck
 } from "lucide-react";
 import logoWhite from "@/assets/logo-white.png";
 import { getIcon } from "@/lib/iconMap";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useVisibleSpecialties } from "@/hooks/useVisibleSpecialties";
+import { usePendingRequestCounts } from "@/hooks/usePendingRequests";
+import { CountBadge } from "@/components/CountBadge";
 import { useMyRegisterMemberships } from "@/hooks/useRegisters";
 import { useMyRegisterMemberships as useMyClassicRegisterMemberships }
   from "@/hooks/classic/useRegisters";
@@ -70,6 +72,9 @@ export function AppSidebar() {
   // Shared with the search box, so the rail and the results agree on what a
   // person is allowed to see. See useVisibleSpecialties.
   const { data: specialties } = useVisibleSpecialties();
+
+  // Requests waiting on this reviewer (admin or facilitator); zero hides the badge.
+  const { data: pending } = usePendingRequestCounts();
 
   // Separate top-level and children
   const topLevel = specialties?.filter((s) => !s.parent_specialty_id) ?? [];
@@ -277,12 +282,34 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+              {role === "facilitator" && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild>
+                    <NavLink to="/facilitator" activeClassName={RAIL_ACTIVE} className="relative">
+                      <UserCheck className="h-4 w-4" />
+                      {!collapsed && <span className="flex-1">Facilitator Panel</span>}
+                      <CountBadge
+                        count={pending?.total}
+                        label="pending requests"
+                        className={collapsed ? "absolute right-0 top-0 h-3.5 min-w-3.5 px-1 text-[9px]" : ""}
+                      />
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {(role === "admin" || role === "super_admin") && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild>
-                    <NavLink to="/admin" activeClassName={RAIL_ACTIVE}>
+                    <NavLink to="/admin" activeClassName={RAIL_ACTIVE} className="relative">
                       <Shield className="h-4 w-4" />
-                      {!collapsed && <span>Admin Panel</span>}
+                      {!collapsed && <span className="flex-1">Admin Panel</span>}
+                      {/* Collapsed to icons, the count sits on the shield's
+                          corner instead of beside a label that is not there. */}
+                      <CountBadge
+                        count={pending?.total}
+                        label="pending requests"
+                        className={collapsed ? "absolute right-0 top-0 h-3.5 min-w-3.5 px-1 text-[9px]" : ""}
+                      />
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

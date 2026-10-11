@@ -9,9 +9,15 @@ import { AdminDeaneries } from "@/components/admin/AdminDeaneries";
 import { AdminSpecialties } from "@/components/admin/AdminSpecialties";
 import { AdminAttendance } from "@/components/admin/AdminAttendance";
 import { AdminAuditLog } from "@/components/admin/AdminAuditLog";
+import { AdminSpecialtyRequests } from "@/components/admin/AdminSpecialtyRequests";
+import { CountBadge } from "@/components/CountBadge";
+import { usePendingRequestCounts } from "@/hooks/usePendingRequests";
 import { Shield, Users, BookOpen, Phone, Megaphone, UserPlus, Building2, Stethoscope, ClipboardCheck, ScrollText } from "lucide-react";
 
 const AdminPanel = () => {
+  // Shared with the sidebar's badge, so the two always agree.
+  const { data: pending } = usePendingRequestCounts();
+
   return (
     <DashboardLayout>
       <div className="animate-fade-in space-y-8 p-9">
@@ -47,6 +53,7 @@ const AdminPanel = () => {
             </TabsTrigger>
             <TabsTrigger value="requests" className="gap-1.5 text-xs">
               <UserPlus className="h-3.5 w-3.5" /> Requests
+              <CountBadge count={pending?.total} label="pending requests" />
             </TabsTrigger>
             <TabsTrigger value="attendance" className="gap-1.5 text-xs">
               <ClipboardCheck className="h-3.5 w-3.5" /> Attendance
@@ -66,7 +73,10 @@ const AdminPanel = () => {
           <TabsContent value="content" className="mt-4"><AdminContent /></TabsContent>
           <TabsContent value="contacts" className="mt-4"><AdminContacts /></TabsContent>
           <TabsContent value="announcements" className="mt-4"><AdminAnnouncements /></TabsContent>
-          <TabsContent value="requests" className="mt-4"><AdminAccessRequests /></TabsContent>
+          <TabsContent value="requests" className="mt-4 space-y-10">
+            <AdminAccessRequests />
+            <AdminSpecialtyRequests />
+          </TabsContent>
           <TabsContent value="attendance" className="mt-4"><AdminAttendance /></TabsContent>
           <TabsContent value="specialties" className="mt-4"><AdminSpecialties /></TabsContent>
           <TabsContent value="deaneries" className="mt-4"><AdminDeaneries /></TabsContent>

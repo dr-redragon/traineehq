@@ -1,4 +1,4 @@
--- Assertions for 20261011090000_resources_storage_object_path.sql.
+-- Assertions for 20261011130000_resources_storage_object_path.sql.
 --
 -- The point: whether somebody may touch a file in the `resources` bucket is
 -- decided by the subsection named in THAT FILE's path, and by nothing else.
