@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,10 @@ import { PortalShell, portalField, portalKicker, portalLabel } from "@/component
  * Asking for a reset link, in the same register as the door it is reached from.
  */
 const ForgotPassword = () => {
-  const [email, setEmail] = useState("");
+  // Prefilled when arriving from the Request Access form, which sends people
+  // here when the address they typed already has an account.
+  const [searchParams] = useSearchParams();
+  const [email, setEmail] = useState(() => searchParams.get("email") ?? "");
   const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
 

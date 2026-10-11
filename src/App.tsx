@@ -57,6 +57,8 @@ const ClassicFeedback = lazy(() => import("./pages/classic/Feedback"));
 const ClassicSignIn = lazy(() => import("./pages/classic/SignIn"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
+const PrivacyPolicy = lazy(() => import("./pages/PrivacyPolicy"));
+const TermsOfUse = lazy(() => import("./pages/TermsOfUse"));
 const RegisterLayout = lazy(() =>
   import("./components/register/RegisterLayout").then((m) => ({ default: m.RegisterLayout })),
 );
@@ -178,6 +180,10 @@ const App = () => (
             <Route path="/contact" element={<Contact />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            {/* The policies every footer links to. Public: they have to be
+                readable before anybody has an account. */}
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/terms" element={<TermsOfUse />} />
 
             {/* Signed in */}
             <Route path="/dashboard" element={<RequireAuth><Index /></RequireAuth>} />

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Clock, Mail, User } from "lucide-react";
 import { toast } from "sonner";
+import { pendingRequestsQueryKey } from "@/hooks/usePendingRequests";
 
 export function AdminAccessRequests() {
   const queryClient = useQueryClient();
@@ -55,6 +56,7 @@ export function AdminAccessRequests() {
     onSuccess: (_, { id, status }) => {
       toast.success(`Request ${status}`);
       queryClient.invalidateQueries({ queryKey: ["access-requests"] });
+      queryClient.invalidateQueries({ queryKey: pendingRequestsQueryKey });
       // Send approval/rejection email to applicant
       const req = requests?.find((r: any) => r.id === id);
       if (req) {
@@ -97,7 +99,7 @@ export function AdminAccessRequests() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="font-semibold">Access Requests</h3>
+          <h3 className="font-semibold">Account Requests</h3>
           <p className="text-xs text-muted-foreground">
             {pendingCount > 0 ? `${pendingCount} pending request${pendingCount > 1 ? "s" : ""}` : "No pending requests"}
           </p>
