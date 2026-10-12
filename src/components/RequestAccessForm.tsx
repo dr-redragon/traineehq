@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +40,6 @@ export function RequestAccessForm({ onSignIn }: { onSignIn: () => void }) {
   const [submitted, setSubmitted] = useState(false);
   // Set to the address when it turns out to have an account already. Cleared
   // as soon as the address is edited, so the warning never outlives it.
-  const [existingEmail, setExistingEmail] = useState<string | null>(null);
 
   const { data: deaneries } = useQuery({
     queryKey: ["public-deaneries"],
@@ -103,16 +101,11 @@ export function RequestAccessForm({ onSignIn }: { onSignIn: () => void }) {
 
     setSubmitting(true);
 
-    // Somebody who already has an account needs their password, not a second
-    // account. The database refuses the row either way (see the
-    // reject_existing_account trigger); asking first lets the form say why.
-    const { data: hasAccount } = await supabase.rpc("email_has_account", { _email: trimmedEmail });
-    if (hasAccount) {
-      setSubmitting(false);
-      setExistingEmail(trimmedEmail);
-      return;
-    }
-
+    // The form answers every address the same way. Somebody who already has an
+    // account is not told so here — that would let anyone test whether an
+    // address is registered. The database quietly drops their request and
+    // access-request-email sends their inbox a password-reset link instead
+    // (20261012110000).
     const { error } = await supabase.from("access_requests").insert({
       first_name: trimmedFirst,
       last_name: trimmedLast,
@@ -125,13 +118,7 @@ export function RequestAccessForm({ onSignIn }: { onSignIn: () => void }) {
 
     setSubmitting(false);
     if (error) {
-      if (error.code === "23505" || error.message?.includes("already registered")) {
-        setExistingEmail(trimmedEmail);
-      } else if (error.message?.includes("already submitted")) {
-        toast.error("You've already submitted a request recently. Please wait before trying again.");
-      } else {
-        toast.error("Failed to submit request. Please try again.");
-      }
+      toast.error("Failed to submit request. Please try again.");
     } else {
       setSubmitted(true);
       const selectedSpecialty = specialties?.find((s) => s.id === specialtyId);
@@ -153,8 +140,9 @@ export function RequestAccessForm({ onSignIn }: { onSignIn: () => void }) {
         <CheckCircle className="h-8 w-8 text-rule" />
         <h3 className="font-display text-2xl font-extrabold tracking-tight">Request submitted</h3>
         <p className="text-pretty text-sm text-muted-foreground">
-          An administrator will review it. You&apos;ll get an email once your account has been
-          approved.
+          An administrator will review it, and you&apos;ll get an email once it has been
+          decided. If this address already has an account, we&apos;ve emailed it a link to set a
+          new password instead.
         </p>
         <Button variant="outline" onClick={onSignIn} className="h-11 w-full justify-between">
           Back to sign in
@@ -197,34 +185,10 @@ export function RequestAccessForm({ onSignIn }: { onSignIn: () => void }) {
           type="email"
           autoComplete="email"
           value={email}
-          onChange={(e) => {
-            setEmail(e.target.value);
-            setExistingEmail(null);
-          }}
+          onChange={(e) => setEmail(e.target.value)}
           className={portalField}
-          aria-invalid={existingEmail ? true : undefined}
-          aria-describedby={existingEmail ? "ra-email-exists" : undefined}
           required
         />
-        {existingEmail && (
-          <div
-            id="ra-email-exists"
-            role="alert"
-            className="flex gap-2.5 border-2 border-destructive/60 bg-destructive/5 p-3 text-sm"
-          >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-            <p className="text-pretty">
-              There is already an account registered with this email address.{" "}
-              <Link
-                to={`/forgot-password?email=${encodeURIComponent(existingEmail)}`}
-                className="font-semibold text-accent-deep underline underline-offset-4"
-              >
-                Reset your password
-              </Link>{" "}
-              to get back in.
-            </p>
-          </div>
-        )}
       </div>
 
       <div className="space-y-2">
@@ -304,7 +268,7 @@ export function RequestAccessForm({ onSignIn }: { onSignIn: () => void }) {
       <Button
         type="submit"
         className="h-12 w-full justify-between text-[15px]"
-        disabled={submitting || !!existingEmail}
+        disabled={submitting}
       >
         {submitting ? "Sending…" : "Send request"}
       </Button>

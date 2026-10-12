@@ -30,6 +30,7 @@ NEW_MIGRATIONS=(
   20261011160000_link_scheme_constraints.sql
   20261012090000_register_owner_admission.sql
   20261012100000_register_history_and_guard.sql
+  20261012110000_access_request_no_enumeration.sql
 )
 
 # The new assertions, plus the existing ones for the policies these

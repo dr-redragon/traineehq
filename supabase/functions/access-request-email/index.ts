@@ -346,6 +346,48 @@ async function handleSpecialtyRequest(
   return json({ success: true });
 }
 
+// Where links in emails point. Fixed, never taken from the request.
+const SITE_URL = (Deno.env.get("SITE_URL") || Deno.env.get("APP_BASE_URL") || "https://traineehq.com")
+  .replace(/\/+$/, "");
+
+/** True unless `recipient` was sent a `kind` email within the last `hours`. */
+async function mayEmail(
+  admin: ReturnType<typeof getSupabaseAdmin>, kind: string, recipient: string, hours: number,
+): Promise<boolean> {
+  const since = new Date(Date.now() - hours * 3600_000).toISOString();
+  const { count, error } = await admin
+    .from("outbound_email_log")
+    .select("id", { count: "exact", head: true })
+    .eq("kind", kind)
+    .eq("recipient", recipient.toLowerCase())
+    .gte("sent_at", since);
+  if (error) { console.error("outbound_email_log read failed:", error); return false; }
+  return (count ?? 0) === 0;
+}
+
+async function logEmail(admin: ReturnType<typeof getSupabaseAdmin>, kind: string, recipient: string) {
+  const { error } = await admin.from("outbound_email_log").insert({ kind, recipient: recipient.toLowerCase() });
+  if (error) console.error("outbound_email_log write failed:", error);
+}
+
+function existingAccountHtml(resetLink: string) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a2e;margin-bottom:16px">You already have an account</h2>
+      <p style="color:#4a4a5a;line-height:1.6">
+        Somebody asked for access to the <strong>HST Training Hub</strong> with this email address,
+        but it already has an account. If that was you, set a new password and sign in:
+      </p>
+      <div style="text-align:center;margin:28px 0">
+        <a href="${esc(resetLink)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+          Set a new password
+        </a>
+      </div>
+      <p style="color:#8a8a9a;font-size:13px">If it was not you, you can ignore this email; nothing has changed.</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+    </div>`;
+}
+
 function submissionConfirmationHtml(name: string) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
@@ -441,12 +483,13 @@ Deno.serve(async (req) => {
         return json({ error: "A valid applicant email is required" }, 400);
       }
 
-      // This branch is reachable without a session, by design — the Request Access form
-      // is public. It is anchored to a request row that actually exists, so it cannot be
-      // used to send mail to an arbitrary address or to a name of the caller's choosing.
+      // This branch is reachable without a session, by design — the Request Access
+      // form is public. So it answers every caller the same way, whatever the
+      // address: a stranger must not learn from it whether somebody is registered
+      // or has applied. What differs is what the INBOX receives, and only once.
       const { data: request } = await supabaseAdmin
         .from("access_requests")
-        .select("first_name, last_name, email, training_grade, specialty_id, status")
+        .select("id, first_name, last_name, email, training_grade, specialty_id, deanery_id, status, confirmation_sent_at")
         .eq("email", applicantEmail)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -454,8 +497,39 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (!request) {
-        return json({ error: "No pending access request found for that email" }, 404);
+        // Not stored — usually because the address already has an account (the
+        // insert trigger drops those rows). Send that inbox a reset link instead,
+        // at most once a day, so the form cannot be used to mail-bomb it.
+        const { data: hasAccount } = await supabaseAdmin.rpc("email_has_account", { _email: applicantEmail });
+        if (hasAccount === true && await mayEmail(supabaseAdmin, "existing_account_nudge", applicantEmail, 24)) {
+          const { data: linkData } = await supabaseAdmin.auth.admin.generateLink({
+            type: "recovery",
+            email: applicantEmail,
+            options: { redirectTo: `${SITE_URL}/reset-password` },
+          });
+          const link = linkData?.properties?.action_link;
+          if (link) {
+            try {
+              await sendEmail(applicantEmail, "You already have an account — HST Training Hub", existingAccountHtml(link));
+              await logEmail(supabaseAdmin, "existing_account_nudge", applicantEmail);
+            } catch (e) { console.error("existing-account email failed:", e); }
+          }
+        }
+        return json({ success: true });
       }
+
+      // Already confirmed: calling again sends nothing, so one request cannot be
+      // replayed into a stream of emails to the applicant and every reviewer.
+      if (request.confirmation_sent_at) {
+        return json({ success: true });
+      }
+      const { data: claimed } = await supabaseAdmin
+        .from("access_requests")
+        .update({ confirmation_sent_at: new Date().toISOString() })
+        .eq("id", request.id)
+        .is("confirmation_sent_at", null)
+        .select("id");
+      if (!claimed?.length) return json({ success: true });
 
       const name = `${request.first_name ?? ""} ${request.last_name ?? ""}`.trim();
 
@@ -465,35 +539,39 @@ Deno.serve(async (req) => {
         submissionConfirmationHtml(name),
       );
 
-      // Notify admins + facilitators for the chosen specialty.
-      //
-      // Both roles that can review a request count here. Asking only for
-      // "admin" quietly excluded every super_admin, and on a site whose only
-      // reviewers are super_admins that meant a request reached nobody: the
-      // applicant got their confirmation and the queue sat unread.
-      const { data: adminRoles } = await supabaseAdmin
-        .from("user_roles")
-        .select("user_id")
-        .in("role", ["admin", "super_admin"]);
-      const adminIds = (adminRoles ?? []).map((r: { user_id: string }) => r.user_id);
-
+      // Notify the people who can review it: super admins, global admins, the
+      // admins of the request's deanery, and the specialty's facilitators — the
+      // same people canReviewRequest() lets decide it. Not every admin on the
+      // platform: an admin of another deanery has no business with this one.
       let facilitatorIds: string[] = [];
       let specialtyName = "General";
+      let specialtyDeanery: string | null = null;
       if (request.specialty_id) {
         const { data: spec } = await supabaseAdmin
           .from("specialties")
-          .select("id, short_name")
+          .select("id, short_name, deanery_id, parent_specialty_id")
           .eq("id", request.specialty_id)
           .maybeSingle();
         if (spec) {
           specialtyName = spec.short_name ?? "General";
+          specialtyDeanery = spec.deanery_id;
           const { data: facRoles } = await supabaseAdmin
             .from("facilitator_specialties")
             .select("user_id")
-            .eq("specialty_id", spec.id);
+            .in("specialty_id", [spec.id, spec.parent_specialty_id].filter(Boolean));
           facilitatorIds = (facRoles ?? []).map((r: { user_id: string }) => r.user_id);
         }
       }
+      const requestDeaneries = new Set([request.deanery_id, specialtyDeanery].filter(Boolean));
+
+      const { data: adminRoles } = await supabaseAdmin
+        .from("user_roles")
+        .select("user_id, role, deanery_id")
+        .in("role", ["admin", "super_admin"]);
+      const adminIds = (adminRoles ?? [])
+        .filter((r: { role: string; deanery_id: string | null }) =>
+          r.role === "super_admin" || r.deanery_id === null || requestDeaneries.has(r.deanery_id))
+        .map((r: { user_id: string }) => r.user_id);
 
       const notifyIds = [...new Set([...adminIds, ...facilitatorIds])];
       if (notifyIds.length > 0) {
@@ -509,20 +587,18 @@ Deno.serve(async (req) => {
         );
         if (emails.length === 0) {
           console.warn(
-            `No reviewer could be emailed about ${request.email}: ` +
+            `No reviewer could be emailed about request ${request.id}: ` +
             `${notifyIds.length} admin/facilitator account(s), none with an email address.`,
           );
         }
         for (const email of emails) {
           try { await sendEmail(email, `New Access Request: ${name}`, alertHtml); }
-          catch (e) { console.error(`Failed to notify ${email}:`, e); }
+          catch (e) { console.error("Failed to notify a reviewer:", e); }
         }
       } else {
         // Nothing to send means nobody is watching the queue — say so, rather
         // than returning success on a request no human will ever see.
-        console.warn(
-          `No admin or facilitator to notify about the access request from ${request.email}.`,
-        );
+        console.warn(`No admin or facilitator to notify about access request ${request.id}.`);
       }
 
       return json({ success: true });
