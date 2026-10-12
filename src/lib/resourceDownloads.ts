@@ -1,6 +1,7 @@
 import type { Tables } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
 import { extractStoragePath } from "@/lib/storageUtils";
+import { safeExternalUrl } from "@/lib/safeUrl";
 
 type ResourceRecord = Tables<"resources">;
 
@@ -152,16 +153,18 @@ export async function downloadResourceFile(resource: ResourceRecord) {
     return fileName;
   }
 
-  // External URL: try fetching as blob; fall back to new tab.
-  if (resource.external_url) {
+  // External URL: try fetching as blob; fall back to new tab. Only http(s) —
+  // window.open with a stored `javascript:` link would run it.
+  const externalUrl = safeExternalUrl(resource.external_url);
+  if (externalUrl) {
     try {
-      const res = await fetch(resource.external_url);
+      const res = await fetch(externalUrl);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       saveBlobAsFile(blob, fileName);
       return fileName;
     } catch {
-      window.open(resource.external_url, "_blank", "noopener,noreferrer");
+      window.open(externalUrl, "_blank", "noopener,noreferrer");
       return fileName;
     }
   }

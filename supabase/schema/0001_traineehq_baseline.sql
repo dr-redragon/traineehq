@@ -976,6 +976,9 @@ create policy "users read own audit entries"
 --
 -- One private bucket. Objects are keyed {specialtyId}/{subsectionId}/{uuid}.{ext},
 -- so the second path segment identifies the subsection whose permissions apply.
+-- `objects.name` must be qualified inside the subqueries below: unqualified, it
+-- resolves to subsections.name and the object's path is never read
+-- (see 20261011130000).
 -- The app reads files through short-lived signed URLs, never public links.
 -- ============================================================================
 -- No bucket-level size cap: uploads are bounded only by the project's global
@@ -996,7 +999,7 @@ create policy "resources readable by permitted users"
       public.is_admin(auth.uid())
       or exists (
         select 1 from public.subsections s
-        where s.id::text = (storage.foldername(name))[2]
+        where s.id::text = (storage.foldername(objects.name))[2]
           and public.can_access_specialty(auth.uid(), s.specialty_id)
       )
     )
@@ -1011,7 +1014,7 @@ create policy "resources writable by managers"
       public.is_admin(auth.uid())
       or exists (
         select 1 from public.subsections s
-        where s.id::text = (storage.foldername(name))[2]
+        where s.id::text = (storage.foldername(objects.name))[2]
           and public.can_manage_resource(auth.uid(), s.id)
       )
     )
@@ -1026,7 +1029,7 @@ create policy "resources updatable by managers"
       public.is_admin(auth.uid())
       or exists (
         select 1 from public.subsections s
-        where s.id::text = (storage.foldername(name))[2]
+        where s.id::text = (storage.foldername(objects.name))[2]
           and public.can_manage_resource(auth.uid(), s.id)
       )
     )
@@ -1041,7 +1044,7 @@ create policy "resources deletable by managers"
       public.is_admin(auth.uid())
       or exists (
         select 1 from public.subsections s
-        where s.id::text = (storage.foldername(name))[2]
+        where s.id::text = (storage.foldername(objects.name))[2]
           and public.can_manage_resource(auth.uid(), s.id)
       )
     )

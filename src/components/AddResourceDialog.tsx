@@ -14,6 +14,7 @@ import { FileDropOverlay } from "@/components/FileDropOverlay";
 import { Constants } from "@/integrations/supabase/types";
 import { getDroppedFiles, detectResourceType } from "@/lib/fileDropUtils";
 import { uploadErrorMessage } from "@/lib/storageUtils";
+import { linkFromInput } from "@/lib/safeUrl";
 
 interface AddResourceDialogProps {
   subsectionId: string;
@@ -158,6 +159,7 @@ export function AddResourceDialog({ subsectionId, specialtyId }: AddResourceDial
 
   const addResource = useMutation({
     mutationFn: async () => {
+      const link = linkFromInput(externalUrl);
       setUploading(true);
       let fileUrl: string | null = null;
 
@@ -185,7 +187,7 @@ export function AddResourceDialog({ subsectionId, specialtyId }: AddResourceDial
         description: description.trim() || null,
         resource_type: resourceType as any,
         subsection_id: subsectionId,
-        external_url: externalUrl.trim() || null,
+        external_url: link,
         file_url: fileUrl,
         added_by: user?.id ?? null,
         sort_order: nextOrder,

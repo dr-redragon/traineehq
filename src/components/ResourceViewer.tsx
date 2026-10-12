@@ -8,6 +8,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { downloadResourceFile } from "@/lib/resourceDownloads";
 import { getSignedResourceUrl, extractStoragePath } from "@/lib/storageUtils";
+import { safeExternalUrl } from "@/lib/safeUrl";
 
 interface ResourceViewerProps {
   resource: Tables<"resources"> | null;
@@ -82,7 +83,13 @@ export function ResourceViewer({ resource, open, onOpenChange }: ResourceViewerP
 
   const isStorageFile = resource.file_url && extractStoragePath(resource.file_url) !== null;
   const resolvedFileUrl = isStorageFile ? signedUrl : resource.file_url;
-  const rawUrl = resolvedFileUrl || resource.external_url || resource.embed_url;
+  // Every URL below lands in an href, an iframe or a video src, so each goes
+  // through safeExternalUrl: a stored `javascript:` link would otherwise run in
+  // this origin. Signed storage URLs are https and pass unchanged.
+  const rawUrl =
+    safeExternalUrl(resolvedFileUrl) ||
+    safeExternalUrl(resource.external_url) ||
+    safeExternalUrl(resource.embed_url);
   const canDownload = Boolean(resource.file_url || resource.external_url);
   const viewerUrl = rawUrl ? getViewerUrl(rawUrl) : null;
   const ytId = isYouTube(resource);
@@ -197,7 +204,10 @@ export function ResourceViewer({ resource, open, onOpenChange }: ResourceViewerP
               <iframe
                 src={viewerUrl.url}
                 className="w-full h-full border-0"
-                sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
+                // No allow-same-origin: with allow-scripts it would let a framed
+                // document that shares this origin script its way out of the
+                // sandbox. Whatever is shown here runs as an opaque origin.
+                sandbox="allow-scripts allow-popups allow-forms"
                 title={resource.title}
               />
             )

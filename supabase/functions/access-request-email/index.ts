@@ -31,18 +31,30 @@ const MAX_NOTE = 2000;
 
 interface EmailPayload {
   type:
-    | "submission_confirmation" | "new_request_alert" | "approved" | "rejected"
+    | "submission_confirmation" | "approved" | "rejected"
     | "specialty_request_submitted" | "specialty_request_decided";
-  /** The specialty_access_requests row, for the two specialty_request_* types. */
+  /** submission_confirmation only: the address the public form was filled in with. */
+  applicant_email?: string;
+  /**
+   * Every other type: the row the email is about — an access_requests row for
+   * approved / rejected, a specialty_access_requests row for specialty_request_*.
+   * Who to email, and what to say, are read from that row, never from the caller.
+   */
   request_id?: string;
-  applicant_email: string;
-  applicant_name: string;
-  specialty_name?: string;
-  specialty_id?: string;
-  deanery_id?: string;
-  training_grade?: string;
-  review_note?: string;
 }
+
+interface AccessRequestRow {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  email: string;
+  status: "pending" | "approved" | "rejected";
+  specialty_id: string | null;
+  deanery_id: string | null;
+  review_note: string | null;
+}
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function getSupabaseAdmin() {
   return createClient(
@@ -69,13 +81,28 @@ function json(body: unknown, status = 200) {
 }
 
 /**
- * Resolve the caller and confirm they may review access requests.
- *
- * Approving a request provisions a real account, so it must never be reachable with
- * the anon key alone — the caller has to present their own JWT and hold a reviewing
- * role. Returns null when the caller is not permitted.
+ * The auth account for an address, if there is one. listUsers() is paginated
+ * (50 a page by default), so reading only its first page misses every account
+ * beyond it, and the createUser that follows fails as a duplicate.
  */
-async function getReviewer(
+async function findUserByEmail(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  email: string,
+): Promise<{ id: string } | null> {
+  const perPage = 1000;
+  for (let page = 1; page <= 100; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(`Could not look up accounts: ${error.message}`);
+    const users = data?.users ?? [];
+    const found = users.find((u) => u.email?.toLowerCase() === email);
+    if (found) return { id: found.id };
+    if (users.length < perPage) return null;
+  }
+  throw new Error("Too many accounts to search");
+}
+
+/** The signed-in caller, from their own JWT. Null when there is none. */
+async function getCaller(
   admin: ReturnType<typeof getSupabaseAdmin>,
   req: Request,
 ): Promise<{ id: string } | null> {
@@ -84,17 +111,65 @@ async function getReviewer(
 
   const { data: userData, error } = await admin.auth.getUser(token);
   const caller = userData?.user;
-  if (error || !caller) return null;
+  return error || !caller ? null : { id: caller.id };
+}
 
+/**
+ * May this caller decide THIS request?
+ *
+ * Approving provisions an account and enrols it on a specialty, so holding a
+ * reviewing role somewhere is not enough — the caller must be able to review
+ * the specialty and deanery the request is for:
+ *
+ *   super_admin                  any request
+ *   admin, no deanery            any request
+ *   admin of a deanery           requests for that deanery (or for a specialty in it)
+ *   facilitator                  requests for a specialty they facilitate (or its child)
+ *
+ * The service role bypasses row-level security, so this check happens here in
+ * code or not at all.
+ */
+async function canReviewRequest(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  callerId: string,
+  request: AccessRequestRow,
+): Promise<boolean> {
   const { data: roles } = await admin
     .from("user_roles")
-    .select("role")
-    .eq("user_id", caller.id);
+    .select("role, deanery_id")
+    .eq("user_id", callerId);
+  const held = (roles ?? []) as { role: string; deanery_id: string | null }[];
 
-  const permitted = (roles ?? []).some((r: { role: string }) =>
-    ["super_admin", "admin", "facilitator"].includes(r.role)
+  if (held.some((r) => r.role === "super_admin")) return true;
+  if (held.some((r) => r.role === "admin" && r.deanery_id === null)) return true;
+
+  let specialty: { id: string; deanery_id: string; parent_specialty_id: string | null } | null = null;
+  if (request.specialty_id) {
+    const { data } = await admin
+      .from("specialties")
+      .select("id, deanery_id, parent_specialty_id")
+      .eq("id", request.specialty_id)
+      .maybeSingle();
+    specialty = data;
+  }
+
+  const requestDeaneries = new Set(
+    [request.deanery_id, specialty?.deanery_id].filter((d): d is string => !!d),
   );
-  return permitted ? { id: caller.id } : null;
+  if (held.some((r) => r.role === "admin" && r.deanery_id && requestDeaneries.has(r.deanery_id))) {
+    return true;
+  }
+
+  if (specialty && held.some((r) => r.role === "facilitator")) {
+    const { data: facilitates } = await admin
+      .from("facilitator_specialties")
+      .select("specialty_id")
+      .eq("user_id", callerId)
+      .in("specialty_id", [specialty.id, specialty.parent_specialty_id].filter(Boolean));
+    if ((facilitates ?? []).length > 0) return true;
+  }
+
+  return false;
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -353,22 +428,19 @@ Deno.serve(async (req) => {
     const payload: EmailPayload = await req.json();
     const { type } = payload;
 
-    // Requests to join another specialty identify everything by the row id,
-    // so they are handled before the applicant-email checks below.
+    // Requests to join another specialty identify everything by the row id.
     if (type === "specialty_request_submitted" || type === "specialty_request_decided") {
       return await handleSpecialtyRequest(getSupabaseAdmin(), req, payload);
-    }
-
-    const applicantEmail = String(payload.applicant_email ?? "").trim().toLowerCase();
-    const applicantName = String(payload.applicant_name ?? "").trim().slice(0, MAX_NAME);
-
-    if (!EMAIL_RE.test(applicantEmail)) {
-      return json({ error: "A valid applicant email is required" }, 400);
     }
 
     const supabaseAdmin = getSupabaseAdmin();
 
     if (type === "submission_confirmation") {
+      const applicantEmail = String(payload.applicant_email ?? "").trim().toLowerCase();
+      if (!EMAIL_RE.test(applicantEmail)) {
+        return json({ error: "A valid applicant email is required" }, 400);
+      }
+
       // This branch is reachable without a session, by design — the Request Access form
       // is public. It is anchored to a request row that actually exists, so it cannot be
       // used to send mail to an arbitrary address or to a name of the caller's choosing.
@@ -456,25 +528,49 @@ Deno.serve(async (req) => {
       return json({ success: true });
     }
 
+    if (type !== "approved" && type !== "rejected") {
+      return json({ error: "Unknown email type" }, 400);
+    }
+
     // Everything below provisions accounts or tells an applicant the outcome of a
-    // review, so it requires a signed-in reviewer.
-    const reviewer = await getReviewer(supabaseAdmin, req);
-    if (!reviewer) {
-      return json({ error: "Not authorised" }, 403);
+    // review, so it requires a signed-in caller who may review THIS request.
+    const caller = await getCaller(supabaseAdmin, req);
+    if (!caller) return json({ error: "Not authenticated" }, 401);
+
+    const requestId = String(payload.request_id ?? "");
+    if (!UUID_RE.test(requestId)) return json({ error: "A request id is required" }, 400);
+
+    const { data: request } = await supabaseAdmin
+      .from("access_requests")
+      .select("id, first_name, last_name, email, status, specialty_id, deanery_id, review_note")
+      .eq("id", requestId)
+      .maybeSingle<AccessRequestRow>();
+    if (!request) return json({ error: "That request does not exist" }, 404);
+
+    if (!await canReviewRequest(supabaseAdmin, caller.id, request)) {
+      return json({ error: "Not authorised to review this request" }, 403);
+    }
+
+    // The reviewer records the decision on the row first; this only acts on a
+    // decision that has actually been recorded, and only the one recorded.
+    if (request.status !== type) {
+      return json({ error: `That request is ${request.status}, not ${type}` }, 409);
+    }
+
+    const applicantEmail = request.email.trim().toLowerCase();
+    const applicantName = `${request.first_name ?? ""} ${request.last_name ?? ""}`.trim().slice(0, MAX_NAME);
+    if (!EMAIL_RE.test(applicantEmail)) {
+      return json({ error: "The request does not hold a valid email address" }, 422);
     }
 
     if (type === "approved") {
-      const nameParts = applicantName.split(" ");
-      const firstName = nameParts[0] || "";
-      const lastName = nameParts.slice(1).join(" ") || "";
+      const firstName = request.first_name ?? "";
+      const lastName = request.last_name ?? "";
 
       let userId: string | undefined;
 
       // 1. Check if user already exists
-      const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const existingUser = existingUsers?.users?.find(
-        (u: { email?: string; id: string }) => u.email?.toLowerCase() === applicantEmail
-      );
+      const existingUser = await findUserByEmail(supabaseAdmin, applicantEmail);
 
       if (existingUser) {
         console.log(`User ${applicantEmail} already exists, skipping creation.`);
@@ -496,22 +592,22 @@ Deno.serve(async (req) => {
         userId = newUser?.user?.id;
       }
 
-      // 2. Assign trainee to requested specialty if one was specified
-      if (userId && payload.specialty_id) {
+      // 2. Assign trainee to the specialty the request was for
+      if (userId && request.specialty_id) {
         const { error: assignError } = await supabaseAdmin.from("trainee_specialties").insert({
           user_id: userId,
-          specialty_id: payload.specialty_id,
+          specialty_id: request.specialty_id,
         });
         if (assignError && !assignError.message?.includes("duplicate")) {
           console.error("Failed to assign specialty:", assignError);
         }
       }
 
-      // 2b. Update profile with deanery_id if provided
-      if (userId && payload.deanery_id) {
+      // 2b. Record the request's deanery on the profile
+      if (userId && request.deanery_id) {
         const { error: deaneryError } = await supabaseAdmin
           .from("profiles")
-          .update({ deanery_id: payload.deanery_id })
+          .update({ deanery_id: request.deanery_id })
           .eq("user_id", userId);
         if (deaneryError) {
           console.error("Failed to set deanery on profile:", deaneryError);
@@ -537,13 +633,9 @@ Deno.serve(async (req) => {
       return json({ success: true, user_id: userId });
     }
 
-    if (type === "rejected") {
-      const reason = String(payload.review_note ?? "").trim().slice(0, MAX_NOTE) || "No reason provided.";
-      await sendEmail(applicantEmail, "Access Request Update — HST Training Hub", rejectedHtml(applicantName, reason));
-      return json({ success: true });
-    }
-
-    return json({ error: "Unknown email type" }, 400);
+    const reason = (request.review_note ?? "").trim().slice(0, MAX_NOTE) || "No reason provided.";
+    await sendEmail(applicantEmail, "Access Request Update — HST Training Hub", rejectedHtml(applicantName, reason));
+    return json({ success: true });
   } catch (error) {
     console.error("Email function error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";
