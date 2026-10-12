@@ -34,6 +34,10 @@
 -- roles), and is_admin() itself, which other functions still use to mean "holds
 -- an admin role somewhere" where that is the right question.
 
+-- Every policy changed here already exists with the same name, command and
+-- roles, so each is changed with ALTER POLICY. On the live project, DROP and
+-- CREATE POLICY from a migration hung indefinitely; ALTER is immediate.
+
 begin;
 
 -- ============================================================================
@@ -205,32 +209,22 @@ grant execute on function public.can_manage_role_row(uuid, public.app_role, uuid
 -- People: profiles, roles, enrolments
 -- ============================================================================
 
-drop policy if exists "users read own profile" on public.profiles;
-create policy "users read own profile"
-  on public.profiles for select to authenticated
+alter policy "users read own profile" on public.profiles
   using (user_id = auth.uid() or public.can_admin_user(auth.uid(), user_id));
 
-drop policy if exists "users update own profile" on public.profiles;
-create policy "users update own profile"
-  on public.profiles for update to authenticated
+alter policy "users update own profile" on public.profiles
   using (user_id = auth.uid() or public.can_admin_user(auth.uid(), user_id))
   with check (user_id = auth.uid() or public.can_admin_user(auth.uid(), user_id));
 
-drop policy if exists "admins manage profiles" on public.profiles;
-create policy "admins manage profiles"
-  on public.profiles for delete to authenticated
+alter policy "admins manage profiles" on public.profiles
   using (user_id <> auth.uid() and public.can_admin_user(auth.uid(), user_id));
 
-drop policy if exists "users read own roles" on public.user_roles;
-create policy "users read own roles"
-  on public.user_roles for select to authenticated
+alter policy "users read own roles" on public.user_roles
   using (user_id = auth.uid() or public.can_admin_user(auth.uid(), user_id));
 
 -- USING guards the row as it is (what may be changed or removed); WITH CHECK
 -- guards the row as it will be (what may be created or changed into).
-drop policy if exists "admins manage roles" on public.user_roles;
-create policy "admins manage roles"
-  on public.user_roles for all to authenticated
+alter policy "admins manage roles" on public.user_roles
   using (
     public.can_admin_user(auth.uid(), user_id)
     and public.can_manage_role_row(auth.uid(), role, deanery_id)
@@ -240,25 +234,17 @@ create policy "admins manage roles"
     and public.can_manage_role_row(auth.uid(), role, deanery_id)
   );
 
-drop policy if exists "read own trainee specialties" on public.trainee_specialties;
-create policy "read own trainee specialties"
-  on public.trainee_specialties for select to authenticated
+alter policy "read own trainee specialties" on public.trainee_specialties
   using (user_id = auth.uid() or public.is_admin_of_specialty(auth.uid(), specialty_id));
 
-drop policy if exists "admins manage trainee specialties" on public.trainee_specialties;
-create policy "admins manage trainee specialties"
-  on public.trainee_specialties for all to authenticated
+alter policy "admins manage trainee specialties" on public.trainee_specialties
   using (public.is_admin_of_specialty(auth.uid(), specialty_id))
   with check (public.is_admin_of_specialty(auth.uid(), specialty_id));
 
-drop policy if exists "read facilitator specialties" on public.facilitator_specialties;
-create policy "read facilitator specialties"
-  on public.facilitator_specialties for select to authenticated
+alter policy "read facilitator specialties" on public.facilitator_specialties
   using (user_id = auth.uid() or public.is_admin_of_specialty(auth.uid(), specialty_id));
 
-drop policy if exists "admins manage facilitator specialties" on public.facilitator_specialties;
-create policy "admins manage facilitator specialties"
-  on public.facilitator_specialties for all to authenticated
+alter policy "admins manage facilitator specialties" on public.facilitator_specialties
   using (public.is_admin_of_specialty(auth.uid(), specialty_id))
   with check (public.is_admin_of_specialty(auth.uid(), specialty_id));
 
@@ -266,20 +252,14 @@ create policy "admins manage facilitator specialties"
 -- The catalogue and its content
 -- ============================================================================
 
-drop policy if exists "admins read deleted specialties" on public.specialties;
-create policy "admins read deleted specialties"
-  on public.specialties for select to authenticated
+alter policy "admins read deleted specialties" on public.specialties
   using (public.is_admin_of_deanery(auth.uid(), deanery_id));
 
-drop policy if exists "admins manage specialties" on public.specialties;
-create policy "admins manage specialties"
-  on public.specialties for all to authenticated
+alter policy "admins manage specialties" on public.specialties
   using (public.is_admin_of_deanery(auth.uid(), deanery_id))
   with check (public.is_admin_of_deanery(auth.uid(), deanery_id));
 
-drop policy if exists "managers write subsections" on public.subsections;
-create policy "managers write subsections"
-  on public.subsections for all to authenticated
+alter policy "managers write subsections" on public.subsections
   using (
     public.is_admin_of_specialty(auth.uid(), specialty_id)
     or public.is_facilitator_for(auth.uid(), specialty_id)
@@ -294,9 +274,7 @@ create policy "managers write subsections"
 
 -- The files themselves. Admin reach now goes through the subsection named in
 -- the object's path, like everybody else's (see 20261011130000).
-drop policy if exists "resources readable by permitted users" on storage.objects;
-create policy "resources readable by permitted users"
-  on storage.objects for select to authenticated
+alter policy "resources readable by permitted users" on storage.objects
   using (
     bucket_id = 'resources'
     and exists (
@@ -309,9 +287,7 @@ create policy "resources readable by permitted users"
     )
   );
 
-drop policy if exists "resources writable by managers" on storage.objects;
-create policy "resources writable by managers"
-  on storage.objects for insert to authenticated
+alter policy "resources writable by managers" on storage.objects
   with check (
     bucket_id = 'resources'
     and exists (
@@ -321,9 +297,7 @@ create policy "resources writable by managers"
     )
   );
 
-drop policy if exists "resources updatable by managers" on storage.objects;
-create policy "resources updatable by managers"
-  on storage.objects for update to authenticated
+alter policy "resources updatable by managers" on storage.objects
   using (
     bucket_id = 'resources'
     and exists (
@@ -341,9 +315,7 @@ create policy "resources updatable by managers"
     )
   );
 
-drop policy if exists "resources deletable by managers" on storage.objects;
-create policy "resources deletable by managers"
-  on storage.objects for delete to authenticated
+alter policy "resources deletable by managers" on storage.objects
   using (
     bucket_id = 'resources'
     and exists (
@@ -359,15 +331,11 @@ create policy "resources deletable by managers"
 
 -- A contact belongs to its own deanery, else its specialty's; one with neither
 -- is the general directory, which only global admins manage.
-drop policy if exists "admins manage contacts" on public.contacts;
-create policy "admins manage contacts"
-  on public.contacts for all to authenticated
+alter policy "admins manage contacts" on public.contacts
   using (public.is_admin_of_deanery(auth.uid(), coalesce(deanery_id, public.specialty_deanery(specialty_id))))
   with check (public.is_admin_of_deanery(auth.uid(), coalesce(deanery_id, public.specialty_deanery(specialty_id))));
 
-drop policy if exists "contacts readable by signed-in users" on public.contacts;
-create policy "contacts readable by signed-in users"
-  on public.contacts for select to authenticated
+alter policy "contacts readable by signed-in users" on public.contacts
   using (
     public.is_admin_of_deanery(auth.uid(), coalesce(deanery_id, public.specialty_deanery(specialty_id)))
     or (
@@ -376,43 +344,31 @@ create policy "contacts readable by signed-in users"
     )
   );
 
-drop policy if exists "admins manage announcements" on public.announcements;
-create policy "admins manage announcements"
-  on public.announcements for all to authenticated
+alter policy "admins manage announcements" on public.announcements
   using (public.is_admin_of_deanery(auth.uid(), deanery_id))
   with check (public.is_admin_of_deanery(auth.uid(), deanery_id));
 
-drop policy if exists "announcements readable by signed-in users" on public.announcements;
-create policy "announcements readable by signed-in users"
-  on public.announcements for select to authenticated
+alter policy "announcements readable by signed-in users" on public.announcements
   using (is_active or public.is_admin_of_deanery(auth.uid(), deanery_id));
 
-drop policy if exists "managers post notices" on public.specialty_notices;
-create policy "managers post notices"
-  on public.specialty_notices for insert to authenticated
+alter policy "managers post notices" on public.specialty_notices
   with check (
     author_id = auth.uid()
     and (public.is_admin_of_specialty(auth.uid(), specialty_id)
          or public.is_facilitator_for(auth.uid(), specialty_id))
   );
 
-drop policy if exists "managers edit notices" on public.specialty_notices;
-create policy "managers edit notices"
-  on public.specialty_notices for update to authenticated
+alter policy "managers edit notices" on public.specialty_notices
   using (public.is_admin_of_specialty(auth.uid(), specialty_id)
          or public.is_facilitator_for(auth.uid(), specialty_id))
   with check (public.is_admin_of_specialty(auth.uid(), specialty_id)
               or public.is_facilitator_for(auth.uid(), specialty_id));
 
-drop policy if exists "managers remove notices" on public.specialty_notices;
-create policy "managers remove notices"
-  on public.specialty_notices for delete to authenticated
+alter policy "managers remove notices" on public.specialty_notices
   using (public.is_admin_of_specialty(auth.uid(), specialty_id)
          or public.is_facilitator_for(auth.uid(), specialty_id));
 
-drop policy if exists "authors and managers edit discussions" on public.discussions;
-create policy "authors and managers edit discussions"
-  on public.discussions for update to authenticated
+alter policy "authors and managers edit discussions" on public.discussions
   using (
     author_id = auth.uid()
     or public.is_admin_of_specialty(auth.uid(), specialty_id)
@@ -424,18 +380,14 @@ create policy "authors and managers edit discussions"
     or public.is_facilitator_for(auth.uid(), specialty_id)
   );
 
-drop policy if exists "authors and managers delete discussions" on public.discussions;
-create policy "authors and managers delete discussions"
-  on public.discussions for delete to authenticated
+alter policy "authors and managers delete discussions" on public.discussions
   using (
     author_id = auth.uid()
     or public.is_admin_of_specialty(auth.uid(), specialty_id)
     or public.is_facilitator_for(auth.uid(), specialty_id)
   );
 
-drop policy if exists "authors and admins delete comments" on public.discussion_comments;
-create policy "authors and admins delete comments"
-  on public.discussion_comments for delete to authenticated
+alter policy "authors and admins delete comments" on public.discussion_comments
   using (
     author_id = auth.uid()
     or exists (
@@ -451,17 +403,13 @@ create policy "authors and admins delete comments"
 
 -- The admin half is scoped here. The facilitator half is unchanged by this
 -- migration (any facilitator still sees every request) and is a separate fix.
-drop policy if exists "reviewers read access requests" on public.access_requests;
-create policy "reviewers read access requests"
-  on public.access_requests for select to authenticated
+alter policy "reviewers read access requests" on public.access_requests
   using (
     public.is_admin_of_deanery(auth.uid(), coalesce(deanery_id, public.specialty_deanery(specialty_id)))
     or public.has_role(auth.uid(), 'facilitator')
   );
 
-drop policy if exists "reviewers update access requests" on public.access_requests;
-create policy "reviewers update access requests"
-  on public.access_requests for update to authenticated
+alter policy "reviewers update access requests" on public.access_requests
   using (
     public.is_admin_of_deanery(auth.uid(), coalesce(deanery_id, public.specialty_deanery(specialty_id)))
     or public.has_role(auth.uid(), 'facilitator')
@@ -473,9 +421,7 @@ create policy "reviewers update access requests"
 
 -- The log spans every deanery, so reading all of it is for those with every
 -- deanery. Everybody still reads what they did themselves.
-drop policy if exists "users read own audit entries" on public.audit_log;
-create policy "users read own audit entries"
-  on public.audit_log for select to authenticated
+alter policy "users read own audit entries" on public.audit_log
   using (user_id = auth.uid() or public.is_global_admin(auth.uid()));
 
 commit;

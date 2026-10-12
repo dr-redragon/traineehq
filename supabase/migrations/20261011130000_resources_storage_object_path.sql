@@ -28,11 +28,14 @@
 -- specialty_is_available, matching the `resources` rows themselves since
 -- 20260920120000: a withdrawn specialty's files go out of circulation with it.
 
+-- ALTER POLICY rather than drop-and-create: storage.objects belongs to
+-- supabase_storage_admin, and on the live project dropping and recreating its
+-- policies from a migration hung, while altering them in place is immediate.
+-- The four policies have existed since the baseline.
+
 begin;
 
-drop policy if exists "resources readable by permitted users" on storage.objects;
-create policy "resources readable by permitted users"
-  on storage.objects for select to authenticated
+alter policy "resources readable by permitted users" on storage.objects
   using (
     bucket_id = 'resources'
     and (
@@ -45,9 +48,7 @@ create policy "resources readable by permitted users"
     )
   );
 
-drop policy if exists "resources writable by managers" on storage.objects;
-create policy "resources writable by managers"
-  on storage.objects for insert to authenticated
+alter policy "resources writable by managers" on storage.objects
   with check (
     bucket_id = 'resources'
     and (
@@ -64,9 +65,7 @@ create policy "resources writable by managers"
 -- they may end up, so a move cannot carry a file into a subsection the caller
 -- does not manage. Left out, WITH CHECK defaults to USING, but saying it keeps
 -- the two halves visible.
-drop policy if exists "resources updatable by managers" on storage.objects;
-create policy "resources updatable by managers"
-  on storage.objects for update to authenticated
+alter policy "resources updatable by managers" on storage.objects
   using (
     bucket_id = 'resources'
     and (
@@ -90,9 +89,7 @@ create policy "resources updatable by managers"
     )
   );
 
-drop policy if exists "resources deletable by managers" on storage.objects;
-create policy "resources deletable by managers"
-  on storage.objects for delete to authenticated
+alter policy "resources deletable by managers" on storage.objects
   using (
     bucket_id = 'resources'
     and (
