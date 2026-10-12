@@ -36,6 +36,7 @@ NEW_MIGRATIONS=(
   20261012140000_community_and_profile_hardening.sql
   20261012150000_register_account_requests.sql
   20261012160000_fix_function_search_paths.sql
+  20261012170000_revoke_audit_row_change_execute.sql
 )
 
 # The new assertions, plus the existing ones for the policies these
