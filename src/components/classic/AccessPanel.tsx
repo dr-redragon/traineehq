@@ -15,6 +15,7 @@ import {
 } from "@/lib/classic/logo";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import type { RegisterDirectoryEntry, RegisterPerson, RegisterRole } from "@/lib/classic/types";
+import type { InviteResult } from "@/lib/classic/api";
 
 /**
  * A narrow, untyped view of the client for this register's own tables.
@@ -65,6 +66,11 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
   const [email, setEmail] = useState("");
   const [role, setInviteRole] = useState<RegisterRole>("editor");
   const [search, setSearch] = useState("");
+  // Second step for an address with no account: who they are, and why.
+  const [draft, setDraft] = useState<{
+    email: string; role: RegisterRole; firstName: string; lastName: string;
+    reason: string; specialtyName: string | null;
+  } | null>(null);
 
   const pending = (requests ?? []).filter((r) => r.status === "pending");
   // Only an owner admits people, changes roles, removes someone else, sets the
@@ -82,7 +88,36 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
     const address = email.trim().toLowerCase();
     if (!address) return;
     invite.mutate({ email: address, role }, {
-      onSuccess: () => { toast.success(`${address} now has access`); setEmail(""); },
+      onSuccess: (result) => {
+        const r = result as InviteResult;
+        if (r.needs_account) {
+          setDraft({
+            email: address, role, firstName: "", lastName: "",
+            reason: r.suggested_reason ?? "", specialtyName: r.specialty_name ?? null,
+          });
+          return;
+        }
+        toast.success(`${address} now has access`);
+        setEmail("");
+      },
+      onError: (error: Error) => toast.error(error.message),
+    });
+  };
+
+  const requestAccount = () => {
+    if (!draft) return;
+    invite.mutate({
+      email: draft.email, role: draft.role,
+      request: { firstName: draft.firstName, lastName: draft.lastName, reason: draft.reason },
+    }, {
+      onSuccess: () => {
+        toast.success(
+          "Account requested. Once an admin approves it they will be added to this register" +
+            (draft.specialtyName ? ` and made a facilitator of ${draft.specialtyName}.` : "."),
+        );
+        setDraft(null);
+        setEmail("");
+      },
       onError: (error: Error) => toast.error(error.message),
     });
   };
@@ -119,7 +154,7 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
               placeholder="name@example.nhs.uk"
               autoComplete="off"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => { setEmail(e.target.value); setDraft(null); }}
               onKeyDown={(e) => { if (e.key === "Enter") send(); }}
             />
           </div>
@@ -130,15 +165,47 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
             </select>
           </div>
           <div>
-            <button type="button" className="btn primary" disabled={invite.isPending} onClick={send}>
-              {invite.isPending ? "Adding…" : "Add"}
+            <button type="button" className="btn primary" disabled={invite.isPending || !!draft} onClick={send}>
+              {invite.isPending && !draft ? "Adding…" : "Add"}
             </button>
           </div>
         </div>
+        {draft && (
+          <div style={{ marginTop: 12 }}>
+            <p className="helper">
+              <strong>{draft.email}</strong> has no TraineeHQ account yet. Ask the
+              deanery's admins to create one{draft.specialtyName
+                ? <> — they will also be made a facilitator of <strong>{draft.specialtyName}</strong></>
+                : null}.
+            </p>
+            <div className="inline-form" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <div>
+                <label className="fld">First name</label>
+                <input value={draft.firstName} onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} />
+              </div>
+              <div>
+                <label className="fld">Last name</label>
+                <input value={draft.lastName} onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
+              </div>
+            </div>
+            <label className="fld">Reason, for the admins</label>
+            <textarea rows={3} value={draft.reason} onChange={(e) => setDraft({ ...draft, reason: e.target.value })} />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
+              <button type="button" className="btn" disabled={invite.isPending} onClick={() => setDraft(null)}>Cancel</button>
+              <button
+                type="button" className="btn primary" onClick={requestAccount}
+                disabled={invite.isPending || !draft.firstName.trim() || !draft.lastName.trim()}
+              >
+                {invite.isPending ? "Requesting…" : "Request an account"}
+              </button>
+            </div>
+          </div>
+        )}
         <p className="helper">
-          They need a TraineeHQ account. A TraineeHQ admin adding them can create
-          one, and they are emailed a link to choose a password; otherwise ask
-          them to request access to TraineeHQ first.
+          Somebody who already has a TraineeHQ account is added straight away. If
+          they have none, you can ask the deanery's admins to create one: once
+          approved they are added here, made a facilitator of this register's
+          specialty, and emailed a link to choose a password.
         </p>
       </div>
       )}

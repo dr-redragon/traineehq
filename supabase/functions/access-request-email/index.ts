@@ -52,6 +52,10 @@ interface AccessRequestRow {
   specialty_id: string | null;
   deanery_id: string | null;
   review_note: string | null;
+  /** Set when a register owner asked for this account (20261012150000). */
+  register_id: string | null;
+  register_role: "owner" | "editor" | null;
+  requested_by: string | null;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -160,7 +164,9 @@ async function canReviewRequest(
     return true;
   }
 
-  if (specialty && held.some((r) => r.role === "facilitator")) {
+  // Approving a register's account request makes somebody a facilitator, so
+  // only admins decide those — never another facilitator (20261012150000).
+  if (specialty && !request.register_id && held.some((r) => r.role === "facilitator")) {
     const { data: facilitates } = await admin
       .from("facilitator_specialties")
       .select("specialty_id")
@@ -170,6 +176,29 @@ async function canReviewRequest(
   }
 
   return false;
+}
+
+/**
+ * Make somebody a facilitator of a specialty: the role, in its deanery, and
+ * the specialty itself. Never narrows anything they already hold.
+ */
+async function grantFacilitator(
+  admin: ReturnType<typeof getSupabaseAdmin>, userId: string, deaneryId: string | null, specialtyId: string,
+): Promise<string | null> {
+  const { data: specialty } = await admin
+    .from("specialties").select("id, short_name, deanery_id").eq("id", specialtyId).maybeSingle();
+  if (!specialty) return null;
+  const { error: roleErr } = await admin.from("user_roles").upsert(
+    { user_id: userId, role: "facilitator", deanery_id: deaneryId ?? specialty.deanery_id },
+    { onConflict: "user_id,role", ignoreDuplicates: true },
+  );
+  if (roleErr) { console.error("Failed to grant the facilitator role:", roleErr); return null; }
+  const { error: facErr } = await admin.from("facilitator_specialties").upsert(
+    { user_id: userId, specialty_id: specialty.id },
+    { onConflict: "user_id,specialty_id", ignoreDuplicates: true },
+  );
+  if (facErr) { console.error("Failed to add the facilitated specialty:", facErr); return null; }
+  return specialty.short_name ?? "your specialty";
 }
 
 async function sendEmail(to: string, subject: string, html: string) {
@@ -404,7 +433,27 @@ function submissionConfirmationHtml(name: string) {
     </div>`;
 }
 
-function newRequestAlertHtml(name: string, email: string, specialty: string, grade?: string) {
+function requestedForYouHtml(name: string, requester: string, registerName: string) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a2e;margin-bottom:16px">An account has been requested for you</h2>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
+      <p style="color:#4a4a5a;line-height:1.6">
+        ${esc(requester)} has asked for an account on the <strong>HST Training Hub</strong> for you,
+        so that you can help run the <strong>${esc(registerName)}</strong> teaching register.
+      </p>
+      <p style="color:#4a4a5a;line-height:1.6">
+        An administrator will review it, and you'll receive another email with a link to set your password once it is approved.
+      </p>
+      <p style="color:#8a8a9a;font-size:13px">If you were not expecting this, you can ignore this email.</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+    </div>`;
+}
+
+function newRequestAlertHtml(
+  name: string, email: string, specialty: string, grade?: string,
+  forRegister?: { registerName: string; requester: string; reason: string | null },
+) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">New Access Request</h2>
@@ -414,13 +463,16 @@ function newRequestAlertHtml(name: string, email: string, specialty: string, gra
         <tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Email</td><td style="padding:8px 12px;color:#1a1a2e">${esc(email)}</td></tr>
         <tr><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Specialty</td><td style="padding:8px 12px;color:#1a1a2e">${esc(specialty)}</td></tr>
         ${grade ? `<tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Grade</td><td style="padding:8px 12px;color:#1a1a2e">${esc(grade)}</td></tr>` : ""}
+        ${forRegister ? `<tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Register</td><td style="padding:8px 12px;color:#1a1a2e">${esc(forRegister.registerName)}, requested by ${esc(forRegister.requester)}</td></tr>` : ""}
       </table>
+      ${forRegister ? `<p style="color:#4a4a5a;line-height:1.6">Approving it creates the account, adds them to the register and makes them a <strong>facilitator of ${esc(specialty)}</strong>. Only admins can decide it.</p>` : ""}
+      ${forRegister?.reason ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><em>${esc(forRegister.reason)}</em></p>` : ""}
       <p style="color:#4a4a5a;line-height:1.6">Please log in to the Admin Panel to review this request.</p>
       <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
     </div>`;
 }
 
-function approvedHtml(name: string, resetLink: string) {
+function approvedHtml(name: string, resetLink: string, extra?: string) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">Access Approved ✅</h2>
@@ -428,6 +480,7 @@ function approvedHtml(name: string, resetLink: string) {
       <p style="color:#4a4a5a;line-height:1.6">
         Great news! Your access request for the <strong>HST Training Hub</strong> has been approved.
       </p>
+      ${extra ? `<p style="color:#4a4a5a;line-height:1.6">${extra}</p>` : ""}
       <p style="color:#4a4a5a;line-height:1.6">
         Click the button below to set your password and activate your account:
       </p>
@@ -489,7 +542,7 @@ Deno.serve(async (req) => {
       // or has applied. What differs is what the INBOX receives, and only once.
       const { data: request } = await supabaseAdmin
         .from("access_requests")
-        .select("id, first_name, last_name, email, training_grade, specialty_id, deanery_id, status, confirmation_sent_at")
+        .select("id, first_name, last_name, email, training_grade, reason, specialty_id, deanery_id, status, confirmation_sent_at, register_id, requested_by")
         .eq("email", applicantEmail)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -533,10 +586,30 @@ Deno.serve(async (req) => {
 
       const name = `${request.first_name ?? ""} ${request.last_name ?? ""}`.trim();
 
+      // A request a register owner filed for a colleague says so, to both.
+      let forRegister: { registerName: string; requester: string; reason: string | null } | undefined;
+      if (request.register_id) {
+        const [{ data: reg }, { data: requester }] = await Promise.all([
+          supabaseAdmin.from("registers").select("name").eq("id", request.register_id).maybeSingle(),
+          request.requested_by
+            ? supabaseAdmin.from("profiles").select("first_name, last_name").eq("user_id", request.requested_by).maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
+        forRegister = {
+          registerName: reg?.name ?? "a teaching register",
+          requester: [requester?.first_name, requester?.last_name].filter(Boolean).join(" ") || "A register owner",
+          reason: request.reason ?? null,
+        };
+      }
+
       await sendEmail(
         request.email,
-        "Access Request Received — HST Training Hub",
-        submissionConfirmationHtml(name),
+        forRegister
+          ? "An account has been requested for you — HST Training Hub"
+          : "Access Request Received — HST Training Hub",
+        forRegister
+          ? requestedForYouHtml(name, forRegister.requester, forRegister.registerName)
+          : submissionConfirmationHtml(name),
       );
 
       // Notify the people who can review it: super admins, global admins, the
@@ -546,6 +619,7 @@ Deno.serve(async (req) => {
       let facilitatorIds: string[] = [];
       let specialtyName = "General";
       let specialtyDeanery: string | null = null;
+      // Only admins decide a register's account request, so only they are told.
       if (request.specialty_id) {
         const { data: spec } = await supabaseAdmin
           .from("specialties")
@@ -559,7 +633,9 @@ Deno.serve(async (req) => {
             .from("facilitator_specialties")
             .select("user_id")
             .in("specialty_id", [spec.id, spec.parent_specialty_id].filter(Boolean));
-          facilitatorIds = (facRoles ?? []).map((r: { user_id: string }) => r.user_id);
+          facilitatorIds = request.register_id
+            ? []
+            : (facRoles ?? []).map((r: { user_id: string }) => r.user_id);
         }
       }
       const requestDeaneries = new Set([request.deanery_id, specialtyDeanery].filter(Boolean));
@@ -583,7 +659,7 @@ Deno.serve(async (req) => {
           .map((p: { email: string | null }) => p.email)
           .filter((e: string | null): e is string => !!e);
         const alertHtml = newRequestAlertHtml(
-          name, request.email, specialtyName, request.training_grade ?? undefined,
+          name, request.email, specialtyName, request.training_grade ?? undefined, forRegister,
         );
         if (emails.length === 0) {
           console.warn(
@@ -592,7 +668,13 @@ Deno.serve(async (req) => {
           );
         }
         for (const email of emails) {
-          try { await sendEmail(email, `New Access Request: ${name}`, alertHtml); }
+          try {
+            await sendEmail(
+              email,
+              forRegister ? `Account request for the ${forRegister.registerName} register: ${name}` : `New Access Request: ${name}`,
+              alertHtml,
+            );
+          }
           catch (e) { console.error("Failed to notify a reviewer:", e); }
         }
       } else {
@@ -618,7 +700,7 @@ Deno.serve(async (req) => {
 
     const { data: request } = await supabaseAdmin
       .from("access_requests")
-      .select("id, first_name, last_name, email, status, specialty_id, deanery_id, review_note")
+      .select("id, first_name, last_name, email, status, specialty_id, deanery_id, review_note, register_id, register_role, requested_by")
       .eq("id", requestId)
       .maybeSingle<AccessRequestRow>();
     if (!request) return json({ error: "That request does not exist" }, 404);
@@ -668,8 +750,31 @@ Deno.serve(async (req) => {
         userId = newUser?.user?.id;
       }
 
-      // 2. Assign trainee to the specialty the request was for
-      if (userId && request.specialty_id) {
+      // 2. Assign trainee to the specialty the request was for. A register's
+      //    account request instead makes them a facilitator of it, and adds
+      //    them to the register (20261012150000).
+      let extra: string | undefined;
+      if (userId && request.register_id) {
+        const facilitates = request.specialty_id
+          ? await grantFacilitator(supabaseAdmin, userId, request.deanery_id, request.specialty_id)
+          : null;
+        const { data: reg } = await supabaseAdmin
+          .from("registers").select("id, name").eq("id", request.register_id).maybeSingle();
+        if (reg) {
+          const { error: memberErr } = await supabaseAdmin.from("register_members").upsert(
+            {
+              register_id: reg.id, user_id: userId, role: request.register_role ?? "editor",
+              granted_by: request.requested_by ?? caller.id,
+            },
+            { onConflict: "register_id,user_id", ignoreDuplicates: true },
+          );
+          if (memberErr) console.error("Failed to add them to the register:", memberErr);
+        }
+        extra = [
+          reg ? `You have been added to the <strong>${esc(reg.name)}</strong> teaching register.` : "",
+          facilitates ? `You are a facilitator of <strong>${esc(facilitates)}</strong>.` : "",
+        ].filter(Boolean).join(" ") || undefined;
+      } else if (userId && request.specialty_id) {
         const { error: assignError } = await supabaseAdmin.from("trainee_specialties").insert({
           user_id: userId,
           specialty_id: request.specialty_id,
@@ -703,7 +808,7 @@ Deno.serve(async (req) => {
       await sendEmail(
         applicantEmail,
         "Access Approved — HST Training Hub",
-        approvedHtml(applicantName, resetLink),
+        approvedHtml(applicantName, resetLink, extra),
       );
 
       return json({ success: true, user_id: userId });

@@ -2,9 +2,9 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-// Where enquiries land. Set CONTACT_FORWARD_TO in the function's environment so the
-// destination address isn't baked into the source.
-const FORWARD_TO = Deno.env.get("CONTACT_FORWARD_TO") ?? "mohammedabdelaziz12@gmail.com";
+// Where enquiries land: the CONTACT_FORWARD_TO secret, set in Supabase → Edge
+// Functions → Secrets. Deliberately no fallback, so no address is in the source.
+const FORWARD_TO = (Deno.env.get("CONTACT_FORWARD_TO") ?? "").trim();
 // The address Resend sends from. Until a domain is verified at
 // resend.com/domains, onboarding@resend.dev only delivers to the Resend
 // account's own address and refuses every other recipient with a 403 — so set
@@ -116,8 +116,8 @@ serve(async (req) => {
   }
 
   try {
-    if (!RESEND_API_KEY) {
-      console.error("RESEND_API_KEY is not configured");
+    if (!RESEND_API_KEY || !FORWARD_TO) {
+      console.error("RESEND_API_KEY or CONTACT_FORWARD_TO is not configured");
       return json({ error: "Email is not configured" }, 500);
     }
 
