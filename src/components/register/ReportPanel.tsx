@@ -9,7 +9,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { availableAcademicYears, academicYearRange, sessionWhen, todayIso } from "@/lib/register/months";
-import { buildReport, reportSummary, type ReportLayout } from "@/lib/register/report";
+import {
+  buildReport, reportSummary, sessionStats, type ReportLayout, type ReportSection,
+} from "@/lib/register/report";
 import type { RegisterBlob } from "@/lib/register/types";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +46,7 @@ export function ReportPanel({
   const [showRaw, setShowRaw] = useState(true);
   const [showAdj, setShowAdj] = useState(true);
   const [summaryOnly, setSummaryOnly] = useState(false);
+  const [showSessionStats, setShowSessionStats] = useState(true);
   const [generated, setGenerated] = useState(false);
 
   const report = useMemo(
@@ -162,6 +165,13 @@ export function ReportPanel({
                 {label}
               </Label>
             ))}
+            <Label className="flex cursor-pointer items-center gap-2 text-xs font-normal">
+              <Checkbox
+                checked={showSessionStats}
+                onCheckedChange={(v) => setShowSessionStats(v === true)}
+              />
+              Attendance by teaching day
+            </Label>
             <Label className="mt-2 flex cursor-pointer items-center gap-2 border-t pt-2 text-xs font-normal">
               <Checkbox checked={summaryOnly} onCheckedChange={(v) => setSummaryOnly(v === true)} />
               Summary only — totals, no grid or percentages
@@ -292,6 +302,10 @@ export function ReportPanel({
                   </table>
                 </div>
               )}
+
+              {showSessionStats && section.sessions.length > 0 && (
+                <SessionStatsTable blob={blob} section={section} showRate={!summaryOnly} />
+              )}
             </section>
           ))}
 
@@ -313,6 +327,73 @@ export function ReportPanel({
           </footer>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * Attendance by teaching day: one row per day, counted over the same trainees
+ * as the section's table above it, so the report's filters apply to both.
+ */
+function SessionStatsTable({
+  blob, section, showRate,
+}: {
+  blob: RegisterBlob;
+  section: ReportSection;
+  showRate: boolean;
+}) {
+  const stats = sessionStats(blob, section.rows, section.sessions, todayIso());
+  const held = stats.filter((s) => !s.upcoming);
+  const rated = held.filter((s) => s.rate !== null);
+  const meanAttended = held.length
+    ? (held.reduce((n, s) => n + s.attended, 0) / held.length).toFixed(1)
+    : null;
+  const meanRate = rated.length
+    ? Math.round(rated.reduce((n, s) => n + (s.rate ?? 0), 0) / rated.length)
+    : null;
+
+  return (
+    <div className="space-y-1 pt-3">
+      <h4 className="text-xs font-semibold">Attendance by teaching day</h4>
+      <p className="text-[11px] text-muted-foreground">
+        {meanAttended !== null && `Mean ${meanAttended} attending per day`}
+        {showRate && meanRate !== null && ` · mean ${meanRate}% of those expected`}
+        {showRate && " · excused and not-eligible trainees are left out of the rate"}
+      </p>
+      <div className="overflow-x-auto rounded-lg border print:overflow-visible print:rounded-none">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-register-ink [&_th]:font-bold">
+              <th className="px-3 py-2 font-medium">Date</th>
+              <th className="px-2 py-2 font-medium">Teaching day</th>
+              <th className="px-2 py-2 text-right font-medium">Attended</th>
+              <th className="px-2 py-2 text-right font-medium">Absent</th>
+              <th className="px-2 py-2 text-right font-medium">Excused</th>
+              <th className="px-2 py-2 text-right font-medium">Not eligible</th>
+              <th className="px-2 py-2 text-right font-medium">Eligible</th>
+              {showRate && <th className="px-3 py-2 text-right font-medium">Attendance</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {stats.map((s) => (
+              <tr key={s.session.id} className="border-b last:border-0">
+                <td className="whitespace-nowrap px-3 py-1.5 text-muted-foreground">{sessionWhen(s.session)}</td>
+                <td className="px-2 py-1.5 font-medium">{s.session.title}</td>
+                <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{s.attended}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{s.upcoming ? "—" : s.absent}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{s.excused}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{s.notEligible}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{s.eligible}</td>
+                {showRate && (
+                  <td className={cn("px-3 py-1.5 text-right font-semibold tabular-nums", pctClass(s.rate))}>
+                    {s.upcoming ? "upcoming" : s.rate === null ? "—" : `${s.rate}%`}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

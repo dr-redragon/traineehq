@@ -107,7 +107,11 @@ export function mergeCheckIns(
 
     let index = byName.get(nameKey(name));
     if (index === undefined) {
-      const fresh: RegisterTrainee = { id: newId(), name, grade: attendee.grade ?? "" };
+      // On the list from this day on, and for none before it.
+      const fresh: RegisterTrainee = {
+        id: newId(), name, grade: attendee.grade ?? "",
+        startMonth: blob.sessions.find((s) => s.id === localSessionId)?.month ?? "",
+      };
       index = trainees.push(fresh) - 1;
       byName.set(nameKey(name), index);
       enrolled.push(name);

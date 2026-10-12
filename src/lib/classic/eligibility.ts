@@ -31,6 +31,30 @@ export function statusFor(blob: RegisterBlob, traineeId: string): RegisterStatus
   return blob.status.filter((s) => s.trainee === traineeId);
 }
 
+/** The month a trainee joined the programme, or '' if they count for every day. */
+export function traineeStart(blob: RegisterBlob, traineeId: string): string {
+  return blob.trainees.find((t) => t.id === traineeId)?.startMonth ?? "";
+}
+
+/**
+ * Was this month before the trainee joined? Such a day is not theirs at all —
+ * not missed, not "not eligible" in any count, simply outside their training.
+ */
+export function beforeStart(blob: RegisterBlob, traineeId: string, month: string): boolean {
+  const start = traineeStart(blob, traineeId);
+  return !!start && month < start;
+}
+
+/**
+ * Had the trainee joined by the end of this run of sessions? Anyone who had not
+ * is left out of that scope's tables, reports and exports altogether, so a new
+ * ST3 never appears in — or moves the figures of — a year before they started.
+ */
+export function startedBy(blob: RegisterBlob, traineeId: string, sessions: RegisterSession[]): boolean {
+  const start = traineeStart(blob, traineeId);
+  return !start || !sessions.length || sessions[sessions.length - 1].month >= start;
+}
+
 /**
  * Is this trainee expected at a session in this month?
  *
@@ -48,6 +72,7 @@ export function statusFor(blob: RegisterBlob, traineeId: string): RegisterStatus
  * or transfer by when it happens.
  */
 export function isEligible(blob: RegisterBlob, traineeId: string, month: string): boolean {
+  if (beforeStart(blob, traineeId, month)) return false;
   for (const st of statusFor(blob, traineeId)) {
     if (st.type === "active") continue;
 

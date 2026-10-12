@@ -1,5 +1,5 @@
 import type { RegisterBlob, RegisterSession, RegisterTrainee } from "./types";
-import { cellState, isOnLeave, isUpcoming, type CellState } from "./eligibility";
+import { beforeStart, cellState, isOnLeave, isUpcoming, startedBy, type CellState } from "./eligibility";
 import { academicYearOf, academicYearRange, sessionsInYear, sessionsSorted } from "./months";
 
 /**
@@ -65,6 +65,8 @@ export function computeRow(
   for (const session of sessions) {
     const state = cellState(blob, trainee.id, session, asOf);
     cells.push({ session, state });
+    // Before they joined: outside their training, so in no count at all.
+    if (beforeStart(blob, trainee.id, session.month)) continue;
     if (isUpcoming(session, asOf) && state !== "present") continue;
     total++;
     if (state === "na") continue;
@@ -134,7 +136,7 @@ export function computeRows(
 
   const needle = search.trim().toLowerCase();
   let rows = blob.trainees
-    .filter((t) => t.name.toLowerCase().includes(needle))
+    .filter((t) => t.name.toLowerCase().includes(needle) && startedBy(blob, t.id, sessions))
     .map((t) => computeRow(blob, t, sessions, asOf));
 
   let hidden = 0;
@@ -267,7 +269,11 @@ export function buildReport(blob: RegisterBlob, options: ReportOptions): Report 
   const section = (
     title: string, subtitle: string, sessions: RegisterSession[],
   ): ReportSection => {
-    const rows = keep(trainees.map((t) => computeRow(blob, t, sessions, options.asOf)), sessions);
+    const rows = keep(
+      trainees.filter((t) => startedBy(blob, t.id, sessions))
+        .map((t) => computeRow(blob, t, sessions, options.asOf)),
+      sessions,
+    );
     return {
       title, subtitle, sessions,
       rows: [...rows].sort((a, b) => a.trainee.name.localeCompare(b.trainee.name)),
@@ -295,13 +301,64 @@ export function buildReport(blob: RegisterBlob, options: ReportOptions): Report 
     }
   }
 
-  const overall = keep(trainees.map((t) => computeRow(blob, t, inScope, options.asOf)), inScope);
+  const overall = keep(
+    trainees.filter((t) => startedBy(blob, t.id, inScope))
+      .map((t) => computeRow(blob, t, inScope, options.asOf)),
+    inScope,
+  );
 
   return { sections, overall, sessions: inScope, years: selected };
 }
 
 function hasStatus(blob: RegisterBlob, traineeId: string, type: string): boolean {
   return blob.status.some((s) => s.trainee === traineeId && s.type === type);
+}
+
+/** One teaching day's figures across the trainees in a report section. */
+export interface SessionStats {
+  session: RegisterSession;
+  attended: number;
+  absent: number;
+  excused: number;
+  notEligible: number;
+  /** attended + absent + excused: everyone expected that day. */
+  eligible: number;
+  /** attended ÷ (eligible − excused), as the adjusted %; null with nothing to divide by. */
+  rate: number | null;
+  /** The day has not happened yet. */
+  upcoming: boolean;
+}
+
+/**
+ * Attendance by teaching day, from the same rows as the trainee table — so the
+ * report's filters apply to both. Somebody who had not joined yet is not counted
+ * for a day at all, not even as "not eligible".
+ */
+export function sessionStats(
+  blob: RegisterBlob, rows: AttendanceRow[], sessions: RegisterSession[], asOf?: string,
+): SessionStats[] {
+  return sessions.map((session, i) => {
+    const c = { present: 0, absent: 0, excused: 0, na: 0, upcoming: 0 };
+    for (const row of rows) {
+      if (beforeStart(blob, row.trainee.id, session.month)) continue;
+      c[row.cells[i].state]++;
+    }
+    // Before the day, nobody is absent yet: those not ticked are simply expected.
+    const absent = c.absent + c.upcoming;
+    const eligible = c.present + absent + c.excused;
+    const denominator = eligible - c.excused;
+    const upcoming = isUpcoming(session, asOf);
+    return {
+      session,
+      attended: c.present,
+      absent: upcoming ? 0 : absent,
+      excused: c.excused,
+      notEligible: c.na,
+      eligible,
+      rate: !upcoming && denominator > 0 ? Math.round((c.present / denominator) * 100) : null,
+      upcoming,
+    };
+  });
 }
 
 /** Cohort-level figures for the headline strip. */

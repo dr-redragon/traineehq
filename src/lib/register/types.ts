@@ -95,6 +95,13 @@ export interface RegisterTrainee {
   grade?: string;
   /** Where certificates are sent. Absent until the trainee supplies one. */
   email?: string;
+  /**
+   * 'YYYY-MM' — the month they joined the programme, or '' / absent for someone
+   * who counts for every teaching day. Days before it are not theirs at all:
+   * they count neither for nor against them, and any academic year that ends
+   * before it leaves them out entirely. See `startedBy` and `backfillStartMonths`.
+   */
+  startMonth?: string;
 }
 
 export interface RegisterSession {
