@@ -33,6 +33,7 @@ NEW_MIGRATIONS=(
   20261012110000_access_request_no_enumeration.sql
   20261012120000_access_requests_facilitator_scope.sql
   20261012130000_tighten_table_grants.sql
+  20261012140000_community_and_profile_hardening.sql
 )
 
 # The new assertions, plus the existing ones for the policies these
@@ -47,6 +48,7 @@ ASSERTIONS=(
   register-history-assertions.sql
   access-request-scope-assertions.sql
   grants-tightened-assertions.sql
+  community-assertions.sql
 )
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }

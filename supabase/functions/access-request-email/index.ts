@@ -714,7 +714,6 @@ Deno.serve(async (req) => {
     return json({ success: true });
   } catch (error) {
     console.error("Email function error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return json({ error: message }, 500);
+    return json({ error: "Something went wrong" }, 500);
   }
 });

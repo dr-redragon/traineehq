@@ -263,7 +263,6 @@ Deno.serve(async (req) => {
     return json({ success: true, user_id: userId, email_sent: true });
   } catch (error) {
     console.error("invite-user error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return json({ error: message }, 500);
+    return json({ error: "Something went wrong" }, 500);
   }
 });
