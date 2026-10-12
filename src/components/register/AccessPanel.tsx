@@ -19,6 +19,7 @@ import {
   useRegisterRequests, useRemoveMember, useSetMemberRole,
 } from "@/hooks/useRegisterAccess";
 import { CertificateLogoPanel } from "@/components/register/CertificateLogoPanel";
+import { RegisterHistoryPanel } from "@/components/register/RegisterHistoryPanel";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import { purgeCountdown } from "@/lib/register/archive";
 import type { RegisterDirectoryEntry, RegisterPerson, RegisterRole } from "@/lib/register/types";
@@ -297,6 +298,8 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
         </Card>
       </section>
       )}
+
+      {iAmOwner && <RegisterHistoryPanel register={entry} />}
 
       {iAmOwner && <DeleteRegisterSection register={entry} />}
     </div>
