@@ -48,16 +48,27 @@ const NO_EMAIL_DOMAIN = "@no-email.invalid";
 // A certificate is a few kilobytes. Anything approaching a megabyte is not one.
 const MAX_PDF_BYTES = 2 * 1024 * 1024;
 
+/**
+ * Escape anything interpolated into the email. The attendee's name is whatever
+ * was typed at check-in — by anybody holding the link — and the titles are
+ * organiser-written; none of it is markup.
+ */
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 function certificateHtml(name: string, sessionTitle: string, registerName: string) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">Your certificate of attendance</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Dear ${name},</p>
+      <p style="color:#4a4a5a;line-height:1.6">Dear ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        Thank you for attending <strong>${sessionTitle}</strong> and for completing the
+        Thank you for attending <strong>${esc(sessionTitle)}</strong> and for completing the
         feedback form. Your certificate of attendance is attached.
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— ${registerName}</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— ${esc(registerName)}</p>
     </div>`;
 }
 
@@ -179,6 +190,6 @@ Deno.serve(async (req) => {
     return json({ success: true, sent_to: attendee.name });
   } catch (error) {
     console.error("register-certificate error:", error);
-    return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
+    return json({ error: "Something went wrong" }, 500);
   }
 });
