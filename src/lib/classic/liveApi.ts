@@ -86,7 +86,7 @@ export async function submitFeedback(args: {
   overallRating: number;
   answers: Record<string, unknown>;
   comments?: string;
-}): Promise<{ status: "recorded" | "already_submitted"; matched?: boolean }> {
+}): Promise<{ status: "recorded" | "already_submitted" }> {
   return callApi("submit-feedback", {
     session_id: args.sessionId,
     identifier: args.identifier,
