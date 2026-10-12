@@ -24,6 +24,8 @@ MIGRATIONS="$REPO_ROOT/supabase/migrations"
 SUBHEADINGS="$MIGRATIONS/20260908180000_resource_subheadings.sql"
 WITHDRAWN="$MIGRATIONS/20260920120000_withdrawn_specialties_unreadable.sql"
 REQUESTS="$MIGRATIONS/20261011090000_access_request_improvements.sql"
+# Supersedes the existing-account refusal with a silent drop (no enumeration).
+NO_ENUM="$MIGRATIONS/20261012110000_access_request_no_enumeration.sql"
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }
 
@@ -72,6 +74,7 @@ apply requests "$WITHDRAWN"
 apply requests "$REQUESTS"
 echo "  - re-applying the access requests migration (idempotency)"
 psql_as requests -f "$REQUESTS"
+apply requests "$NO_ENUM"
 apply requests "$SCHEMA/test/access-request-improvements-assertions.sql"
 
 echo

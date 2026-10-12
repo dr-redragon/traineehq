@@ -285,21 +285,81 @@ async function handleCheckIn(db: SupabaseClient, body: Record<string, unknown>) 
   return json({ ok: true, attendee: data, enrolled, session: { title: session.title } });
 }
 
+// Feedback stays open well after the day — the link is emailed afterwards and
+// people answer late — but not forever.
+const FEEDBACK_OPEN_DAYS = 60;
+function feedbackWindowOpen(sessionDate: string, now = new Date()): boolean {
+  const day = Date.parse(`${sessionDate}T00:00:00Z`);
+  if (Number.isNaN(day)) return false;
+  const dayMs = 24 * 60 * 60 * 1000;
+  return now.getTime() >= day - dayMs && now.getTime() < day + (1 + FEEDBACK_OPEN_DAYS) * dayMs;
+}
+
+// A form has at most 40 questions (cleanForm), each answer a scale value, a
+// short text, or a handful of ticked options. Anything much bigger than that is
+// not a response.
+const MAX_ANSWER_KEYS = 60;
+const MAX_ANSWER_TEXT = 4000;
+const MAX_ANSWERS_BYTES = 40_000;
+
+function cleanAnswers(raw: unknown): Record<string, unknown> | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, unknown> = {};
+  const entries = Object.entries(raw as Record<string, unknown>);
+  if (entries.length > MAX_ANSWER_KEYS) return null;
+  for (const [key, value] of entries) {
+    const id = key.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 40);
+    if (!id) continue;
+    if (typeof value === "number" && Number.isFinite(value)) out[id] = value;
+    else if (typeof value === "string") out[id] = value.slice(0, MAX_ANSWER_TEXT);
+    else if (typeof value === "boolean") out[id] = value;
+    else if (Array.isArray(value)) {
+      out[id] = value.filter((v) => typeof v === "string").slice(0, 20).map((v) => String(v).slice(0, 200));
+    }
+  }
+  return JSON.stringify(out).length > MAX_ANSWERS_BYTES ? null : out;
+}
+
+// Anonymous responses carry no identifier, by design, so they cannot be
+// de-duplicated. What can be bounded is the total: a day cannot collect more
+// responses than it had attendees, plus headroom for people who never signed
+// in. Beyond that, a link circulating outside the room is being used to stuff
+// the results.
+const FEEDBACK_HEADROOM = 30;
+
 async function handleSubmitFeedback(db: SupabaseClient, body: Record<string, unknown>) {
   const sessionId = cleanText(body.session_id, 64);
   const identifier = cleanText(body.identifier, 200);
   const overall = Number(body.overall_rating);
 
-  if (!sessionId) return json({ error: "Missing session" }, 400);
+  if (!sessionId || !isUuid(sessionId)) return json({ error: "Missing session" }, 400);
   if (!Number.isInteger(overall) || overall < 1 || overall > 5) {
     return json({ error: "Please give an overall rating" }, 400);
+  }
+
+  const answers = cleanAnswers(body.answers);
+  if (answers === null) return json({ error: "That response is too large" }, 413);
+
+  const { data: session } = await db.from("register_sessions")
+    .select("id, session_date").eq("id", sessionId).maybeSingle();
+  if (!session) return json({ error: "This feedback link is not valid any more" }, 404);
+  if (!feedbackWindowOpen(session.session_date)) {
+    return json({ error: "Feedback for this teaching day has closed" }, 403);
+  }
+
+  const [{ count: responses }, { count: attendees }] = await Promise.all([
+    db.from("register_feedback").select("id", { count: "exact", head: true }).eq("session_id", sessionId),
+    db.from("register_attendees").select("id", { count: "exact", head: true }).eq("session_id", sessionId),
+  ]);
+  if ((responses ?? 0) >= (attendees ?? 0) + FEEDBACK_HEADROOM) {
+    return json({ error: "This teaching day has received all the feedback it can take" }, 429);
   }
 
   const { data, error } = await db.rpc("register_record_feedback", {
     _session_id: sessionId,
     _identifier: identifier,
     _overall: overall,
-    _answers: (body.answers && typeof body.answers === "object") ? body.answers : {},
+    _answers: answers,
     _comments: String(body.comments ?? "").trim().slice(0, 4000),
   });
 
@@ -315,9 +375,9 @@ async function handleSubmitFeedback(db: SupabaseClient, body: Record<string, unk
   if (row.status === "already_submitted") {
     return json({ ok: true, status: "already_submitted" });
   }
-  // Feedback is kept either way; "unmatched" simply means there is nobody to
-  // issue a certificate to once certificates are ported.
-  return json({ ok: true, status: "recorded", matched: row.status === "recorded" });
+  // Recorded either way. Whether the identifier matched an attendee is not
+  // said: that would tell an anonymous caller whether an address attended.
+  return json({ ok: true, status: "recorded" });
 }
 
 async function handleCreateSession(

@@ -326,3 +326,32 @@ export async function saveRegister(
 
   return version as number;
 }
+
+/** One earlier version of a register's data, as `register_history()` lists it. */
+export interface RegisterVersion {
+  version: number;
+  saved_at: string | null;
+  saved_by: string | null;
+  replaced_at: string;
+  replaced_by: string | null;
+  counts: { trainees: number; sessions: number; attendance: number };
+}
+
+/** The versions an owner can roll back to, newest first. Owners only. */
+export async function fetchRegisterHistory(registerId: string): Promise<RegisterVersion[]> {
+  const { data, error } = await untyped.rpc("register_history", { _register_id: registerId });
+  raise(error);
+  return (data ?? []) as RegisterVersion[];
+}
+
+/**
+ * Put an earlier version back. It is saved as a new version, so the data it
+ * replaces goes into the history in turn and the restore can itself be undone.
+ */
+export async function restoreRegisterVersion(registerId: string, version: number): Promise<number> {
+  const { data, error } = await untyped.rpc("restore_register_version", {
+    _register_id: registerId, _version: version,
+  });
+  raise(error);
+  return data as number;
+}

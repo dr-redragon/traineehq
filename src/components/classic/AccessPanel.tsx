@@ -67,9 +67,9 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
   const [search, setSearch] = useState("");
 
   const pending = (requests ?? []).filter((r) => r.status === "pending");
-  // Every organiser can admit people and add editors; only an owner changes
-  // roles, removes someone else, sets the badge or deletes the register. The
-  // database enforces all of that — this just keeps refused buttons off screen.
+  // Only an owner admits people, changes roles, removes someone else, sets the
+  // badge or deletes the register; an editor records attendance. The database
+  // enforces all of that — this just keeps refused buttons off screen.
   const iAmOwner = entry.i_am_owner;
 
   const decideOn = (requestId: string, approve: boolean, name: string) =>
@@ -102,13 +102,14 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
       <h2 className="panel-title">Users &amp; access</h2>
       <p className="panel-lede">
         Organiser accounts for this register: who can open it, and who is asking
-        to. Any organiser can admit a request or add an editor; owners also
-        change roles and remove people. Access here is a grant on this register alone — it
+        to. Owners admit requests, add organisers, change roles and remove
+        people; editors record attendance. Access here is a grant on this register alone — it
         has nothing to do with anyone's TraineeHQ role, so a trainee may be an
         editor and a TraineeHQ admin may have no access at all. Trainees never
         need an account; they use the QR code and the feedback link.
       </p>
 
+      {iAmOwner && (
       <div className="card pad">
         <label className="fld">Add an organiser</label>
         <div className="inline-form" style={{ gridTemplateColumns: "1.6fr 1.1fr auto" }}>
@@ -125,7 +126,7 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
           <div>
             <select value={role} onChange={(e) => setInviteRole(e.target.value as RegisterRole)}>
               <option value="editor">Editor — records attendance</option>
-              <option value="owner" disabled={!iAmOwner}>Owner — also manages access</option>
+              <option value="owner">Owner — also manages access</option>
             </select>
           </div>
           <div>
@@ -135,13 +136,14 @@ export function AccessPanel({ entry }: { entry: RegisterDirectoryEntry }) {
           </div>
         </div>
         <p className="helper">
-          If they have no TraineeHQ account yet, one is created and they are
-          emailed a link to choose a password. If they already have one, they are
-          simply added and told.
+          They need a TraineeHQ account. A TraineeHQ admin adding them can create
+          one, and they are emailed a link to choose a password; otherwise ask
+          them to request access to TraineeHQ first.
         </p>
       </div>
+      )}
 
-      {pending.length > 0 && (
+      {iAmOwner && pending.length > 0 && (
         <>
           <div className="grouphead">Waiting on you</div>
           <div className="card">

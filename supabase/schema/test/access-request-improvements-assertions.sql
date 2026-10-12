@@ -29,10 +29,13 @@ insert into public.trainee_specialties (user_id, specialty_id)
 values ('aa000000-0000-4000-8000-00000000000e', '5a000000-0000-4000-8000-000000000001');
 
 -- ----------------------------------------------------------------------------
--- 1. A registered email is recognised, case-insensitively, and refused
+-- 1. A registered email is recognised, case-insensitively — but only by the
+--    service role. Since 20261012110000 a browser cannot ask, and a request
+--    from a registered address (or a second pending one) is silently dropped
+--    rather than refused, so the insert reveals nothing either.
 -- ----------------------------------------------------------------------------
 begin;
-set local role anon;
+set local role service_role;
 do $$
 begin
   if not public.email_has_account('  trainee@example.INVALID ') then
@@ -41,20 +44,40 @@ begin
   if public.email_has_account('nobody@example.invalid') then
     raise exception 'FAIL 1: unregistered email reported as registered';
   end if;
+end $$;
+rollback;
 
+begin;
+set local role anon;
+do $$
+begin
   begin
-    insert into public.access_requests (first_name, last_name, email)
-    values ('T', 'R', 'trainee@example.invalid');
-    raise exception 'FAIL 1: access request for an existing account was accepted';
-  exception when unique_violation then null;
+    perform public.email_has_account('trainee@example.invalid');
+    raise exception 'FAIL 1: anon can ask whether an address is registered';
+  exception when insufficient_privilege then null;
   end;
+
+  -- No error for a registered address: the row is simply not stored.
+  insert into public.access_requests (first_name, last_name, email)
+  values ('T', 'R', 'trainee@example.invalid');
 
   insert into public.access_requests (first_name, last_name, email)
   values ('New', 'Person', 'new@example.invalid');
-
-  raise notice 'ok  1  existing accounts cannot request access; new emails can';
+  -- A second pending request from the same address is dropped the same way.
+  insert into public.access_requests (first_name, last_name, email)
+  values ('New', 'Again', 'NEW@example.invalid');
 end $$;
 commit;
+
+do $$
+declare _n int;
+begin
+  select count(*) into _n from public.access_requests where lower(email) = 'trainee@example.invalid';
+  if _n <> 0 then raise exception 'FAIL 1: a request for an existing account was stored'; end if;
+  select count(*) into _n from public.access_requests where lower(email) = 'new@example.invalid';
+  if _n <> 1 then raise exception 'FAIL 1: expected one pending request for a new address, found %', _n; end if;
+  raise notice 'ok  1  existing accounts and duplicate requests are dropped silently; new emails are kept';
+end $$;
 
 -- ----------------------------------------------------------------------------
 -- 2. A trainee lists and requests a specialty they cannot see, and only that

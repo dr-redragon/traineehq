@@ -136,14 +136,28 @@ const MyProfile = () => {
         .update({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
-          email: email.trim(),
           training_grade: trainingGrade || null,
         } as any)
         .eq("user_id", user.id);
       if (error) throw error;
+
+      // The address is the one you sign in with, so it changes through Supabase
+      // Auth, which confirms it by email before it takes effect. The profile
+      // copy follows once it does (20261012140000).
+      const newEmail = email.trim().toLowerCase();
+      if (newEmail && newEmail !== (user.email ?? "").toLowerCase()) {
+        const { error: emailError } = await supabase.auth.updateUser({ email: newEmail });
+        if (emailError) throw emailError;
+        return { emailPending: true };
+      }
+      return { emailPending: false };
     },
-    onSuccess: () => {
-      toast.success("Profile updated");
+    onSuccess: (result) => {
+      if (result?.emailPending) {
+        toast.success("Profile updated. Check your inbox to confirm the new email address — it changes once confirmed.");
+      } else {
+        toast.success("Profile updated");
+      }
       setDirty(false);
       queryClient.invalidateQueries({ queryKey: ["my-profile"] });
     },

@@ -19,6 +19,7 @@ import {
   useRegisterRequests, useRemoveMember, useSetMemberRole,
 } from "@/hooks/useRegisterAccess";
 import { CertificateLogoPanel } from "@/components/register/CertificateLogoPanel";
+import { RegisterHistoryPanel } from "@/components/register/RegisterHistoryPanel";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import { purgeCountdown } from "@/lib/register/archive";
 import type { RegisterDirectoryEntry, RegisterPerson, RegisterRole } from "@/lib/register/types";
@@ -33,8 +34,10 @@ function nameOf(person: RegisterPerson | undefined, fallback: string) {
  * badge its certificates carry, and deleting it.
  *
  * Access is granted per person and has nothing to do with a TraineeHQ role.
- * Any member can admit somebody; only an owner can change roles, remove other
- * people, set the badge or delete the register.
+ * Only an owner admits somebody, changes roles, removes other people, sets the
+ * badge or deletes the register; an editor records attendance. The register
+ * holds absence and leave records, so who may read it is the owners' call.
+ * The server enforces the same rule — these controls only mirror it.
  */
 export function AccessPanel({ register: entry }: { register: RegisterDirectoryEntry }) {
   const { data: user } = useCurrentUser();
@@ -95,7 +98,7 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
         <h2 className="font-display text-lg font-bold tracking-tight">Who can use this register</h2>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
           Access is granted per person and has nothing to do with anyone's TraineeHQ role.
-          Any member can admit someone; only an owner can change roles or remove people.
+          Only an owner can admit someone, change roles or remove people.
         </p>
       </div>
 
@@ -128,6 +131,10 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
                     {isMine ? (
                       <p className="text-xs text-muted-foreground">
                         This is your own request — somebody else has to decide it.
+                      </p>
+                    ) : !iAmOwner ? (
+                      <p className="text-xs text-muted-foreground">
+                        An owner of this register decides requests.
                       </p>
                     ) : (
                       <>
@@ -243,13 +250,15 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
       {iAmOwner && <CertificateLogoPanel register={entry} />}
 
       {/* ---------------------------------------------------------- invite -- */}
+      {iAmOwner && (
       <section className="space-y-3">
         <h2 className="text-sm font-semibold">Add somebody</h2>
         <Card>
           <CardContent className="space-y-3 p-4">
             <p className="text-sm text-muted-foreground">
-              They do not need a TraineeHQ account. If they have none, one is created and
-              they are emailed a link to set a password.
+              They need a TraineeHQ account. A TraineeHQ admin adding them can create one,
+              and they are emailed a link to set a password; otherwise ask them to request
+              access to TraineeHQ first.
             </p>
 
             <div className="flex flex-wrap items-end gap-2">
@@ -272,8 +281,7 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="editor">Editor</SelectItem>
-                    {/* Only an owner can create another; the server refuses either way. */}
-                    <SelectItem value="owner" disabled={!iAmOwner}>Owner</SelectItem>
+                    <SelectItem value="owner">Owner</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -289,6 +297,9 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
           </CardContent>
         </Card>
       </section>
+      )}
+
+      {iAmOwner && <RegisterHistoryPanel register={entry} />}
 
       {iAmOwner && <DeleteRegisterSection register={entry} />}
     </div>

@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // Where enquiries land. Set CONTACT_FORWARD_TO in the function's environment so the
@@ -28,6 +29,43 @@ const corsHeaders = {
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+// This endpoint is public and sends mail, so it is rate-limited, using the same
+// outbound_email_log the access-request function uses (20261012110000):
+//   * one confirmation per sender address a day — so it cannot be pointed at
+//     somebody's inbox and fired repeatedly;
+//   * a ceiling on enquiries per hour across the whole site, so a script cannot
+//     flood the receiving inbox either.
+const CONFIRMATION_KIND = "contact_confirmation";
+const ENQUIRY_KIND = "contact_enquiry";
+const MAX_ENQUIRIES_PER_HOUR = 30;
+
+function service() {
+  return createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    { auth: { persistSession: false } },
+  );
+}
+
+async function sentSince(
+  db: ReturnType<typeof service>, kind: string, hours: number, recipient?: string,
+): Promise<number> {
+  let q = db.from("outbound_email_log")
+    .select("id", { count: "exact", head: true })
+    .eq("kind", kind)
+    .gte("sent_at", new Date(Date.now() - hours * 3600_000).toISOString());
+  if (recipient) q = q.eq("recipient", recipient.toLowerCase());
+  const { count, error } = await q;
+  // Fail closed: if the limit cannot be checked, do not send.
+  if (error) { console.error("outbound_email_log read failed:", error); return Number.MAX_SAFE_INTEGER; }
+  return count ?? 0;
+}
+
+async function logSent(db: ReturnType<typeof service>, kind: string, recipient: string) {
+  const { error } = await db.from("outbound_email_log").insert({ kind, recipient: recipient.toLowerCase() });
+  if (error) console.error("outbound_email_log write failed:", error);
+}
 const MAX_NAME = 100;
 const MAX_EMAIL = 254;
 const MAX_MESSAGE = 5000;
@@ -107,6 +145,11 @@ serve(async (req) => {
       return json({ error: `Message must be under ${MAX_MESSAGE} characters` }, 400);
     }
 
+    const db = service();
+    if (await sentSince(db, ENQUIRY_KIND, 1) >= MAX_ENQUIRIES_PER_HOUR) {
+      return json({ error: "We are receiving a lot of messages just now. Please try again later." }, 429);
+    }
+
     // Forward the enquiry to the inbox.
     await sendEmail(
       FROM_EMAIL,
@@ -120,31 +163,37 @@ serve(async (req) => {
       `,
     );
 
+    await logSent(db, ENQUIRY_KIND, FORWARD_TO);
+
     // Confirm to the sender. Best effort — the enquiry is already delivered, so a
     // bounce here must not fail the request.
-    try {
-      await sendEmail(
-        FROM_EMAIL,
-        email,
-        "We've received your message",
-        `
-          <h2>Thank you for getting in touch, ${esc(name)}!</h2>
-          <p>We've received your message and will get back to you as soon as possible.</p>
-          <hr />
-          <p><strong>Your message:</strong></p>
-          <p>${escMultiline(message)}</p>
-          <br />
-          <p style="color:#888;font-size:12px;">North West HST Training Hub</p>
-        `,
-      );
-    } catch (e) {
-      console.error("Confirmation email failed:", e);
+    //
+    // The confirmation carries nothing the caller wrote. It goes to whatever
+    // address was typed, so echoing the name or message would let anybody have
+    // this sender deliver text of their choosing to any inbox. And it goes at
+    // most once a day per address.
+    if (await sentSince(db, CONFIRMATION_KIND, 24, email) === 0) {
+      try {
+        await sendEmail(
+          FROM_EMAIL,
+          email,
+          "We've received your message",
+          `
+            <h2>Thank you for getting in touch</h2>
+            <p>We've received your message and will get back to you as soon as possible.</p>
+            <p>If you did not contact the HST Training Hub, you can ignore this email.</p>
+            <p style="color:#888;font-size:12px;">HST Training Hub</p>
+          `,
+        );
+        await logSent(db, CONFIRMATION_KIND, email);
+      } catch (e) {
+        console.error("Confirmation email failed:", e);
+      }
     }
 
     return json({ success: true });
   } catch (error) {
     console.error("contact-form-email error:", error);
-    const message = error instanceof Error ? error.message : "Unknown error";
-    return json({ error: message }, 500);
+    return json({ error: "Your message could not be sent. Please try again later." }, 500);
   }
 });
