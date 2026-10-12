@@ -28,6 +28,7 @@ NEW_MIGRATIONS=(
   20261011140000_register_checkin_hardening.sql
   20261011150000_deanery_scoped_admins.sql
   20261011160000_link_scheme_constraints.sql
+  20261012090000_register_owner_admission.sql
 )
 
 # The new assertions, plus the existing ones for the policies these
@@ -38,6 +39,7 @@ ASSERTIONS=(
   deanery-admin-assertions.sql
   link-scheme-assertions.sql
   access-request-improvements-assertions.sql
+  register-owner-admission-assertions.sql
 )
 
 [ -x "$PGBIN/initdb" ] || { echo "initdb not found in $PGBIN — set PGBIN"; exit 1; }

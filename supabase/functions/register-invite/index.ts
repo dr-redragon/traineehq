@@ -8,9 +8,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
  * is that a deanery admin can bring in a colleague without anyone else being
  * involved. Everything it does is therefore checked here, in code:
  *
- *   - the caller must be a member of the register they are adding to;
- *   - an owner may admit an owner, an editor may only admit an editor;
- *   - the account is created without a usable password, and the person sets one
+ *   - the caller must be an OWNER of the register they are adding to — the
+ *     register holds absence and leave records, and who may read them is the
+ *     owners' decision (20261012090000);
+ *   - an account is created only when the caller is a TraineeHQ admin: creating
+ *     accounts is how people get into TraineeHQ at all, and that goes through
+ *     admins and the access-request queue, not through any register owner;
+ *   - a created account has no usable password, and the person sets one
  *     through the recovery link they are emailed.
  *
  * Those rules mirror the ones row-level security enforces for every other path
@@ -44,19 +48,58 @@ const REPLY_TO = (Deno.env.get("RESEND_REPLY_TO") ?? "")
   .split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
 const replyTo = REPLY_TO.length ? { reply_to: REPLY_TO } : {};
 
+// Where links in this email may point. The caller never chooses the origin, so
+// the hub's sender cannot be made to mail a button that lands somewhere else.
+const APP_BASE_URL = (Deno.env.get("APP_BASE_URL") || "https://traineehq.com").replace(/\/+$/, "");
+
+function safeRedirect(requested: unknown): string | undefined {
+  if (typeof requested !== "string" || !requested) return undefined;
+  try {
+    const url = new URL(requested);
+    return url.origin === new URL(APP_BASE_URL).origin ? url.toString() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Escape anything interpolated into the email — names and titles are user-written. */
+function esc(value: unknown): string {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+/**
+ * The auth account for an address, if there is one. listUsers() is paginated;
+ * reading one page misses every account beyond it.
+ */
+// deno-lint-ignore no-explicit-any
+async function findUserByEmail(admin: any, email: string): Promise<{ id: string } | null> {
+  const perPage = 1000;
+  for (let page = 1; page <= 100; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) throw new Error(`Could not look up accounts: ${error.message}`);
+    const users: { id: string; email?: string }[] = data?.users ?? [];
+    const found = users.find((u) => u.email?.toLowerCase() === email);
+    if (found) return { id: found.id };
+    if (users.length < perPage) return null;
+  }
+  throw new Error("Too many accounts to search");
+}
+
 function joinedHtml(registerName: string, inviterName: string, link: string, needsPassword: boolean) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">You've been added to a teaching register</h2>
       <p style="color:#4a4a5a;line-height:1.6">
-        ${inviterName || "A colleague"} has given you access to the
-        <strong>${registerName}</strong> teaching register on the HST Training Hub.
+        ${esc(inviterName) || "A colleague"} has given you access to the
+        <strong>${esc(registerName)}</strong> teaching register on the HST Training Hub.
       </p>
       <p style="color:#4a4a5a;line-height:1.6">
         You can record attendance, run the teaching day sign-in, and generate reports for it.
       </p>
       <div style="text-align:center;margin:28px 0">
-        <a href="${link}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
+        <a href="${esc(link)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
           ${needsPassword ? "Set your password" : "Open the register"}
         </a>
       </div>
@@ -95,7 +138,7 @@ Deno.serve(async (req) => {
     );
 
     // ---------------------------------------------------------- the caller --
-    const token = (req.headers.get("Authorization") ?? "").replace("Bearer ", "");
+    const token = (req.headers.get("Authorization") ?? "").replace(/^Bearer\s+/i, "").trim();
     if (!token) return json({ error: "Not authenticated" }, 401);
 
     const { data: userData, error: userErr } = await admin.auth.getUser(token);
@@ -103,12 +146,12 @@ Deno.serve(async (req) => {
     if (userErr || !caller) return json({ error: "Not authenticated" }, 401);
 
     const body = await req.json();
-    const registerId: string = body.register_id ?? "";
-    const email: string = (body.email ?? "").trim().toLowerCase();
+    const registerId: string = String(body.register_id ?? "");
+    const email: string = String(body.email ?? "").trim().toLowerCase();
     const role: string = body.role === "owner" ? "owner" : "editor";
-    const firstName: string = (body.first_name ?? "").trim();
-    const lastName: string = (body.last_name ?? "").trim();
-    const redirectTo: string | undefined = body.redirect_to;
+    const firstName: string = String(body.first_name ?? "").trim().slice(0, 100);
+    const lastName: string = String(body.last_name ?? "").trim().slice(0, 100);
+    const redirectTo = safeRedirect(body.redirect_to);
 
     if (!registerId) return json({ error: "A register is required" }, 400);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -131,20 +174,26 @@ Deno.serve(async (req) => {
       .eq("user_id", caller.id)
       .maybeSingle();
 
-    if (!callerMembership) {
-      return json({ error: "Only members of that register can add people to it" }, 403);
-    }
-    if (role === "owner" && callerMembership.role !== "owner") {
-      return json({ error: "Only an owner can add another owner" }, 403);
+    if (callerMembership?.role !== "owner") {
+      return json({ error: "Only an owner of that register can add people to it" }, 403);
     }
 
     // ------------------------------------------------- find or make the user --
-    // listUsers is paginated; ask for the one address rather than walking pages.
-    const { data: matches } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    let account = matches?.users?.find((u) => u.email?.toLowerCase() === email);
+    let account: { id: string } | undefined = (await findUserByEmail(admin, email)) ?? undefined;
     const isNew = !account;
 
     if (!account) {
+      const { data: callerRoles } = await admin
+        .from("user_roles").select("role").eq("user_id", caller.id);
+      const isTraineeHqAdmin = (callerRoles ?? [])
+        .some((r: { role: string }) => r.role === "admin" || r.role === "super_admin");
+      if (!isTraineeHqAdmin) {
+        return json({
+          error: "There is no TraineeHQ account for that address. Ask them to request access " +
+            "to TraineeHQ first, or ask a TraineeHQ admin to add them.",
+        }, 404);
+      }
+
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
         // A random password nobody holds, including us: the account is reached
         // through the recovery link below, never with this value.
@@ -153,8 +202,11 @@ Deno.serve(async (req) => {
         email_confirm: true,
         user_metadata: { first_name: firstName, last_name: lastName },
       });
-      if (createErr) return json({ error: createErr.message }, 400);
-      account = created?.user ?? undefined;
+      if (createErr) {
+        console.error("register-invite createUser failed:", createErr);
+        return json({ error: "Could not create that account" }, 400);
+      }
+      account = created?.user ? { id: created.user.id } : undefined;
     }
 
     if (!account) return json({ error: "Could not create that account" }, 500);
@@ -167,7 +219,10 @@ Deno.serve(async (req) => {
         { onConflict: "register_id,user_id", ignoreDuplicates: true },
       );
 
-    if (memberErr) return json({ error: `Could not add them: ${memberErr.message}` }, 500);
+    if (memberErr) {
+      console.error("register-invite admission failed:", memberErr);
+      return json({ error: "Could not add them to the register" }, 500);
+    }
 
     // Any request they had outstanding is answered by this.
     await admin
@@ -183,7 +238,7 @@ Deno.serve(async (req) => {
       .eq("status", "pending");
 
     // ---------------------------------------------------------------- email --
-    let link = redirectTo ?? "#";
+    let link = redirectTo ?? `${APP_BASE_URL}/registers`;
     if (isNew) {
       const { data: linkData } = await admin.auth.admin.generateLink({
         type: "recovery",
@@ -218,6 +273,6 @@ Deno.serve(async (req) => {
     return json({ success: true, user_id: account.id, created: isNew, email_sent: true });
   } catch (error) {
     console.error("register-invite error:", error);
-    return json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
+    return json({ error: "Something went wrong" }, 500);
   }
 });
