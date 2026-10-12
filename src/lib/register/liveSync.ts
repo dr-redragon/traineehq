@@ -1,5 +1,5 @@
 import { attendanceKey, gradeAt, isPresent } from "./attendance";
-import { newId } from "./blob";
+import { defaultStartMonth, newId, trainingYearStart } from "./blob";
 import type { AttendanceMark, RegisterAttendee, RegisterBlob, RegisterTrainee } from "./types";
 
 /**
@@ -107,10 +107,13 @@ export function mergeCheckIns(
 
     let index = byName.get(nameKey(name));
     if (index === undefined) {
-      // On the list from this day on, and for none before it.
+      // Counted from the August that starts this day's training year — not from
+      // the day they first signed in — and for nothing before it. An organiser
+      // can change it under Edit for a genuine mid-year arrival.
+      const day = blob.sessions.find((s) => s.id === localSessionId);
       const fresh: RegisterTrainee = {
         id: newId(), name, grade: attendee.grade ?? "",
-        startMonth: blob.sessions.find((s) => s.id === localSessionId)?.month ?? "",
+        startMonth: day ? trainingYearStart(day.month) : defaultStartMonth(),
       };
       index = trainees.push(fresh) - 1;
       byName.set(nameKey(name), index);

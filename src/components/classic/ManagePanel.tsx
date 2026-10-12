@@ -3,7 +3,7 @@ import { toast } from "sonner";
 import { Modal } from "@/components/classic/Modal";
 import { MonthInput } from "@/components/classic/MonthInput";
 import {
-  newId, removeSession, removeTrainee, startMonthForNew, upsertSession, upsertTrainee,
+  newId, removeSession, defaultStartMonth, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/classic/blob";
 import { GRADES } from "@/lib/classic/constants";
 import { isFormerTrainee } from "@/lib/classic/eligibility";
@@ -29,7 +29,7 @@ export function ManagePanel({ store }: { store: ClassicStore; entry: RegisterDir
   const [name, setName] = useState("");
   const [grade, setGrade] = useState("");
   const [email, setEmail] = useState("");
-  const [startMonth, setStartMonth] = useState("");
+  const [startMonth, setStartMonth] = useState(() => defaultStartMonth());
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
   const [editingDay, setEditingDay] = useState<RegisterSession | null>(null);
@@ -49,9 +49,9 @@ export function ManagePanel({ store }: { store: ClassicStore; entry: RegisterDir
       name: name.trim(),
       grade: grade || undefined,
       email: email.trim() || undefined,
-      startMonth: startMonthForNew(startMonth, grade),
+      startMonth,
     }));
-    setName(""); setGrade(""); setEmail(""); setStartMonth("");
+    setName(""); setGrade(""); setEmail(""); setStartMonth(defaultStartMonth());
   };
 
   /**
@@ -143,12 +143,13 @@ export function ManagePanel({ store }: { store: ClassicStore; entry: RegisterDir
           </div>
           <div className="inline-form" style={{ gridTemplateColumns: "1.2fr 2fr", marginTop: 10 }}>
             <div>
-              <MonthInput value={startMonth} onChange={setStartMonth} placeholder="Started (e.g. Aug 2026)" />
+              <MonthInput value={startMonth} onChange={setStartMonth} placeholder="Blank = counts for every day" />
             </div>
             <p className="helper" style={{ margin: 0 }}>
-              Month they joined the programme. Teaching days before it don't count for or
-              against them, and they're left out of earlier years. Blank: an ST3 starts this
-              August; anyone else counts for every day.
+              Month they joined the programme — August of this training year unless you
+              change it (a mid-year arrival, say). Teaching days before it don't count for or
+              against them, and they're left out of earlier years. Clear it for somebody who
+              should count for every day.
             </p>
           </div>
           <p className="helper">

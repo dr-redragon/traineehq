@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  newId, removeSession, removeTrainee, startMonthForNew, upsertSession, upsertTrainee,
+  newId, removeSession, defaultStartMonth, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/register/blob";
 import { MonthInput } from "@/components/register/MonthInput";
 import {
@@ -50,7 +50,7 @@ export function ManagePanel({
   const [trainee, setTrainee] = useState<
     { id?: string; name: string; grade: string; email: string; startMonth: string } | null
   >(null);
-  const [adding, setAdding] = useState({ name: "", grade: "", email: "", startMonth: "" });
+  const [adding, setAdding] = useState(() => ({ name: "", grade: "", email: "", startMonth: defaultStartMonth() }));
   const [session, setSession] = useState<RegisterSession | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; detail: string; run: () => void } | null>(null);
   const [showFormer, setShowFormer] = useState(false);
@@ -84,9 +84,9 @@ export function ManagePanel({
       name: adding.name.trim(),
       ...(adding.grade ? { grade: adding.grade } : {}),
       ...(adding.email.trim() ? { email: adding.email.trim() } : {}),
-      startMonth: startMonthForNew(adding.startMonth, adding.grade),
+      startMonth: adding.startMonth,
     }));
-    setAdding({ name: "", grade: "", email: "", startMonth: "" });
+    setAdding({ name: "", grade: "", email: "", startMonth: defaultStartMonth() });
   };
 
   const row = (t: RegisterTrainee) => {
@@ -183,15 +183,17 @@ export function ManagePanel({
                   <Label htmlFor="add-t-start" className="text-xs">
                     Started on programme <span className="text-muted-foreground">(month)</span>
                   </Label>
-                  <MonthInput id="add-t-start" value={adding.startMonth} placeholder="e.g. Aug 2026"
+                  <MonthInput id="add-t-start" value={adding.startMonth}
+                    placeholder="Blank — counts for every teaching day"
                     onChange={(m) => setAdding((a) => ({ ...a, startMonth: m }))} />
                 </div>
               </form>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Grade keeps itself up to date: whatever a trainee picks at their next sign-in
-                replaces it, since it changes between rotations. Teaching days before the start
-                month don't count for or against them, and they're left out of earlier years.
-                Left blank, an ST3 starts this August; anyone else counts for every day.
+                replaces it, since it changes between rotations. New trainees count from August
+                of this training year; change the start month for a mid-year arrival. Teaching
+                days before it don't count for or against them, and they're left out of earlier
+                years. Clear it for somebody who should count for every day.
               </p>
             </CardContent>
           </Card>

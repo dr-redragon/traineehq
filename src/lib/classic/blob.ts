@@ -73,14 +73,18 @@ export function removeTrainee(blob: RegisterBlob, traineeId: string): RegisterBl
   };
 }
 
+/** August of the training year a month falls in — when that year's intake starts. */
+export function trainingYearStart(month: string): string {
+  return `${academicYearStart(month)}-08`;
+}
+
 /**
- * The start month to store for a trainee being added: what was typed, or — left
- * blank — August of this academic year for an ST3, who is new to the programme,
- * and '' (every day counts) for anyone else.
+ * Where a new trainee starts unless an organiser says otherwise: August of the
+ * current training year, not the month they happened to first sign in. The add
+ * form is filled in with it, and can be changed for a mid-year arrival.
  */
-export function startMonthForNew(typed: string, grade: string | undefined, now: Date = new Date()): string {
-  if (typed) return typed;
-  return (grade ?? "").trim() === "ST3" ? `${currentAcademicYear(now).split("/")[0]}-08` : "";
+export function defaultStartMonth(now: Date = new Date()): string {
+  return `${currentAcademicYear(now).split("/")[0]}-08`;
 }
 
 /** Does any trainee still need a start month worked out? */
@@ -110,8 +114,8 @@ export function backfillStartMonths(blob: RegisterBlob, now: Date = new Date()):
   if (!needsStartBackfill(blob)) return blob;
 
   const all = sessionsSorted(blob.sessions);
-  const thisYear = `${currentAcademicYear(now).split("/")[0]}-08`;
-  const yearStart = (month: string) => `${academicYearStart(month)}-08`;
+  const thisYear = defaultStartMonth(now);
+  const yearStart = trainingYearStart;
   const monthOf = new Map(blob.sessions.map((s) => [s.id, s.month]));
 
   const trainees = blob.trainees.map((t) => {

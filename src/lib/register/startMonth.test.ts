@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { backfillStartMonths, needsStartBackfill, startMonthForNew } from "./blob";
+import { backfillStartMonths, defaultStartMonth, needsStartBackfill, trainingYearStart } from "./blob";
+import { mergeCheckIns } from "./liveSync";
 import { beforeStart, cellState, isEligible, startedBy } from "./eligibility";
 import { buildReport, computeRow, computeRows, sessionStats } from "./report";
 import { EMPTY_REGISTER, type RegisterBlob } from "./types";
@@ -101,12 +102,33 @@ describe("sessionStats", () => {
   });
 });
 
-describe("startMonthForNew", () => {
-  it("uses what was typed, else this August for an ST3, else nothing", () => {
-    expect(startMonthForNew("2026-02", "ST3", NOW)).toBe("2026-02");
-    expect(startMonthForNew("", "ST3", NOW)).toBe("2026-08");
-    expect(startMonthForNew("", "ST5", NOW)).toBe("");
-    expect(startMonthForNew("", undefined, NOW)).toBe("");
+describe("default start month", () => {
+  it("is August of the current training year, whatever the grade", () => {
+    expect(defaultStartMonth(NOW)).toBe("2026-08");
+    expect(defaultStartMonth(new Date(2027, 6, 31))).toBe("2026-08"); // 31 Jul 2027
+    expect(defaultStartMonth(new Date(2027, 7, 1))).toBe("2027-08");  // 1 Aug 2027
+  });
+
+  it("dates any month to the August that starts its training year", () => {
+    expect(trainingYearStart("2026-08")).toBe("2026-08");
+    expect(trainingYearStart("2026-11")).toBe("2026-08");
+    expect(trainingYearStart("2027-03")).toBe("2026-08");
+  });
+
+  it("enrols a 'not on the list' sign-in from August, not the day they signed in", () => {
+    const b: RegisterBlob = {
+      ...EMPTY_REGISTER,
+      sessions: [...sessions, { id: "d", month: "2026-11", title: "November" }],
+    };
+    const result = mergeCheckIns(b, "d", [{
+      id: "x", name: "Dana Okafor", email: "", grade: "ST3",
+      checked_in_at: "2026-11-05T09:00:00Z", feedback_completed: false, certificate_sent_at: null,
+    }]);
+    const dana = result.blob.trainees.find((t) => t.name === "Dana Okafor");
+    expect(dana?.startMonth).toBe("2026-08");
+    // so September's day counts for (well, against) her as a missed session
+    expect(isEligible(result.blob, dana!.id, "2026-09")).toBe(true);
+    expect(isEligible(result.blob, dana!.id, "2026-03")).toBe(false);
   });
 });
 
