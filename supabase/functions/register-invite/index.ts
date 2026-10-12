@@ -11,9 +11,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
  *   - the caller must be an OWNER of the register they are adding to — the
  *     register holds absence and leave records, and who may read them is the
  *     owners' decision (20261012090000);
- *   - an account is created only when the caller is a TraineeHQ admin: creating
- *     accounts is how people get into TraineeHQ at all, and that goes through
- *     admins and the access-request queue, not through any register owner;
+ *   - an account is created directly only when the caller administers the
+ *     register's deanery. Any other owner gets an ACCOUNT REQUEST filed on the
+ *     colleague's behalf, naming this register, for the deanery's admins to
+ *     decide (20261012150000); approving it creates the account, adds them to
+ *     the register and makes them a facilitator of its specialty;
+ *   - an account created here is given the same: register membership and
+ *     facilitator of the register's specialty;
  *   - a created account has no usable password, and the person sets one
  *     through the recovery link they are emailed.
  *
@@ -87,6 +91,30 @@ async function findUserByEmail(admin: any, email: string): Promise<{ id: string 
   throw new Error("Too many accounts to search");
 }
 
+/**
+ * Make somebody a facilitator of the register's specialty: the role, in the
+ * register's deanery, and the specialty itself. Never narrows anything they
+ * already hold — an existing facilitator row is left as it is.
+ */
+// deno-lint-ignore no-explicit-any
+async function grantFacilitator(admin: any, userId: string, deaneryId: string | null, specialtyId: string | null) {
+  if (!specialtyId) return false;
+  const { data: specialty } = await admin
+    .from("specialties").select("id, deanery_id").eq("id", specialtyId).maybeSingle();
+  if (!specialty) return false;
+  const { error: roleErr } = await admin.from("user_roles").upsert(
+    { user_id: userId, role: "facilitator", deanery_id: deaneryId ?? specialty.deanery_id },
+    { onConflict: "user_id,role", ignoreDuplicates: true },
+  );
+  if (roleErr) { console.error("facilitator role failed:", roleErr); return false; }
+  const { error: facErr } = await admin.from("facilitator_specialties").upsert(
+    { user_id: userId, specialty_id: specialty.id },
+    { onConflict: "user_id,specialty_id", ignoreDuplicates: true },
+  );
+  if (facErr) { console.error("facilitator specialty failed:", facErr); return false; }
+  return true;
+}
+
 function joinedHtml(registerName: string, inviterName: string, link: string, needsPassword: boolean) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
@@ -152,6 +180,10 @@ Deno.serve(async (req) => {
     const firstName: string = String(body.first_name ?? "").trim().slice(0, 100);
     const lastName: string = String(body.last_name ?? "").trim().slice(0, 100);
     const redirectTo = safeRedirect(body.redirect_to);
+    // Set on the second step, once the owner has been told there is no account
+    // and has filled in the colleague's name and the reason.
+    const requestAccount = body.request_account === true;
+    const reason: string = String(body.reason ?? "").trim().slice(0, 2000);
 
     if (!registerId) return json({ error: "A register is required" }, 400);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -161,7 +193,7 @@ Deno.serve(async (req) => {
     // --------------------------------------------------------- the register --
     const { data: register } = await admin
       .from("registers")
-      .select("id, name, slug")
+      .select("id, name, slug, deanery_id, specialty_id")
       .eq("id", registerId)
       .maybeSingle();
 
@@ -183,15 +215,11 @@ Deno.serve(async (req) => {
     const isNew = !account;
 
     if (!account) {
-      const { data: callerRoles } = await admin
-        .from("user_roles").select("role").eq("user_id", caller.id);
-      const isTraineeHqAdmin = (callerRoles ?? [])
-        .some((r: { role: string }) => r.role === "admin" || r.role === "super_admin");
-      if (!isTraineeHqAdmin) {
-        return json({
-          error: "There is no TraineeHQ account for that address. Ask them to request access " +
-            "to TraineeHQ first, or ask a TraineeHQ admin to add them.",
-        }, 404);
+      const { data: adminsDeanery } = await admin.rpc("is_admin_of_deanery", {
+        _user_id: caller.id, _deanery_id: register.deanery_id,
+      });
+      if (adminsDeanery !== true) {
+        return await requestAnAccount();
       }
 
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
@@ -210,6 +238,10 @@ Deno.serve(async (req) => {
     }
 
     if (!account) return json({ error: "Could not create that account" }, 500);
+
+    // Somebody whose account is made for a register runs it as a facilitator
+    // of the register's specialty. An existing account keeps whatever it has.
+    if (isNew) await grantFacilitator(admin, account.id, register.deanery_id, register.specialty_id);
 
     // ------------------------------------------------------------ admission --
     const { error: memberErr } = await admin
@@ -271,6 +303,80 @@ Deno.serve(async (req) => {
     }
 
     return json({ success: true, user_id: account.id, created: isNew, email_sent: true });
+
+    /**
+     * No account, and the caller cannot create one: ask the deanery's admins.
+     * The first call only says so, with a suggested reason; the owner then
+     * confirms the colleague's name and the reason, and the second call files
+     * the request.
+     */
+    async function requestAnAccount() {
+      const [{ data: specialty }, { data: deanery }, { data: me }] = await Promise.all([
+        admin.from("specialties").select("name").eq("id", register!.specialty_id).maybeSingle(),
+        admin.from("deaneries").select("name").eq("id", register!.deanery_id).maybeSingle(),
+        admin.from("profiles").select("first_name, last_name").eq("user_id", caller!.id).maybeSingle(),
+      ]);
+      const ownerName = [me?.first_name, me?.last_name].filter(Boolean).join(" ") || "A register owner";
+      const where = [specialty?.name, deanery?.name].filter(Boolean).join(", ");
+
+      if (!requestAccount) {
+        return json({
+          needs_account: true,
+          specialty_name: specialty?.name ?? null,
+          suggested_reason:
+            `${ownerName} has asked for access to the "${register!.name}" teaching register` +
+            (where ? ` (${where})` : "") +
+            `, to help run it as ${role === "owner" ? "an owner" : "an editor"}` +
+            (specialty?.name ? `, as a facilitator of ${specialty.name}.` : "."),
+        });
+      }
+
+      if (!firstName || !lastName) {
+        return json({ error: "Their first and last name are needed for the account request" }, 400);
+      }
+
+      const { data: pending } = await admin
+        .from("access_requests").select("id").eq("email", email).eq("status", "pending").limit(1);
+      if (pending?.length) {
+        return json({
+          error: "There is already an account request waiting for that address. " +
+            "Once an admin approves it, you can add them here.",
+        }, 409);
+      }
+
+      const { data: filed, error: fileErr } = await admin
+        .from("access_requests")
+        .insert({
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          reason: reason || null,
+          deanery_id: register!.deanery_id,
+          specialty_id: register!.specialty_id,
+          register_id: register!.id,
+          register_role: role,
+          requested_by: caller!.id,
+        })
+        .select("id");
+      if (fileErr) {
+        console.error("register-invite request failed:", fileErr);
+        return json({ error: "Could not send the account request" }, 500);
+      }
+      // The insert trigger drops a request for an address that has, in the
+      // meantime, got an account. Adding them is then the ordinary path.
+      if (!filed?.length) {
+        return json({ error: "That address now has an account — try adding them again." }, 409);
+      }
+
+      // The applicant's confirmation and the admins' alert, sent the way every
+      // other request's are.
+      const { error: notifyErr } = await admin.functions.invoke("access-request-email", {
+        body: { type: "submission_confirmation", applicant_email: email },
+      });
+      if (notifyErr) console.error("register-invite notification failed:", notifyErr);
+
+      return json({ success: true, requested: true, email_sent: !notifyErr });
+    }
   } catch (error) {
     console.error("register-invite error:", error);
     return json({ error: "Something went wrong" }, 500);

@@ -11,6 +11,7 @@ import {
 } from "@/lib/classic/api";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import type { RegisterRole } from "@/lib/classic/types";
+import type { AccountRequestDetails } from "@/lib/classic/api";
 
 /**
  * Administering who can use a register.
@@ -84,8 +85,9 @@ export function useRemoveMember(registerId: string | undefined) {
 }
 
 export function useInviteToRegister(registerId: string | undefined) {
-  return useRegisterAccessMutation(({ email, role }: { email: string; role: RegisterRole }) =>
-    inviteToRegister(registerId!, email, role),
+  return useRegisterAccessMutation(
+    ({ email, role, request }: { email: string; role: RegisterRole; request?: AccountRequestDetails }) =>
+      inviteToRegister(registerId!, email, role, request),
   );
 }
 

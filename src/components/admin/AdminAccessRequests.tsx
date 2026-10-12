@@ -39,6 +39,17 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
     },
   });
 
+  // Requests a register owner filed for a colleague name the register.
+  const { data: registers } = useQuery({
+    queryKey: ["access-request-registers"],
+    queryFn: async () => {
+      const { data } = await supabase.from("registers" as any).select("id, name");
+      return (data ?? []) as unknown as { id: string; name: string }[];
+    },
+  });
+  const getRegisterName = (id: string) =>
+    registers?.find((r) => r.id === id)?.name ?? "a teaching register";
+
   const getSpecialtyName = (id: string | null) => {
     if (!id) return "General";
     return specialties?.find((s) => s.id === id)?.short_name ?? "Unknown";
@@ -148,6 +159,13 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
                       {req.training_grade && <span>Grade: <strong className="text-foreground">{req.training_grade}</strong></span>}
                       <span>Submitted: {new Date(req.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                     </div>
+                    {req.register_id && (
+                      <p className="text-xs mt-2 rounded border border-primary/30 bg-primary/5 p-2">
+                        Requested by a register owner for <strong>{getRegisterName(req.register_id)}</strong>.
+                        Approving creates the account, adds them to that register
+                        {req.specialty_id ? <> and makes them a <strong>facilitator of {getSpecialtyName(req.specialty_id)}</strong></> : null}.
+                      </p>
+                    )}
                     {req.reason && (
                       <p className="text-xs text-muted-foreground mt-2 bg-secondary/50 rounded p-2">
                         "{req.reason}"

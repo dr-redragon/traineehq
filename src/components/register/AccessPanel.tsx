@@ -23,6 +23,17 @@ import { RegisterHistoryPanel } from "@/components/register/RegisterHistoryPanel
 import { useCurrentUser } from "@/hooks/useUserRole";
 import { purgeCountdown } from "@/lib/register/archive";
 import type { RegisterDirectoryEntry, RegisterPerson, RegisterRole } from "@/lib/register/types";
+import type { InviteResult } from "@/lib/register/api";
+
+/** The second step of adding somebody who has no account yet. */
+interface AccountRequestDraft {
+  email: string;
+  role: RegisterRole;
+  firstName: string;
+  lastName: string;
+  reason: string;
+  specialtyName: string | null;
+}
 
 function nameOf(person: RegisterPerson | undefined, fallback: string) {
   const name = [person?.first_name, person?.last_name].filter(Boolean).join(" ").trim();
@@ -54,6 +65,7 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<RegisterRole>("editor");
+  const [draft, setDraft] = useState<AccountRequestDraft | null>(null);
 
   const myRole = members?.find((m) => m.user_id === user?.id)?.role;
   const iAmOwner = myRole === "owner";
@@ -78,7 +90,16 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
       { email: inviteEmail, role: inviteRole },
       {
         onSuccess: (result) => {
-          const r = result as { created: boolean; email_sent: boolean };
+          const r = result as InviteResult;
+          if (r.needs_account) {
+            // No account: offer to ask the admins for one, reason filled in.
+            setDraft({
+              email: inviteEmail.trim().toLowerCase(), role: inviteRole,
+              firstName: "", lastName: "",
+              reason: r.suggested_reason ?? "", specialtyName: r.specialty_name ?? null,
+            });
+            return;
+          }
           setInviteEmail("");
           toast.success(
             r.created
@@ -91,6 +112,27 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
         onError: (e: Error) => toast.error(e.message),
       },
     );
+
+  const onRequestAccount = () => {
+    if (!draft) return;
+    invite.mutate(
+      {
+        email: draft.email, role: draft.role,
+        request: { firstName: draft.firstName, lastName: draft.lastName, reason: draft.reason },
+      },
+      {
+        onSuccess: () => {
+          setDraft(null);
+          setInviteEmail("");
+          toast.success(
+            "Account requested. Once an admin approves it they will be added to this register" +
+              (draft.specialtyName ? ` and made a facilitator of ${draft.specialtyName}.` : "."),
+          );
+        },
+        onError: (e: Error) => toast.error(e.message),
+      },
+    );
+  };
 
   return (
     <div className="space-y-10">
@@ -256,9 +298,10 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
         <Card>
           <CardContent className="space-y-3 p-4">
             <p className="text-sm text-muted-foreground">
-              They need a TraineeHQ account. A TraineeHQ admin adding them can create one,
-              and they are emailed a link to set a password; otherwise ask them to request
-              access to TraineeHQ first.
+              Somebody who already has a TraineeHQ account is added straight away. If they
+              have none, you can ask the deanery's admins to create one: once approved they
+              are added to this register, made a facilitator of its specialty, and emailed a
+              link to set a password.
             </p>
 
             <div className="flex flex-wrap items-end gap-2">
@@ -268,7 +311,7 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
                   id="invite-email"
                   type="email"
                   value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onChange={(e) => { setInviteEmail(e.target.value); setDraft(null); }}
                   placeholder="colleague@nhs.net"
                 />
               </div>
@@ -286,14 +329,50 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
                 </Select>
               </div>
 
-              <Button className="w-full sm:w-auto" onClick={onInvite} disabled={!inviteEmail.trim() || invite.isPending}>
-                {invite.isPending ? (
+              <Button className="w-full sm:w-auto" onClick={onInvite} disabled={!inviteEmail.trim() || invite.isPending || !!draft}>
+                {invite.isPending && !draft ? (
                   <><Mail className="mr-1.5 h-4 w-4" /> Adding…</>
                 ) : (
                   <><UserPlus className="mr-1.5 h-4 w-4" /> Add</>
                 )}
               </Button>
             </div>
+
+            {draft && (
+              <div className="space-y-3 rounded-md border border-dashed p-3">
+                <p className="text-sm">
+                  <strong>{draft.email}</strong> has no TraineeHQ account yet. Ask the deanery's
+                  admins to create one{draft.specialtyName ? <> — they will also be made a
+                  facilitator of <strong>{draft.specialtyName}</strong></> : null}.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <div className="min-w-[160px] flex-1 space-y-1.5">
+                    <Label htmlFor="request-first" className="text-xs">First name</Label>
+                    <Input id="request-first" value={draft.firstName}
+                      onChange={(e) => setDraft({ ...draft, firstName: e.target.value })} />
+                  </div>
+                  <div className="min-w-[160px] flex-1 space-y-1.5">
+                    <Label htmlFor="request-last" className="text-xs">Last name</Label>
+                    <Input id="request-last" value={draft.lastName}
+                      onChange={(e) => setDraft({ ...draft, lastName: e.target.value })} />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="request-reason" className="text-xs">Reason, for the admins</Label>
+                  <Textarea id="request-reason" rows={3} value={draft.reason}
+                    onChange={(e) => setDraft({ ...draft, reason: e.target.value })} />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setDraft(null)} disabled={invite.isPending}>Cancel</Button>
+                  <Button
+                    onClick={onRequestAccount}
+                    disabled={invite.isPending || !draft.firstName.trim() || !draft.lastName.trim()}
+                  >
+                    {invite.isPending ? "Requesting…" : "Request an account"}
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>

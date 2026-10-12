@@ -224,32 +224,79 @@ export async function setRegisterMemberRole(
   raise(error);
 }
 
+/** What adding somebody by email came to. */
+export interface InviteResult {
+  created: boolean;
+  email_sent: boolean;
+  /** No account, and the caller cannot make one: an account request is needed. */
+  needs_account?: boolean;
+  suggested_reason?: string;
+  specialty_name?: string | null;
+  /** An account request was filed for the deanery's admins. */
+  requested?: boolean;
+}
+
+export interface AccountRequestDetails {
+  firstName: string;
+  lastName: string;
+  reason: string;
+}
+
 /**
- * Add somebody by email, creating their account if they do not have one.
+ * Add somebody by email.
  *
  * Goes through an edge function rather than an RPC because it may need to make
  * an auth user, which needs the service role. The function repeats every rule
  * RLS would have applied, since the service role bypasses them.
+ *
+ * Somebody with no account: an admin of the register's deanery creates one
+ * outright. Anybody else is answered `needs_account`, with a suggested reason;
+ * calling again with `request` files an account request for the admins, which
+ * on approval adds them here and makes them a facilitator of the specialty.
  */
 export async function inviteToRegister(
   registerId: string,
   email: string,
   role: RegisterRole = "editor",
-): Promise<{ created: boolean; email_sent: boolean }> {
+  request?: AccountRequestDetails,
+): Promise<InviteResult> {
   const { data, error } = await supabase.functions.invoke("register-invite", {
     body: {
       register_id: registerId,
       email: email.trim().toLowerCase(),
       role,
       redirect_to: `${window.location.origin}/classic-registers`,
+      ...(request && {
+        request_account: true,
+        first_name: request.firstName.trim(),
+        last_name: request.lastName.trim(),
+        reason: request.reason.trim(),
+      }),
     },
   });
 
-  if (error) throw new Error(error.message);
-  const result = data as { error?: string; created?: boolean; email_sent?: boolean };
+  if (error) throw new Error(await functionErrorMessage(error));
+  const result = data as InviteResult & { error?: string };
   if (result?.error) throw new Error(result.error);
 
-  return { created: !!result?.created, email_sent: !!result?.email_sent };
+  return {
+    ...result,
+    created: !!result?.created,
+    email_sent: !!result?.email_sent,
+  };
+}
+
+/**
+ * supabase-js reports a non-2xx answer as "Edge Function returned a non-2xx
+ * status code"; the function's own sentence is in the response body.
+ */
+async function functionErrorMessage(error: { message: string; context?: unknown }): Promise<string> {
+  const res = error.context as Response | undefined;
+  try {
+    const body = await res?.clone().json();
+    if (body?.error) return String(body.error);
+  } catch { /* not JSON */ }
+  return error.message;
 }
 
 export async function removeRegisterMember(registerId: string, userId: string): Promise<void> {
