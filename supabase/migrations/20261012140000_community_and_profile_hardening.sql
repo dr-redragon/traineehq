@@ -99,8 +99,7 @@ end;
 $$;
 revoke all on function public.discussions_guard_pin() from public, anon, authenticated;
 
-drop trigger if exists discussions_guard_pin on public.discussions;
-create trigger discussions_guard_pin
+create or replace trigger discussions_guard_pin
   before update of is_pinned on public.discussions
   for each row execute function public.discussions_guard_pin();
 
@@ -172,8 +171,7 @@ end;
 $$;
 revoke all on function public.profiles_email_follows_account() from public, anon, authenticated;
 
-drop trigger if exists profiles_email_follows_account on public.profiles;
-create trigger profiles_email_follows_account
+create or replace trigger profiles_email_follows_account
   before insert or update of email on public.profiles
   for each row execute function public.profiles_email_follows_account();
 
@@ -192,8 +190,7 @@ end;
 $$;
 revoke all on function public.sync_profile_email() from public, anon, authenticated;
 
-drop trigger if exists on_auth_user_email_changed on auth.users;
-create trigger on_auth_user_email_changed
+create or replace trigger on_auth_user_email_changed
   after update of email on auth.users
   for each row execute function public.sync_profile_email();
 
@@ -218,13 +215,11 @@ end;
 $$;
 revoke all on function public.audit_enrolment_change() from public, anon, authenticated;
 
-drop trigger if exists audit_trainee_specialties on public.trainee_specialties;
-create trigger audit_trainee_specialties
+create or replace trigger audit_trainee_specialties
   after insert or delete on public.trainee_specialties
   for each row execute function public.audit_enrolment_change();
 
-drop trigger if exists audit_facilitator_specialties on public.facilitator_specialties;
-create trigger audit_facilitator_specialties
+create or replace trigger audit_facilitator_specialties
   after insert or delete on public.facilitator_specialties
   for each row execute function public.audit_enrolment_change();
 

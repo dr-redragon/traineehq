@@ -17,7 +17,7 @@ const when = (value: string | null) =>
 /**
  * Earlier versions of the register's data, for its owners.
  *
- * Every organiser save keeps the version it replaced (the latest 100), so a
+ * Every organiser save keeps the version it replaced, so a
  * mistaken bulk delete — or a deliberate one — can be rolled back. Restoring is
  * itself a save, so it can be undone the same way.
  */

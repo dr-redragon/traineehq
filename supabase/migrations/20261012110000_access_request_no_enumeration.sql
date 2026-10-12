@@ -65,13 +65,13 @@ create table if not exists public.outbound_email_log (
 );
 
 create index if not exists outbound_email_log_recent_idx
-  on public.outbound_email_log (kind, lower(recipient), sent_at desc);
+  on public.outbound_email_log (kind, recipient, sent_at desc);
 
 alter table public.outbound_email_log enable row level security;
 alter table public.outbound_email_log force row level security;
 revoke all on public.outbound_email_log from anon, authenticated;
 revoke all on sequence public.outbound_email_log_id_seq from anon, authenticated;
-grant select, insert, delete on public.outbound_email_log to service_role;
+grant select, insert on public.outbound_email_log to service_role;
 grant usage on sequence public.outbound_email_log_id_seq to service_role;
 
 commit;

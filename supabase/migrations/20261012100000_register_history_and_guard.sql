@@ -10,8 +10,10 @@
 -- it was audited.
 --
 -- 1. HISTORY. Every organiser save (a version bump) first copies the version
---    it replaces into register_store_history; the latest 100 are kept per
---    register. Trainee check-ins do not bump the version and are not copied.
+--    it replaces into register_store_history. Every version is kept: a blob is
+--    tens of kilobytes, so years of saves stay small. (Pruning was left out
+--    deliberately — see the note at the foot of this file.) Trainee check-ins
+--    do not bump the version and are not copied.
 --    Owners list versions with register_history() and roll back with
 --    restore_register_version(), which is itself a save, so it can be undone.
 --    The table has no client grants or policies: it is reached only through
@@ -88,13 +90,6 @@ begin
      OLD.updated_by, OLD.updated_at, auth.uid())
   on conflict (register_id, version) do nothing;
 
-  delete from public.register_store_history h
-   where h.register_id = OLD.register_id
-     and h.version < (select min(version) from (
-           select version from public.register_store_history
-            where register_id = OLD.register_id
-            order by version desc limit 100) keep);
-
   _before := public.register_blob_counts(OLD.data);
   _after  := public.register_blob_counts(NEW.data);
   if (_after->>'trainees')::int   < (_before->>'trainees')::int
@@ -112,8 +107,7 @@ $$;
 
 revoke all on function public.register_store_snapshot() from public, anon, authenticated;
 
-drop trigger if exists register_store_snapshot on public.register_stores;
-create trigger register_store_snapshot
+create or replace trigger register_store_snapshot
   before update on public.register_stores
   for each row execute function public.register_store_snapshot();
 
@@ -196,7 +190,7 @@ security definer
 set search_path = public, pg_temp
 as $$
 begin
-  if TG_OP = 'DELETE' then
+  if TG_OP <> 'UPDATE' then   -- the row is being removed
     insert into public.audit_log (user_id, action, details)
     values (auth.uid(), 'register.deleted', jsonb_build_object(
       'register_id', OLD.id, 'name', OLD.name, 'archived_at', OLD.archived_at));
@@ -216,8 +210,7 @@ $$;
 
 revoke all on function public.audit_register_lifecycle() from public, anon, authenticated;
 
-drop trigger if exists audit_register_lifecycle on public.registers;
-create trigger audit_register_lifecycle
+create or replace trigger audit_register_lifecycle
   after update of archived_at or delete on public.registers
   for each row execute function public.audit_register_lifecycle();
 
@@ -228,3 +221,7 @@ revoke update on public.registers from authenticated;
 grant update (name, certificate_logo_path) on public.registers to authenticated;
 
 commit;
+
+-- PRUNING. Not done here. Versions accumulate; if they ever need trimming, do
+-- it from a scheduled job under the service role (keep, say, the latest 100
+-- per register), not from this trigger.
