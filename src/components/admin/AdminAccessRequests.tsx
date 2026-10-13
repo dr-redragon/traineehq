@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Clock, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { pendingRequestsQueryKey } from "@/hooks/usePendingRequests";
+import { ApproveRequestDialog, type ApprovableRequest, type ApprovalGrant } from "./ApproveRequestDialog";
 
 /**
  * @param specialtyIds When set, only requests for these specialties are shown
@@ -18,6 +19,10 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
   const queryClient = useQueryClient();
   const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
+  // Admins choose what an approval grants first; the facilitator panel keeps
+  // the one-press approve, giving exactly what was asked for.
+  const choosesGrant = !specialtyIds;
+  const [approving, setApproving] = useState<ApprovableRequest | null>(null);
 
   const { data: requests, isLoading } = useQuery({
     queryKey: ["access-requests"],
@@ -54,6 +59,54 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
     if (!id) return "General";
     return specialties?.find((s) => s.id === id)?.short_name ?? "Unknown";
   };
+
+  const decide = async (id: string, status: "approved" | "rejected" | "pending") => {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase
+      .from("access_requests" as any)
+      .update(status === "pending"
+        ? { status, reviewed_by: null, reviewed_at: null, review_note: null }
+        : {
+            status,
+            reviewed_by: user?.id,
+            reviewed_at: new Date().toISOString(),
+            review_note: reviewNote[id]?.trim() || null,
+          } as any)
+      .eq("id", id);
+    if (error) throw error;
+  };
+
+  // Approve with the admin's chosen set-up. The account is only made once the
+  // decision is recorded; if the function refuses the set-up, the request goes
+  // back to pending rather than sitting approved with no account behind it.
+  const approveWithGrant = useMutation({
+    mutationFn: async ({ id, grant }: { id: string; grant: ApprovalGrant }) => {
+      await decide(id, "approved");
+      const { data, error } = await supabase.functions.invoke("access-request-email", {
+        body: { type: "approved", request_id: id, grant },
+      });
+      const failure = error
+        ? await ((error as { context?: Response }).context?.json?.().catch(() => null) ?? null)
+        : null;
+      const message = failure?.error ?? (error ? error.message : data?.error);
+      if (message) {
+        await decide(id, "pending").catch(() => {});
+        throw new Error(message);
+      }
+    },
+    onSuccess: () => {
+      toast.success("Approved — their account is set up and they have been emailed");
+      setApproving(null);
+      queryClient.invalidateQueries({ queryKey: ["access-requests"] });
+      queryClient.invalidateQueries({ queryKey: pendingRequestsQueryKey });
+      queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
+    },
+    onError: (e: Error) => {
+      toast.error(`Not approved: ${e.message}`);
+      queryClient.invalidateQueries({ queryKey: ["access-requests"] });
+    },
+  });
 
   const updateRequest = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
@@ -204,10 +257,12 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
                       <Button
                         size="sm"
                         className="gap-1.5"
-                        onClick={() => updateRequest.mutate({ id: req.id, status: "approved" })}
-                        disabled={updateRequest.isPending}
+                        onClick={() => choosesGrant
+                          ? setApproving(req)
+                          : updateRequest.mutate({ id: req.id, status: "approved" })}
+                        disabled={updateRequest.isPending || approveWithGrant.isPending}
                       >
-                        <CheckCircle className="h-3.5 w-3.5" /> Approve
+                        <CheckCircle className="h-3.5 w-3.5" /> {choosesGrant ? "Approve…" : "Approve"}
                       </Button>
                     </div>
                   </div>
@@ -217,6 +272,13 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
           ))}
         </div>
       )}
+      <ApproveRequestDialog
+        request={approving}
+        open={!!approving}
+        onOpenChange={(o) => { if (!o) setApproving(null); }}
+        approving={approveWithGrant.isPending}
+        onApprove={(grant) => approving && approveWithGrant.mutate({ id: approving.id, grant })}
+      />
     </div>
   );
 }

@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -52,6 +53,7 @@ export function AdminUsers() {
   const [resetTarget, setResetTarget] = useState<Tables<"profiles"> | null>(null);
   const [passwordTarget, setPasswordTarget] = useState<Tables<"profiles"> | null>(null);
   const [newPassword, setNewPassword] = useState("");
+  const [deleteNote, setDeleteNote] = useState("");
   // When the reset email cannot be sent, the link is shown here to pass on.
   const [resetLink, setResetLink] = useState<{ name: string; link: string } | null>(null);
 
@@ -247,10 +249,16 @@ export function AdminUsers() {
   };
 
   const deleteUser = useMutation({
-    mutationFn: (userId: string) => adminUserAction({ action: "delete", user_id: userId }),
-    onSuccess: () => {
-      toast.success("User deleted — they can no longer sign in");
+    mutationFn: ({ userId, note }: { userId: string; note: string }) =>
+      adminUserAction({ action: "delete", user_id: userId, note }),
+    onSuccess: (data) => {
+      toast.success(
+        data?.email_sent === false
+          ? "User deleted. The email telling them could not be sent."
+          : "User deleted and emailed to let them know",
+      );
       setDeleteTarget(null);
+      setDeleteNote("");
       queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
       queryClient.invalidateQueries({ queryKey: ["facilitator-specialties"] });
@@ -692,7 +700,7 @@ export function AdminUsers() {
       </div>
 
       {/* Delete */}
-      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleteUser.isPending) setDeleteTarget(null); }}>
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleteUser.isPending) { setDeleteTarget(null); setDeleteNote(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
@@ -705,6 +713,21 @@ export function AdminUsers() {
               undone — to let them back in, invite them again.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="delete-note">Message to include in their email (optional)</Label>
+            <Textarea
+              id="delete-note"
+              value={deleteNote}
+              onChange={(e) => setDeleteNote(e.target.value)}
+              placeholder="e.g. You have completed your training programme."
+              rows={3}
+              maxLength={1000}
+              className="text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              They are emailed at {deleteTarget?.email} to say their account has been closed.
+            </p>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={deleteUser.isPending}>Cancel</AlertDialogCancel>
             <AlertDialogAction
@@ -712,7 +735,7 @@ export function AdminUsers() {
               disabled={deleteUser.isPending}
               onClick={(e) => {
                 e.preventDefault();
-                if (deleteTarget) deleteUser.mutate(deleteTarget.user_id);
+                if (deleteTarget) deleteUser.mutate({ userId: deleteTarget.user_id, note: deleteNote.trim() });
               }}
             >
               {deleteUser.isPending ? "Deleting…" : "Delete user"}

@@ -4,7 +4,7 @@
 // browser:
 //
 //   delete           — remove the person's sign-in account, not just their
-//                      profile. Deleting the profiles row alone left auth.users
+//                      profile, then email them that it has gone. Deleting the profiles row alone left auth.users
 //                      behind and the person could still log in, landing in an
 //                      app with no profile and no access.
 //   send_reset_link  — email them a link to choose a new password.
@@ -71,6 +71,24 @@ function resetHtml(name: string, link: string) {
         </a>
       </div>
       <p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the login page.</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
+    </div>`;
+}
+
+function deletedHtml(name: string, note: string) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a2e;margin-bottom:16px">Your account has been closed</h2>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
+      <p style="color:#4a4a5a;line-height:1.6">
+        An administrator has deleted your <strong>TraineeHQ</strong> account. You can no longer sign in,
+        and your profile, roles, specialty access and register memberships have been removed.
+      </p>
+      ${note ? `<p style="color:#4a4a5a;line-height:1.6;border-left:3px solid #dd2b0f;padding-left:12px">${esc(note)}</p>` : ""}
+      <p style="color:#4a4a5a;line-height:1.6">
+        If you think this is a mistake, or you need access again, contact your deanery's programme
+        administrator. They can invite you back.
+      </p>
       <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
@@ -162,12 +180,31 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Read who they are before the cascade takes the profile with it.
+      const { data: profile } = await admin
+        .from("profiles").select("first_name").eq("user_id", targetId).maybeSingle();
+
       const { error: deleteErr } = await admin.auth.admin.deleteUser(targetId);
       if (deleteErr) {
         console.error("admin-user delete failed:", deleteErr);
         return json({ error: "Could not delete the account. Please try again." }, 500);
       }
-      return json({ success: true });
+
+      // Tell them, once the account is really gone. A failed email does not
+      // undo the deletion; the admin is told it did not go.
+      if (!targetUser.email) return json({ success: true, email_sent: false });
+      const note = String(body.note ?? "").trim().slice(0, 1000);
+      try {
+        await sendEmail(
+          targetUser.email,
+          "Your TraineeHQ account has been closed",
+          deletedHtml(profile?.first_name ?? "", note),
+        );
+      } catch (e) {
+        console.error("Deletion email failed:", e);
+        return json({ success: true, email_sent: false });
+      }
+      return json({ success: true, email_sent: true });
     }
 
     if (targetErr || !targetUser?.email) {

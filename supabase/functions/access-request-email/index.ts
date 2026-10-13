@@ -41,7 +41,16 @@ interface EmailPayload {
    * Who to email, and what to say, are read from that row, never from the caller.
    */
   request_id?: string;
+  /**
+   * approved only, optional: what the reviewer chose to give the new account
+   * in place of what the request asked for. Admins only; checked against what
+   * this caller may grant before anything is applied.
+   */
+  grant?: { role?: string; deanery_id?: string | null; specialty_ids?: string[] };
 }
+
+type GrantRole = "trainee" | "facilitator" | "admin" | "super_admin";
+interface Grant { role: GrantRole; deaneryId: string | null; specialtyIds: string[] }
 
 interface AccessRequestRow {
   id: string;
@@ -176,6 +185,87 @@ async function canReviewRequest(
   }
 
   return false;
+}
+
+/**
+ * Check a reviewer's chosen set-up for a new account against what they may
+ * grant — the same rules invite-user applies to an invitation, because this is
+ * an invitation in all but name. Returns the grant, or a reason to refuse it.
+ */
+async function checkGrant(
+  admin: ReturnType<typeof getSupabaseAdmin>, callerId: string, raw: EmailPayload["grant"],
+): Promise<Grant | string> {
+  const role = String(raw?.role ?? "trainee") as GrantRole;
+  if (!["trainee", "facilitator", "admin", "super_admin"].includes(role)) return "That role does not exist";
+  const deaneryId = raw?.deanery_id ? String(raw.deanery_id) : null;
+  if (deaneryId && !UUID_RE.test(deaneryId)) return "That deanery does not exist";
+  const specialtyIds = [...new Set((Array.isArray(raw?.specialty_ids) ? raw.specialty_ids : []).map(String))];
+  if (specialtyIds.some((id) => !UUID_RE.test(id)) || specialtyIds.length > 200) return "Invalid specialties";
+
+  const { data: roles } = await admin.from("user_roles").select("role, deanery_id").eq("user_id", callerId);
+  const held = (roles ?? []) as { role: string; deanery_id: string | null }[];
+  const isSuper = held.some((r) => r.role === "super_admin");
+  const isGlobal = isSuper || held.some((r) => r.role === "admin" && r.deanery_id === null);
+  const adminOf = new Set(held.filter((r) => r.role === "admin" && r.deanery_id).map((r) => r.deanery_id as string));
+  if (!isGlobal && adminOf.size === 0) return "Only administrators can change what an approval grants";
+
+  if (role === "super_admin" && !isSuper) return "Only super admins can make somebody a super admin";
+  if (role === "admin" && deaneryId === null && !isSuper) return "Only super admins can create an admin for every deanery";
+  if (deaneryId === null ? !isGlobal : !(isGlobal || adminOf.has(deaneryId))) {
+    return "You can only place people in a deanery you administer";
+  }
+
+  if (role === "trainee" || role === "facilitator") {
+    if (specialtyIds.length && !deaneryId) return "Choose a deanery for those specialties";
+    if (specialtyIds.length) {
+      const { data: specs } = await admin
+        .from("specialties").select("id, deanery_id").in("id", specialtyIds);
+      if ((specs ?? []).length !== specialtyIds.length ||
+          (specs ?? []).some((sp: { deanery_id: string }) => sp.deanery_id !== deaneryId)) {
+        return "Every specialty must belong to the chosen deanery";
+      }
+    }
+  }
+  return { role, deaneryId, specialtyIds: role === "trainee" || role === "facilitator" ? specialtyIds : [] };
+}
+
+/**
+ * Give an account what the reviewer chose. Adds to whatever they already
+ * hold — approving a request never takes access away.
+ */
+async function applyGrant(
+  admin: ReturnType<typeof getSupabaseAdmin>, userId: string, grant: Grant,
+): Promise<string> {
+  const { role, deaneryId, specialtyIds } = grant;
+  // Every account keeps its trainee row (the signup trigger adds one); give it the deanery.
+  await admin.from("user_roles").upsert(
+    { user_id: userId, role: "trainee", deanery_id: deaneryId },
+    { onConflict: "user_id,role" },
+  );
+  if (role !== "trainee") {
+    const { error } = await admin.from("user_roles").upsert(
+      { user_id: userId, role, deanery_id: role === "super_admin" ? null : deaneryId },
+      { onConflict: "user_id,role" },
+    );
+    if (error) throw new Error(`Could not grant the ${role} role: ${error.message}`);
+  }
+  if (specialtyIds.length) {
+    const table = role === "facilitator" ? "facilitator_specialties" : "trainee_specialties";
+    const { error } = await admin.from(table).upsert(
+      specialtyIds.map((sid) => ({ user_id: userId, specialty_id: sid })),
+      { onConflict: "user_id,specialty_id", ignoreDuplicates: true },
+    );
+    if (error) throw new Error(`Could not assign specialties: ${error.message}`);
+  }
+  if (deaneryId) {
+    await admin.from("profiles").update({ deanery_id: deaneryId }).eq("user_id", userId);
+  }
+
+  const label = { trainee: "a trainee", facilitator: "a facilitator", admin: "an administrator", super_admin: "a super admin" }[role];
+  if (!specialtyIds.length) return `You have been set up as ${label}.`;
+  const { data: names } = await admin.from("specialties").select("short_name").in("id", specialtyIds);
+  const list = (names ?? []).map((n: { short_name: string }) => `<strong>${esc(n.short_name)}</strong>`).join(", ");
+  return `You have been set up as ${label} with access to ${list}.`;
 }
 
 /**
@@ -721,6 +811,15 @@ Deno.serve(async (req) => {
       return json({ error: "The request does not hold a valid email address" }, 422);
     }
 
+    // A reviewer's own choice of role, deanery and specialties, checked before
+    // any account is made so a refused choice leaves nothing half done.
+    let grant: Grant | null = null;
+    if (type === "approved" && payload.grant) {
+      const checked = await checkGrant(supabaseAdmin, caller.id, payload.grant);
+      if (typeof checked === "string") return json({ error: checked }, 403);
+      grant = checked;
+    }
+
     if (type === "approved") {
       const firstName = request.first_name ?? "";
       const lastName = request.last_name ?? "";
@@ -754,8 +853,18 @@ Deno.serve(async (req) => {
       //    account request instead makes them a facilitator of it, and adds
       //    them to the register (20261012150000).
       let extra: string | undefined;
+      // An existing account is somebody the reviewer may not administer; only
+      // change their roles if they could have done so in the Users tab.
+      if (grant && userId && existingUser) {
+        const { data: allowed } = await supabaseAdmin.rpc("can_admin_user", { _admin: caller.id, _target: userId });
+        if (allowed !== true) {
+          return json({ error: "That email already has an account you do not administer" }, 403);
+        }
+      }
+      const granted = grant && userId ? await applyGrant(supabaseAdmin, userId, grant) : undefined;
+
       if (userId && request.register_id) {
-        const facilitates = request.specialty_id
+        const facilitates = request.specialty_id && !grant
           ? await grantFacilitator(supabaseAdmin, userId, request.deanery_id, request.specialty_id)
           : null;
         const { data: reg } = await supabaseAdmin
@@ -773,7 +882,10 @@ Deno.serve(async (req) => {
         extra = [
           reg ? `You have been added to the <strong>${esc(reg.name)}</strong> teaching register.` : "",
           facilitates ? `You are a facilitator of <strong>${esc(facilitates)}</strong>.` : "",
+          granted ?? "",
         ].filter(Boolean).join(" ") || undefined;
+      } else if (granted) {
+        extra = granted;
       } else if (userId && request.specialty_id) {
         const { error: assignError } = await supabaseAdmin.from("trainee_specialties").insert({
           user_id: userId,
@@ -785,7 +897,7 @@ Deno.serve(async (req) => {
       }
 
       // 2b. Record the request's deanery on the profile
-      if (userId && request.deanery_id) {
+      if (userId && request.deanery_id && !grant) {
         const { error: deaneryError } = await supabaseAdmin
           .from("profiles")
           .update({ deanery_id: request.deanery_id })
