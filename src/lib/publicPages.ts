@@ -28,7 +28,7 @@ export interface PublicPage extends PageHeadTags {
 
 /** What index.html carries. Keep the two in step. */
 export const DEFAULT_HEAD: PageHeadTags = {
-  title: "HST Training Hub | NHS Higher Specialty Training Resources",
+  title: "TraineeHQ | NHS Higher Specialty Training Resources",
   description:
     "A secure, centralised hub of curricula, exam preparation, operative videos and key contacts for NHS Higher Surgical and Medical Specialty Trainees.",
 };
@@ -39,33 +39,33 @@ export const INDEX = "index, follow";
 export const PUBLIC_PAGES: PublicPage[] = [
   {
     path: "/welcome",
-    title: "HST Training Hub | Resources for NHS Higher Specialty Trainees",
+    title: "TraineeHQ | Resources for NHS Higher Specialty Trainees",
     description:
       "A centralised resource hub for NHS Higher Surgical and Medical Specialty Trainees: curricula, exam preparation, operative videos and key contacts in one secure platform.",
   },
   {
     path: "/request-access",
-    title: "Request Access | HST Training Hub",
+    title: "Request Access | TraineeHQ",
     description:
-      "Request an account for the HST Training Hub, the resource hub for NHS Higher Specialty Trainees. Accounts are approved by the programme admin team.",
+      "Request an account for TraineeHQ, the resource hub for NHS Higher Specialty Trainees. Accounts are approved by the programme admin team.",
   },
   {
     path: "/contact",
-    title: "Contact | HST Training Hub",
+    title: "Contact | TraineeHQ",
     description:
-      "Get in touch with the HST Training Hub programme admin team about the hub, your account or a resource.",
+      "Get in touch with the TraineeHQ programme admin team about the hub, your account or a resource.",
   },
   {
     path: "/privacy",
-    title: "Privacy Policy | HST Training Hub",
+    title: "Privacy Policy | TraineeHQ",
     description:
-      "What the HST Training Hub holds about you, why, who it is shared with, how long it is kept and how to exercise your data protection rights.",
+      "What TraineeHQ holds about you, why, who it is shared with, how long it is kept and how to exercise your data protection rights.",
   },
   {
     path: "/terms",
-    title: "Terms of Use | HST Training Hub",
+    title: "Terms of Use | TraineeHQ",
     description:
-      "The terms that apply to using the HST Training Hub, the resource hub for NHS Higher Specialty Trainees.",
+      "The terms that apply to using TraineeHQ, the resource hub for NHS Higher Specialty Trainees.",
   },
 ];
 

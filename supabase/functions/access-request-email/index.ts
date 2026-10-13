@@ -10,11 +10,11 @@ const RESEND_API = "https://api.resend.com/emails";
 // The address Resend sends from. Until a domain is verified at
 // resend.com/domains, onboarding@resend.dev only delivers to the Resend
 // account's own address and refuses every other recipient with a 403 — so set
-// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// RESEND_FROM to an address on the verified domain ("TraineeHQ
 // <noreply@example.nhs.uk>") and every function picks it up with no code change.
 // Declared per function rather than shared, so each one deploys on its own.
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
-  "HST Training Hub <onboarding@resend.dev>";
+  "TraineeHQ <onboarding@resend.dev>";
 
 // Where replies land. The sender above is a no-reply address with no mailbox
 // behind it, so without this a trainee replying to their certificate gets a
@@ -245,7 +245,7 @@ function specialtyRequestAlertHtml(
       <p style="color:#4a4a5a;line-height:1.6">
         Review it in the Admin Panel or Facilitator Panel${siteUrl ? `: <a href="${esc(siteUrl)}">${esc(siteUrl)}</a>` : "."}
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -258,7 +258,7 @@ function specialtyRequestReceivedHtml(name: string, specialty: string) {
         Your request to join <strong>${esc(specialty)}</strong> has been sent for review.
         You'll get another email once it has been decided.
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -275,7 +275,7 @@ function specialtyRequestDecidedHtml(
           : `Your request to join <strong>${esc(specialty)}</strong> was not approved at this time.`}
       </p>
       ${note ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><strong>Note:</strong> <em>${esc(note)}</em></p>` : ""}
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -349,7 +349,7 @@ async function handleSpecialtyRequest(
     if (person?.email) {
       await sendEmail(
         person.email,
-        `Request received: ${specialtyName} — HST Training Hub`,
+        `Request received: ${specialtyName} — TraineeHQ`,
         specialtyRequestReceivedHtml(name, specialtyName),
       );
     }
@@ -368,8 +368,8 @@ async function handleSpecialtyRequest(
   await sendEmail(
     person.email,
     approved
-      ? `Access approved: ${specialtyName} — HST Training Hub`
-      : `Specialty access request update — HST Training Hub`,
+      ? `Access approved: ${specialtyName} — TraineeHQ`
+      : `Specialty access request update — TraineeHQ`,
     specialtyRequestDecidedHtml(name, specialtyName, approved, request.review_note),
   );
   return json({ success: true });
@@ -404,7 +404,7 @@ function existingAccountHtml(resetLink: string) {
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">You already have an account</h2>
       <p style="color:#4a4a5a;line-height:1.6">
-        Somebody asked for access to the <strong>HST Training Hub</strong> with this email address,
+        Somebody asked for access to <strong>TraineeHQ</strong> with this email address,
         but it already has an account. If that was you, set a new password and sign in:
       </p>
       <div style="text-align:center;margin:28px 0">
@@ -413,7 +413,7 @@ function existingAccountHtml(resetLink: string) {
         </a>
       </div>
       <p style="color:#8a8a9a;font-size:13px">If it was not you, you can ignore this email; nothing has changed.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -423,13 +423,13 @@ function submissionConfirmationHtml(name: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Request Received</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        Thank you for requesting access to the <strong>HST Training Hub</strong>.
+        Thank you for requesting access to <strong>TraineeHQ</strong>.
         Your application has been received and will be reviewed by an administrator.
       </p>
       <p style="color:#4a4a5a;line-height:1.6">
         You'll receive another email once your request has been reviewed.
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -439,14 +439,14 @@ function requestedForYouHtml(name: string, requester: string, registerName: stri
       <h2 style="color:#1a1a2e;margin-bottom:16px">An account has been requested for you</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        ${esc(requester)} has asked for an account on the <strong>HST Training Hub</strong> for you,
+        ${esc(requester)} has asked for an account on <strong>TraineeHQ</strong> for you,
         so that you can help run the <strong>${esc(registerName)}</strong> teaching register.
       </p>
       <p style="color:#4a4a5a;line-height:1.6">
         An administrator will review it, and you'll receive another email with a link to set your password once it is approved.
       </p>
       <p style="color:#8a8a9a;font-size:13px">If you were not expecting this, you can ignore this email.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -468,7 +468,7 @@ function newRequestAlertHtml(
       ${forRegister ? `<p style="color:#4a4a5a;line-height:1.6">Approving it creates the account, adds them to the register and makes them a <strong>facilitator of ${esc(specialty)}</strong>. Only admins can decide it.</p>` : ""}
       ${forRegister?.reason ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><em>${esc(forRegister.reason)}</em></p>` : ""}
       <p style="color:#4a4a5a;line-height:1.6">Please log in to the Admin Panel to review this request.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -478,7 +478,7 @@ function approvedHtml(name: string, resetLink: string, extra?: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Access Approved ✅</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        Great news! Your access request for the <strong>HST Training Hub</strong> has been approved.
+        Great news! Your access request for <strong>TraineeHQ</strong> has been approved.
       </p>
       ${extra ? `<p style="color:#4a4a5a;line-height:1.6">${extra}</p>` : ""}
       <p style="color:#4a4a5a;line-height:1.6">
@@ -492,7 +492,7 @@ function approvedHtml(name: string, resetLink: string, extra?: string) {
       <p style="color:#8a8a9a;font-size:13px">
         This link will expire in 24 hours. If it expires, you can request a new one from the login page using "Forgot password".
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -502,7 +502,7 @@ function rejectedHtml(name: string, reason: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Access Request Update</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        Unfortunately, your access request for the HST Training Hub was not approved at this time.
+        Unfortunately, your access request for TraineeHQ was not approved at this time.
       </p>
       <p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc">
         <strong>Reason:</strong> <em>${esc(reason)}</em>
@@ -510,7 +510,7 @@ function rejectedHtml(name: string, reason: string) {
       <p style="color:#4a4a5a;line-height:1.6">
         If you believe this was in error, please contact your training programme director.
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -563,7 +563,7 @@ Deno.serve(async (req) => {
           const link = linkData?.properties?.action_link;
           if (link) {
             try {
-              await sendEmail(applicantEmail, "You already have an account — HST Training Hub", existingAccountHtml(link));
+              await sendEmail(applicantEmail, "You already have an account — TraineeHQ", existingAccountHtml(link));
               await logEmail(supabaseAdmin, "existing_account_nudge", applicantEmail);
             } catch (e) { console.error("existing-account email failed:", e); }
           }
@@ -605,8 +605,8 @@ Deno.serve(async (req) => {
       await sendEmail(
         request.email,
         forRegister
-          ? "An account has been requested for you — HST Training Hub"
-          : "Access Request Received — HST Training Hub",
+          ? "An account has been requested for you — TraineeHQ"
+          : "Access Request Received — TraineeHQ",
         forRegister
           ? requestedForYouHtml(name, forRegister.requester, forRegister.registerName)
           : submissionConfirmationHtml(name),
@@ -807,7 +807,7 @@ Deno.serve(async (req) => {
 
       await sendEmail(
         applicantEmail,
-        "Access Approved — HST Training Hub",
+        "Access Approved — TraineeHQ",
         approvedHtml(applicantName, resetLink, extra),
       );
 
@@ -815,7 +815,7 @@ Deno.serve(async (req) => {
     }
 
     const reason = (request.review_note ?? "").trim().slice(0, MAX_NOTE) || "No reason provided.";
-    await sendEmail(applicantEmail, "Access Request Update — HST Training Hub", rejectedHtml(applicantName, reason));
+    await sendEmail(applicantEmail, "Access Request Update — TraineeHQ", rejectedHtml(applicantName, reason));
     return json({ success: true });
   } catch (error) {
     console.error("Email function error:", error);

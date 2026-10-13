@@ -56,8 +56,8 @@ const Landing = () => {
       <header className="sticky top-0 z-50 border-b-2 border-border bg-background">
         <div className="max-w-5xl mx-auto flex items-center justify-between px-6 h-16">
           <div className="flex items-center gap-3">
-            <img src={logoDark} alt="NW HST Training Hub" className="h-8 w-8" />
-            <span className="font-display text-lg font-extrabold tracking-tight">HST Training Hub</span>
+            <img src={logoDark} alt="TraineeHQ" className="h-8 w-8" />
+            <span className="font-display text-lg font-extrabold tracking-tight">TraineeHQ</span>
           </div>
           <div className="flex items-center gap-4">
             <Link to="/request-access" className="text-sm font-medium text-foreground underline underline-offset-[3px] transition-colors hover:text-accent-deep">
@@ -194,8 +194,8 @@ const Landing = () => {
       <footer className="border-t-2 border-border bg-background">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src={logoDark} alt="NW HST Training Hub" className="h-4 w-4" />
-            <span className="text-sm text-muted-foreground">© 2026 HST Training Hub</span>
+            <img src={logoDark} alt="TraineeHQ" className="h-4 w-4" />
+            <span className="text-sm text-muted-foreground">© 2026 TraineeHQ</span>
           </div>
           <div className="flex items-center gap-6 text-xs text-muted-foreground">
             <PolicyLink kind="privacy" className="underline underline-offset-4 hover:text-accent-deep transition-colors" />

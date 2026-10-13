@@ -18,7 +18,7 @@ const sections: LegalSection[] = [
     body: (
       <>
         <p>
-          TraineeHQ (also called the HST Training Hub) is a members-only resource hub for doctors
+          TraineeHQ is a members-only resource hub for doctors
           in higher specialty training and the people who educate them. The data controller for
           the personal data described in this policy is {POLICY_CONTROLLER}.
         </p>

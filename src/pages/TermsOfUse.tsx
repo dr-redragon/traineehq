@@ -10,7 +10,7 @@ const sections: LegalSection[] = [
     body: (
       <>
         <p>
-          TraineeHQ (the HST Training Hub) is run by {POLICY_CONTROLLER}. By signing in or using
+          TraineeHQ is run by {POLICY_CONTROLLER}. By signing in or using
           the site you agree to these terms. If you do not agree, please do not use it.
         </p>
         <p>

@@ -31,7 +31,7 @@ const corsHeaders = {
 const RESEND_API = "https://api.resend.com/emails";
 // Same sender settings as invite-user; see the notes there.
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
-  "HST Training Hub <onboarding@resend.dev>";
+  "TraineeHQ <onboarding@resend.dev>";
 const REPLY_TO = (Deno.env.get("RESEND_REPLY_TO") ?? "")
   .split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
 const replyTo = REPLY_TO.length ? { reply_to: REPLY_TO } : {};
@@ -63,7 +63,7 @@ function resetHtml(name: string, link: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Reset your password</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        An administrator of the <strong>HST Training Hub</strong> has sent you a link to choose a new password.
+        An administrator of <strong>TraineeHQ</strong> has sent you a link to choose a new password.
       </p>
       <div style="text-align:center;margin:28px 0">
         <a href="${esc(link)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
@@ -71,7 +71,7 @@ function resetHtml(name: string, link: string) {
         </a>
       </div>
       <p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the login page.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -201,7 +201,7 @@ Deno.serve(async (req) => {
     try {
       await sendEmail(
         targetUser.email,
-        "Reset your password — HST Training Hub",
+        "Reset your password — TraineeHQ",
         resetHtml(profile?.first_name ?? "", link),
       );
     } catch (e) {
