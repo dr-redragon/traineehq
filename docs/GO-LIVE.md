@@ -211,6 +211,9 @@ The organisation is on **Free**. For a tool people depend on that means:
 - **The project pauses after about a week of no traffic.** A paused project is
   a completely dead site until someone restores it from the dashboard. This is
   the single biggest operational risk to going live on Free.
+  **Mitigated:** `.github/workflows/keep-supabase-awake.yml` queries the
+  database once a day so the project never goes a week idle. If it fails, GitHub
+  emails the repository owner, and the project may already need restoring.
 - **Uploads are capped at 50 MB per file** and the cap cannot be raised. The
   `resources` bucket no longer imposes any limit of its own (migration
   `20260907160000`), so upgrading and raising *Storage Settings → Global file

@@ -1,0 +1,51 @@
+name: Keep Supabase awake
+
+# A Supabase project on the Free plan pauses after about a week with no
+# database activity, and a paused project is a dead site: sign-in, resources
+# and registers all stop until somebody restores it by hand. This makes one
+# small, real query against the database every day so that never happens.
+#
+# It runs from GitHub rather than from inside Supabase on purpose: a paused
+# project cannot wake itself, so the ping has to come from outside.
+#
+# The query reads one active deanery with the publishable (anon) key — the
+# same read the public "Request access" form does — so it needs no secret.
+# The URL and key come from .env, the same place the site's build takes them.
+
+on:
+  schedule:
+    # Daily at 06:17 UTC; off the hour, when GitHub's scheduler is busiest.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  # Only for the last step, which keeps this schedule from being switched off.
+  actions: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Query the database
+        run: |
+          set -euo pipefail
+          url=$(grep -E '^VITE_SUPABASE_URL=' .env | cut -d= -f2- | tr -d '"')
+          key=$(grep -E '^VITE_SUPABASE_PUBLISHABLE_KEY=' .env | cut -d= -f2- | tr -d '"')
+          status=$(curl -sS -o body.json -w '%{http_code}' \
+            "$url/rest/v1/deaneries?select=id&limit=1" \
+            -H "apikey: $key" -H "Authorization: Bearer $key")
+          echo "Supabase answered HTTP $status"
+          # A failure here is worth an email: if the project is already paused,
+          # it needs restoring from the Supabase dashboard.
+          if [ "$status" != "200" ]; then cat body.json; exit 1; fi
+
+      # GitHub switches off scheduled workflows in a repository with no commits
+      # for 60 days. Re-enabling it on every run resets that clock, so the ping
+      # keeps running through a quiet summer as well.
+      - name: Keep this schedule switched on
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keep-supabase-awake.yml/enable"
