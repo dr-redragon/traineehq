@@ -84,6 +84,16 @@ describe("DriveBrowser", () => {
     expect(dialog).not.toHaveTextContent("Past papers");
   });
 
+  // An empty folder still has its arrow, and it still turns when pressed.
+  it("expands an empty folder like any other", () => {
+    renderBrowser(false);
+    const arrow = screen.getByRole("button", { name: "Expand Presentations" });
+    expect(arrow).toBeEnabled();
+    fireEvent.click(arrow);
+    expect(screen.getByRole("button", { name: "Collapse Presentations" }))
+      .toHaveAttribute("aria-expanded", "true");
+  });
+
   // "Select all" was judged before the rows were counted, so it never knew
   // everything was selected and never offered the way back.
   it("turns Select all into Deselect all, and back", () => {

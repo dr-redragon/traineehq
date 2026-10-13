@@ -1103,7 +1103,6 @@ export function DriveBrowser({
             dragGroup={dragGroupFor(folderRowId(row.id))}
             accepts={acceptsInto(row.id)}
             reorderable={!sort}
-            hasChildren={!!row.hasChildren}
             expanded={!!row.expanded}
             onToggleExpanded={() => toggleExpanded(row.id)}
             count={folderCounts(folders, resources, row.id).total}

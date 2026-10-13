@@ -313,8 +313,6 @@ export function FileRow({
 interface FolderRowProps extends BaseRowProps {
   folder: Tables<"resource_folders">;
   count: number;
-  /** Whether there is anything inside worth revealing. */
-  hasChildren?: boolean;
   expanded?: boolean;
   onToggleExpanded?: () => void;
   onNewSubfolder?: () => void;
@@ -334,7 +332,7 @@ interface FolderRowProps extends BaseRowProps {
 
 export function FolderRow({
   folder, selected, onClick, canManage, selectMode, count, onOpen, onRename, onDelete, onDownload,
-  downloading, depth = 0, hasChildren = false, expanded = false, index, dragGroup,
+  downloading, depth = 0, expanded = false, index, dragGroup,
   reorderable = true, onToggleExpanded, onNewSubfolder, accepts, highlighted,
   onMove, onCopyTo, onDuplicate,
 }: FolderRowProps) {
@@ -402,6 +400,10 @@ export function FolderRow({
                 It stops the click reaching the row, or every peek would also
                 be a navigation.
 
+                Every folder has one, empty or not, so the column of arrows
+                stays unbroken; opening an empty folder turns the arrow down
+                like any other and simply reveals nothing.
+
                 A folder keeps its icon where a file has a plainer one — it is
                 the one thing in the list you can go *into*. */}
             <RowLead
@@ -409,12 +411,11 @@ export function FolderRow({
                 <button
                   type="button"
                   aria-label={expanded ? `Collapse ${folder.name}` : `Expand ${folder.name}`}
-                  aria-expanded={hasChildren ? expanded : undefined}
-                  disabled={!hasChildren}
+                  aria-expanded={expanded}
                   onClick={(e) => { e.stopPropagation(); onToggleExpanded?.(); }}
                   onDoubleClick={(e) => e.stopPropagation()}
                   onPointerDown={(e) => e.stopPropagation()}
-                  className="-my-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground disabled:opacity-0"
+                  className="-my-1 shrink-0 p-1 text-muted-foreground transition-colors hover:text-foreground"
                 >
                   <ChevronRight
                     className={`h-3.5 w-3.5 transition-transform ${expanded ? "rotate-90" : ""}`}
