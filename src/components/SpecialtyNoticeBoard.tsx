@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { RichText } from "@/components/RichText";
 import { RichTextArea } from "@/components/RichTextArea";
-import { Plus, Trash2, X, Pencil, Check } from "lucide-react";
+import { Plus, Trash2, X, Pencil, Check, ChevronDown } from "lucide-react";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -73,6 +73,9 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  // Phones only: the notices fold into one bar until asked for. From sm up
+  // they are always shown and this is never consulted.
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const { data: currentUser } = useQuery({
     queryKey: ["current-user"],
@@ -200,12 +203,47 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
     </div>
   );
 
+  const count = notices?.length ?? 0;
+  // Below sm the list hides behind the bar unless it has been opened — or
+  // something is mid-edit in it, which must never vanish from under the
+  // person typing.
+  const hiddenOnPhone = count > 0 && !mobileOpen && !editingId;
+
   return (
     <div>
+      {/* The phone's folded bar: NOTICES, how many, and the way in. The whole
+          band is the button, so it is one easy target; it stays at the top
+          when open so the same tap folds it away again. */}
+      {count > 0 && (
+        <button
+          type="button"
+          onClick={() => setMobileOpen((o) => !o)}
+          aria-expanded={mobileOpen}
+          aria-controls={`notices-${specialtyId}`}
+          className="flex w-full items-center gap-3 bg-foreground px-9 py-3 text-left text-background sm:hidden"
+        >
+          <span className="text-[11px] font-extrabold uppercase tracking-[0.14em]">
+            {count === 1 ? "Notice" : "Notices"}
+          </span>
+          <span
+            className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-background px-1.5 text-[11px] font-bold text-foreground"
+            aria-label={`${count} notice${count === 1 ? "" : "s"}`}
+          >
+            {count}
+          </span>
+          <span className="ml-auto inline-flex items-center gap-1 rounded-sm border border-background/40 px-2 py-1 text-xs font-semibold">
+            {mobileOpen ? "Hide" : "Show"}
+            <ChevronDown className={`h-3.5 w-3.5 transition-transform ${mobileOpen ? "rotate-180" : ""}`} aria-hidden />
+          </span>
+        </button>
+      )}
+
+      <div id={`notices-${specialtyId}`} className={hiddenOnPhone ? "hidden sm:block" : undefined}>
       {/* One ink band per notice, divided the way the dashboard divides its
-          own when more than one is running. */}
+          own when more than one is running. On a phone, opened under the bar,
+          the first band is divided from it the same way. */}
       {notices?.length ? (
-        <div className="divide-y divide-background/20">
+        <div className="divide-y divide-background/20 border-t border-background/20 sm:border-t-0">
           {notices.map((notice) =>
             editingId === notice.id ? (
               <div key={notice.id}>
@@ -277,6 +315,8 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
         </div>
       ) : null}
 
+      </div>
+
       {adding
         ? editor(
             newContent,
@@ -288,7 +328,7 @@ export function SpecialtyNoticeBoard({ specialtyId, canManage }: SpecialtyNotice
             "Write a notice for this specialty…",
           )
         : canManage && (
-            <div className="px-9 py-3">
+            <div className={`px-9 py-3 ${hiddenOnPhone ? "hidden sm:block" : ""}`}>
               <Button variant="ghost" size="sm" className="-ml-2 gap-1.5 text-xs" onClick={() => setAdding(true)}>
                 <Plus className="h-3.5 w-3.5" />
                 {notices?.length ? "Add notice" : "Add the first notice"}
