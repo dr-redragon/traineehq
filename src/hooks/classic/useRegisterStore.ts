@@ -1,10 +1,10 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   RegisterConflictError, fetchRegisterStore, saveRegister,
 } from "@/lib/classic/api";
-import { normaliseBlob } from "@/lib/classic/blob";
+import { backfillStartMonths, needsStartBackfill, normaliseBlob } from "@/lib/classic/blob";
 import { useCurrentUser } from "@/hooks/useUserRole";
 import type { RegisterBlob, RegisterStore } from "@/lib/classic/types";
 
@@ -98,6 +98,19 @@ export function useRegisterStore(registerId: string | undefined) {
 
   const { mutate } = mutation;
   const edit = useCallback((fn: RegisterEdit) => mutate(fn), [mutate]);
+
+  // Trainees saved before start months existed get one worked out and stored,
+  // once per register — see backfillStartMonths. `now` is fixed here so the
+  // edit gives the same answer if a conflict makes it replay.
+  const backfilled = useRef<string | null>(null);
+  const loaded = query.data;
+  useEffect(() => {
+    if (!loaded || !registerId || backfilled.current === registerId) return;
+    if (!needsStartBackfill(normaliseBlob(loaded.data))) return;
+    backfilled.current = registerId;
+    const now = new Date();
+    mutate((b) => backfillStartMonths(b, now));
+  }, [loaded, registerId, mutate]);
 
   return {
     /** Always a whole blob, even for a register that has never been written. */

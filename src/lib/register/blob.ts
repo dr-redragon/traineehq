@@ -2,7 +2,8 @@ import type {
   AttendanceMark, RegisterBlob, RegisterExcusal, RegisterSession, RegisterStatus, RegisterTrainee,
 } from "./types";
 import { EMPTY_REGISTER } from "./types";
-import { attendanceKey } from "./attendance";
+import { attendanceKey, gradeAt, isPresent } from "./attendance";
+import { academicYearStart, currentAcademicYear, sessionsSorted } from "./months";
 
 /**
  * Immutable edits to the register blob.
@@ -70,6 +71,75 @@ export function removeTrainee(blob: RegisterBlob, traineeId: string): RegisterBl
     excused: blob.excused.filter((e) => e.trainee !== traineeId),
     status: blob.status.filter((s) => s.trainee !== traineeId),
   };
+}
+
+/** August of the training year a month falls in — when that year's intake starts. */
+export function trainingYearStart(month: string): string {
+  return `${academicYearStart(month)}-08`;
+}
+
+/**
+ * Where a new trainee starts unless an organiser says otherwise: August of the
+ * current training year, not the month they happened to first sign in. The add
+ * form is filled in with it, and can be changed for a mid-year arrival.
+ */
+export function defaultStartMonth(now: Date = new Date()): string {
+  return `${currentAcademicYear(now).split("/")[0]}-08`;
+}
+
+/** Does any trainee still need a start month worked out? */
+export function needsStartBackfill(blob: RegisterBlob): boolean {
+  return blob.trainees.some((t) => t.startMonth === undefined);
+}
+
+/**
+ * Give every trainee saved before `startMonth` existed a start month, once.
+ *
+ * Without one a new ST3 counted as absent for every teaching day ever held, and
+ * appeared in — and pulled down — years before they joined. The guess:
+ *
+ *   - their first sign-in with a grade was as ST3 → they started that academic
+ *     year (ST3 is the programme's first year), or with their first sign-in of
+ *     any kind if that came earlier;
+ *   - no sign-ins at all and held as ST3 → they start this academic year, unless
+ *     something else on record (an excusal, a leave or status entry) predates it.
+ *     That is an existing ST3 who missed everything — on leave all year, say —
+ *     and they are left counting for every day;
+ *   - anyone else → '' (every day counts, as before).
+ *
+ * The answer is stored, so it is worked out only once and an organiser's edit
+ * sticks. `now` is fixed by the caller so a replayed edit gives the same answer.
+ */
+export function backfillStartMonths(blob: RegisterBlob, now: Date = new Date()): RegisterBlob {
+  if (!needsStartBackfill(blob)) return blob;
+
+  const all = sessionsSorted(blob.sessions);
+  const thisYear = defaultStartMonth(now);
+  const yearStart = trainingYearStart;
+  const monthOf = new Map(blob.sessions.map((s) => [s.id, s.month]));
+
+  const trainees = blob.trainees.map((t) => {
+    if (t.startMonth !== undefined) return t;
+    let start = "";
+    const attended = all.filter((s) => isPresent(blob, t.id, s.id));
+    const firstGraded = attended.find((s) => gradeAt(blob, t.id, s.id));
+
+    if (firstGraded && gradeAt(blob, t.id, firstGraded.id) === "ST3") {
+      start = yearStart(firstGraded.month);
+      if (attended[0].month < start) start = yearStart(attended[0].month);
+    } else if (!attended.length && (t.grade ?? "").trim() === "ST3") {
+      const earlierExcusal = blob.excused.some((e) => {
+        const m = e.trainee === t.id ? monthOf.get(e.session) : undefined;
+        return !!m && m < thisYear;
+      });
+      const earlierStatus = blob.status.some((st) =>
+        st.trainee === t.id && ((!!st.start && st.start < thisYear) || (!!st.end && st.end < thisYear)));
+      if (!earlierExcusal && !earlierStatus) start = thisYear;
+    }
+    return { ...t, startMonth: start };
+  });
+
+  return { ...blob, trainees };
 }
 
 // ---------------------------------------------------------------- sessions --

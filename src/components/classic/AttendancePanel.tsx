@@ -9,7 +9,7 @@ import {
   ALL_YEARS, academicYearRange, availableAcademicYears,
   sessionsInYear, sessionsSorted, sessionWhen, todayIso,
 } from "@/lib/classic/months";
-import { buildReport, computeRows, reportSummary, type SortKey } from "@/lib/classic/report";
+import { buildReport, computeRows, reportSummary, sessionStats, type SortKey } from "@/lib/classic/report";
 import { isPresent, latestGrade } from "@/lib/classic/attendance";
 import type { ClassicStore } from "@/components/classic/types";
 import type { ClassicRegisterView } from "@/hooks/classic/useRegisterView";
@@ -247,6 +247,7 @@ function ReportDialog({
   const [includeCct, setIncludeCct] = useState(false);
   const [includeIdtOut, setIncludeIdtOut] = useState(false);
   const [hideNoEligible, setHideNoEligible] = useState(true);
+  const [showSessionStats, setShowSessionStats] = useState(true);
   const [report, setReport] = useState<ReturnType<typeof buildReport> | null>(null);
 
   const toggleYear = (year: string) =>
@@ -315,6 +316,48 @@ function ReportDialog({
                 </tbody>
               </table>
             </div>
+            {showSessionStats && section.sessions.length > 0 && (
+              <>
+                <div className="year-block-head" style={{ marginTop: 14 }}>
+                  <h3 style={{ fontSize: 13.5 }}>Attendance by teaching day</h3>
+                  <span className="meta">Excused and not-eligible trainees are left out of the rate</span>
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th className="no-sort">Teaching day</th>
+                        <th className="no-sort">Attended</th>
+                        <th className="no-sort">Absent</th>
+                        <th className="no-sort">Excused</th>
+                        <th className="no-sort">Not eligible</th>
+                        <th className="no-sort">Eligible</th>
+                        <th className="no-sort">Attendance</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sessionStats(store.blob, section.rows, section.sessions, todayIso()).map((s) => (
+                        <tr key={s.session.id}>
+                          <td className="name-cell">
+                            {sessionWhen(s.session)} · {s.session.title}
+                          </td>
+                          <td>{s.attended}</td>
+                          <td>{s.upcoming ? "—" : s.absent}</td>
+                          <td>{s.excused}</td>
+                          <td>{s.notEligible}</td>
+                          <td>{s.eligible}</td>
+                          <td>
+                            <span className="pct" style={{ color: pctColor(s.rate) }}>
+                              {s.upcoming ? "upcoming" : s.rate === null ? "—" : `${s.rate}%`}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
           </div>
         ))}
       </Modal>
@@ -385,6 +428,10 @@ function ReportDialog({
       <label className="report-check">
         <input type="checkbox" checked={includeIdtOut} onChange={(e) => setIncludeIdtOut(e.target.checked)} />
         Include trainees who transferred out
+      </label>
+      <label className="report-check">
+        <input type="checkbox" checked={showSessionStats} onChange={(e) => setShowSessionStats(e.target.checked)} />
+        Show attendance by teaching day
       </label>
       <p className="helper">
         Anyone on maternity, paternity or out-of-programme leave is kept whatever

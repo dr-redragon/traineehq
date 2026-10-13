@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { Modal } from "@/components/classic/Modal";
+import { MonthInput } from "@/components/classic/MonthInput";
 import {
-  newId, removeSession, removeTrainee, upsertSession, upsertTrainee,
+  newId, removeSession, defaultStartMonth, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/classic/blob";
 import { GRADES } from "@/lib/classic/constants";
 import { isFormerTrainee } from "@/lib/classic/eligibility";
@@ -28,6 +29,7 @@ export function ManagePanel({ store }: { store: ClassicStore; entry: RegisterDir
   const [name, setName] = useState("");
   const [grade, setGrade] = useState("");
   const [email, setEmail] = useState("");
+  const [startMonth, setStartMonth] = useState(() => defaultStartMonth());
   const [date, setDate] = useState("");
   const [location, setLocation] = useState("");
   const [editingDay, setEditingDay] = useState<RegisterSession | null>(null);
@@ -47,8 +49,9 @@ export function ManagePanel({ store }: { store: ClassicStore; entry: RegisterDir
       name: name.trim(),
       grade: grade || undefined,
       email: email.trim() || undefined,
+      startMonth,
     }));
-    setName(""); setGrade(""); setEmail("");
+    setName(""); setGrade(""); setEmail(""); setStartMonth(defaultStartMonth());
   };
 
   /**
@@ -137,6 +140,17 @@ export function ManagePanel({ store }: { store: ClassicStore; entry: RegisterDir
             <div>
               <button type="button" className="btn primary" onClick={addTrainee}>Add</button>
             </div>
+          </div>
+          <div className="inline-form" style={{ gridTemplateColumns: "1.2fr 2fr", marginTop: 10 }}>
+            <div>
+              <MonthInput value={startMonth} onChange={setStartMonth} placeholder="Blank = counts for every day" />
+            </div>
+            <p className="helper" style={{ margin: 0 }}>
+              Month they joined the programme — August of this training year unless you
+              change it (a mid-year arrival, say). Teaching days before it don't count for or
+              against them, and they're left out of earlier years. Clear it for somebody who
+              should count for every day.
+            </p>
           </div>
           <p className="helper">
             Grade keeps itself up to date: whatever a trainee picks at their next
@@ -306,6 +320,7 @@ function EditTraineeDialog({
   const [name, setName] = useState(trainee.name);
   const [grade, setGrade] = useState(trainee.grade ?? "");
   const [email, setEmail] = useState(trainee.email ?? "");
+  const [startMonth, setStartMonth] = useState(trainee.startMonth ?? "");
 
   return (
     <div
@@ -326,9 +341,17 @@ function EditTraineeDialog({
               {GRADES.map((g) => <option key={g} value={g}>{g}</option>)}
             </select>
           </div>
-          <div className="field" style={{ marginBottom: 0 }}>
+          <div className="field">
             <label className="fld">Email</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+          <div className="field" style={{ marginBottom: 0 }}>
+            <label className="fld">Started on programme</label>
+            <MonthInput value={startMonth} onChange={setStartMonth} placeholder="Blank = counts for every day" />
+            <p className="helper">
+              Teaching days before this month don't count for or against them, and they're
+              left out of any year that ends before it.
+            </p>
           </div>
         </div>
         <div style={{
@@ -345,6 +368,7 @@ function EditTraineeDialog({
               name: name.trim(),
               grade: grade || undefined,
               email: email.trim() || undefined,
+              startMonth,
             })}
           >
             Save

@@ -16,8 +16,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  newId, removeSession, removeTrainee, upsertSession, upsertTrainee,
+  newId, removeSession, defaultStartMonth, removeTrainee, upsertSession, upsertTrainee,
 } from "@/lib/register/blob";
+import { MonthInput } from "@/components/register/MonthInput";
 import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
@@ -46,8 +47,10 @@ export function ManagePanel({
   canEdit: boolean;
   part: "trainees" | "days";
 }) {
-  const [trainee, setTrainee] = useState<{ id?: string; name: string; grade: string; email: string } | null>(null);
-  const [adding, setAdding] = useState({ name: "", grade: "", email: "" });
+  const [trainee, setTrainee] = useState<
+    { id?: string; name: string; grade: string; email: string; startMonth: string } | null
+  >(null);
+  const [adding, setAdding] = useState(() => ({ name: "", grade: "", email: "", startMonth: defaultStartMonth() }));
   const [session, setSession] = useState<RegisterSession | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; detail: string; run: () => void } | null>(null);
   const [showFormer, setShowFormer] = useState(false);
@@ -68,6 +71,7 @@ export function ManagePanel({
       name: trainee.name.trim(),
       ...(trainee.grade ? { grade: trainee.grade } : {}),
       ...(trainee.email.trim() ? { email: trainee.email.trim() } : {}),
+      startMonth: trainee.startMonth,
     }));
     setTrainee(null);
   };
@@ -80,8 +84,9 @@ export function ManagePanel({
       name: adding.name.trim(),
       ...(adding.grade ? { grade: adding.grade } : {}),
       ...(adding.email.trim() ? { email: adding.email.trim() } : {}),
+      startMonth: adding.startMonth,
     }));
-    setAdding({ name: "", grade: "", email: "" });
+    setAdding({ name: "", grade: "", email: "", startMonth: defaultStartMonth() });
   };
 
   const row = (t: RegisterTrainee) => {
@@ -109,7 +114,9 @@ export function ManagePanel({
         {canEdit && (
           <div className="flex gap-1">
             <Button size="icon" variant="ghost" className="h-7 w-7" aria-label={`Edit ${t.name}`}
-              onClick={() => setTrainee({ id: t.id, name: t.name, grade: t.grade ?? "", email: t.email ?? "" })}>
+              onClick={() => setTrainee({
+                id: t.id, name: t.name, grade: t.grade ?? "", email: t.email ?? "", startMonth: t.startMonth ?? "",
+              })}>
               <Pencil className="h-3.5 w-3.5" />
             </Button>
             <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
@@ -172,10 +179,21 @@ export function ManagePanel({
                 <Button type="submit" disabled={!adding.name.trim()} className="w-full sm:w-auto">
                   <UserPlus className="mr-1.5 h-4 w-4" /> Add trainee
                 </Button>
+                <div className="space-y-1.5 sm:col-span-4 sm:max-w-xs">
+                  <Label htmlFor="add-t-start" className="text-xs">
+                    Started on programme <span className="text-muted-foreground">(month)</span>
+                  </Label>
+                  <MonthInput id="add-t-start" value={adding.startMonth}
+                    placeholder="Blank — counts for every teaching day"
+                    onChange={(m) => setAdding((a) => ({ ...a, startMonth: m }))} />
+                </div>
               </form>
               <p className="mt-2 text-[11px] text-muted-foreground">
                 Grade keeps itself up to date: whatever a trainee picks at their next sign-in
-                replaces it, since it changes between rotations.
+                replaces it, since it changes between rotations. New trainees count from August
+                of this training year; change the start month for a mid-year arrival. Teaching
+                days before it don't count for or against them, and they're left out of earlier
+                years. Clear it for somebody who should count for every day.
               </p>
             </CardContent>
           </Card>
@@ -317,6 +335,16 @@ export function ManagePanel({
               </Label>
               <Input id="t-email" type="email" value={trainee?.email ?? ""}
                 onChange={(e) => setTrainee((t) => t && { ...t, email: e.target.value })} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="t-start" className="text-xs">Started on programme</Label>
+              <MonthInput id="t-start" value={trainee?.startMonth ?? ""}
+                placeholder="Blank — counts for every teaching day"
+                onChange={(m) => setTrainee((t) => t && { ...t, startMonth: m })} />
+              <p className="text-[11px] text-muted-foreground">
+                Teaching days before this month don't count for or against them, and they're
+                left out of any year that ends before it.
+              </p>
             </div>
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
