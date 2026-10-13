@@ -20,18 +20,19 @@ const AdminPanel = () => {
 
   return (
     <DashboardLayout>
-      <div className="animate-fade-in space-y-8 p-9">
+      <div className="animate-fade-in space-y-4 p-4 sm:space-y-8 sm:p-9">
         {/* The panel's layout is deliberately unchanged — same nine tabs in
             the same order, same content in each. Only the design language
-            moves. */}
-        <div className="flex items-center gap-4 border-b-2 border-border pb-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center bg-accent">
-            <Shield className="h-6 w-6 text-rule" />
+            moves. On a phone the header and padding shrink so the content
+            starts higher up the screen. */}
+        <div className="flex items-center gap-3 border-b-2 border-border pb-3 sm:gap-4 sm:pb-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center bg-accent sm:h-12 sm:w-12">
+            <Shield className="h-5 w-5 text-rule sm:h-6 sm:w-6" />
           </div>
           <div>
-            <p className="ds-kicker mb-1">Administration</p>
-            <h1 className="font-display text-[32px] font-extrabold leading-tight tracking-tight">Admin Panel</h1>
-            <p className="mt-0.5 text-sm text-muted-foreground">
+            <p className="ds-kicker mb-1 hidden sm:block">Administration</p>
+            <h1 className="font-display text-[22px] font-extrabold leading-tight tracking-tight sm:text-[32px]">Admin Panel</h1>
+            <p className="mt-0.5 hidden text-sm text-muted-foreground sm:block">
               Manage users, permissions, content, contacts, and announcements
             </p>
           </div>
@@ -69,7 +70,7 @@ const AdminPanel = () => {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="users" className="mt-4"><AdminUsers /></TabsContent>
+          <TabsContent value="users" className="mt-3 sm:mt-4"><AdminUsers /></TabsContent>
           <TabsContent value="content" className="mt-4"><AdminContent /></TabsContent>
           <TabsContent value="contacts" className="mt-4"><AdminContacts /></TabsContent>
           <TabsContent value="announcements" className="mt-4"><AdminAnnouncements /></TabsContent>

@@ -45,3 +45,8 @@ verify_jwt = false
 
 [functions.contact-form-email]
 verify_jwt = false
+
+# An admin deleting someone's sign-in account, or resetting their password.
+# Signed-in callers only; the function checks can_admin_user() on the target.
+[functions.admin-user]
+verify_jwt = true

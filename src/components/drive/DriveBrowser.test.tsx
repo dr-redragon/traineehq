@@ -83,6 +83,29 @@ describe("DriveBrowser", () => {
     expect(dialog).toHaveTextContent("Calman day (top of category)");
     expect(dialog).not.toHaveTextContent("Past papers");
   });
+
+  // An empty folder still has its arrow, and it still turns when pressed.
+  it("expands an empty folder like any other", () => {
+    renderBrowser(false);
+    const arrow = screen.getByRole("button", { name: "Expand Presentations" });
+    expect(arrow).toBeEnabled();
+    fireEvent.click(arrow);
+    expect(screen.getByRole("button", { name: "Collapse Presentations" }))
+      .toHaveAttribute("aria-expanded", "true");
+  });
+
+  // "Select all" was judged before the rows were counted, so it never knew
+  // everything was selected and never offered the way back.
+  it("turns Select all into Deselect all, and back", () => {
+    renderBrowser(false);
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deselect all" }));
+    expect(screen.queryByText("1 selected")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select all" })).toBeInTheDocument();
+  });
 });
 
 /*

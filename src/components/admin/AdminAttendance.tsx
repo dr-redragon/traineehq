@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ArrowRight, ClipboardCheck } from "lucide-react";
+import { ArrowRight, ClipboardCheck, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useGroupedRegisters } from "@/hooks/useRegisters";
@@ -25,7 +25,7 @@ export function AdminAttendance() {
 
   return (
     <Card>
-      <CardContent className="space-y-4 p-6">
+      <CardContent className="space-y-4 p-4 sm:p-6">
         <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-sm bg-primary/10">
             <ClipboardCheck className="h-5 w-5 text-rule" />
@@ -39,27 +39,45 @@ export function AdminAttendance() {
           </div>
         </div>
 
-        <div className="rounded-md border bg-muted/30 p-3 text-sm">
-          {isLoading ? (
-            <span className="text-muted-foreground">Checking your access…</span>
-          ) : mine.length === 0 ? (
-            <span className="text-muted-foreground">
-              You do not belong to a register yet. Being an administrator does not grant
-              access to one — ask a member, or start your own from the directory.
-            </span>
-          ) : (
-            <>
-              <span className="text-muted-foreground">You have access to </span>
-              <span className="font-medium">
-                {mine.map((r) => `${r.deanery_name} · ${r.specialty_name}`).join(", ")}
-              </span>
-            </>
-          )}
-        </div>
+        {/* The registers this person can open, one per line and each a link
+            straight into it, rather than a comma-separated run of names. */}
+        {isLoading ? (
+          <p className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">Checking your access…</p>
+        ) : mine.length === 0 ? (
+          <p className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+            You do not belong to a register yet. Being an administrator does not grant
+            access to one — ask a member, or start your own from the directory.
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Your registers ({mine.length})
+            </p>
+            <ul className="divide-y divide-border rounded-md border">
+              {mine.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    to={`/registers/${r.slug}`}
+                    className="group flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-accent"
+                  >
+                    <ClipboardList className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium group-hover:text-rule">{r.specialty_name}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {r.deanery_name} · {r.member_count} member{r.member_count === 1 ? "" : "s"}
+                      </p>
+                    </div>
+                    <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <Button asChild size="sm">
           <Link to="/registers">
-            {mine.length === 0 ? "Browse the registers" : "Open the registers"}
+            {mine.length === 0 ? "Browse the registers" : "All registers"}
             <ArrowRight className="ml-1.5 h-4 w-4" />
           </Link>
         </Button>

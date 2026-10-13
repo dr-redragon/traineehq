@@ -53,7 +53,9 @@ const SpecialtyDetail = () => {
   };
   const queryClient = useQueryClient();
   const { data: hasEditRights, isPending: rightsPending } = useCanManageSpecialty(id);
-  const [editMode, setEditMode] = useState(false);
+  // On by default: anyone who can edit lands ready to. The switch still turns
+  // it off to see the page as a trainee does.
+  const [editMode, setEditMode] = useState(true);
   const canManage = !!hasEditRights && editMode;
   const discussionRef = useRef<HTMLDivElement>(null);
 

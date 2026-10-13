@@ -255,9 +255,6 @@ export function DriveBrowser({
   const clearSelection = () => setSelection(new Set());
   const exitSelectMode = () => { setSelectMode(false); setSelection(new Set()); };
 
-  const allVisibleSelected =
-    visibleIds.length > 0 && visibleIds.every((id) => selection.has(id));
-
   const selectedFiles = useMemo(
     () => resources.filter((r) => selection.has(r.id)),
     [resources, selection]
@@ -1012,6 +1009,11 @@ export function DriveBrowser({
 
   visibleIds.push(...rows.map((row) => (row.kind === "folder" ? `folder-row:${row.id}` : row.id)));
 
+  // Judged here, once the rows are in: computed any earlier it saw an empty
+  // list, was always false, and the button never offered "Deselect all".
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selection.has(id));
+
   /**
    * The destination list, drawn as the tree it is.
    *
@@ -1101,7 +1103,6 @@ export function DriveBrowser({
             dragGroup={dragGroupFor(folderRowId(row.id))}
             accepts={acceptsInto(row.id)}
             reorderable={!sort}
-            hasChildren={!!row.hasChildren}
             expanded={!!row.expanded}
             onToggleExpanded={() => toggleExpanded(row.id)}
             count={folderCounts(folders, resources, row.id).total}
@@ -1332,37 +1333,40 @@ export function DriveBrowser({
       {renderRows()}
       </MaybeDragProvider>
 
-      {/* Bulk action bar */}
+      {/* Bulk action bar. On a phone the actions take a row of their own and
+          wrap, so nothing runs off the side of the screen; from sm up it is
+          the single line it always was. */}
       {selectedCount > 0 && (
-        <div className="sticky bottom-3 z-30 flex items-center gap-2 rounded-md border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
+        <div className="sticky bottom-3 z-30 flex flex-wrap items-center gap-2 rounded-md border bg-card/95 px-3 py-2 shadow-lg backdrop-blur-sm">
           <CheckSquare className="h-4 w-4 text-rule" />
           <span className="text-sm font-medium">{selectedCount} selected</span>
-          <div className="ml-auto flex items-center gap-1.5">
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+          <Button variant="ghost" size="icon" className="ml-auto h-7 w-7 sm:order-last sm:ml-0"
+            onClick={exitSelectMode} aria-label="Clear selection">
+            <X className="h-4 w-4" />
+          </Button>
+          <div className="flex w-full flex-wrap items-center gap-1.5 sm:ml-auto sm:w-auto">
+            <Button variant="outline" size="sm" className="h-8 flex-1 gap-1.5 text-xs sm:flex-none"
               onClick={handleBulkDownload} disabled={bulkDownloading}>
               <Download className="h-3.5 w-3.5" />
               {bulkDownloading ? "Downloading…" : "Download"}
             </Button>
             {canManage && (
               <>
-                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+                <Button variant="outline" size="sm" className="h-8 flex-1 gap-1.5 text-xs sm:flex-none"
                   onClick={() => openTransfer("move", selectedItems())}>
                   <FolderInput className="h-3.5 w-3.5" /> Move
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs"
+                <Button variant="outline" size="sm" className="h-8 flex-1 gap-1.5 text-xs sm:flex-none"
                   onClick={() => openTransfer("copy", selectedItems())}>
                   <Copy className="h-3.5 w-3.5" /> Copy
                 </Button>
-                <Button variant="destructive" size="sm" className="h-8 gap-1.5 text-xs"
+                <Button variant="destructive" size="sm" className="h-8 flex-1 gap-1.5 text-xs sm:flex-none"
                   onClick={handleBulkDelete} disabled={bulkDeleting}>
                   <Trash2 className="h-3.5 w-3.5" />
                   {bulkDeleting ? "Deleting…" : "Delete"}
                 </Button>
               </>
             )}
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={exitSelectMode}>
-              <X className="h-4 w-4" />
-            </Button>
           </div>
         </div>
       )}
@@ -1469,13 +1473,14 @@ export function DriveBrowser({
               </Select>
             </div>
           )}
-          <div className="max-h-72 space-y-1 overflow-y-auto">
+          <div className="max-h-72 min-w-0 space-y-1 overflow-y-auto overflow-x-hidden">
             <button
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-secondary disabled:cursor-wait disabled:opacity-60"
               disabled={transferring}
               onClick={() => runTransfer(null)}
             >
-              <FileText className="h-4 w-4" /> {categoryName(transferCategoryId)} (top of category)
+              <FileText className="h-4 w-4 shrink-0" />
+              <span className="min-w-0 break-words">{categoryName(transferCategoryId)} (top of category)</span>
             </button>
             {moveTargets.map(({ folder, depth, allowed }) => (
               <button
@@ -1486,7 +1491,8 @@ export function DriveBrowser({
                 style={{ paddingLeft: `${12 + depth * 18}px` }}
                 onClick={() => runTransfer(folder.id)}
               >
-                <FolderClosed className="h-4 w-4 shrink-0 text-rule" /> {folder.name}
+                <FolderClosed className="h-4 w-4 shrink-0 text-rule" />
+                <span className="min-w-0 break-words">{folder.name}</span>
               </button>
             ))}
           </div>
