@@ -748,6 +748,7 @@ export type Database = {
       }
       specialty_access_requests: {
         Row: {
+          cleared_by_user_at: string | null
           created_at: string
           id: string
           reason: string | null
@@ -760,6 +761,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cleared_by_user_at?: string | null
           created_at?: string
           id?: string
           reason?: string | null
@@ -772,6 +774,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cleared_by_user_at?: string | null
           created_at?: string
           id?: string
           reason?: string | null
@@ -1052,6 +1055,10 @@ export type Database = {
       can_review_specialty: {
         Args: { _specialty_id: string; _user_id: string }
         Returns: boolean
+      }
+      clear_specialty_access_request: {
+        Args: { _request_id: string }
+        Returns: undefined
       }
       decide_specialty_access_request: {
         Args: { _approve: boolean; _note?: string | null; _request_id: string }
