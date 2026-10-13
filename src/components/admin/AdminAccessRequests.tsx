@@ -107,9 +107,14 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
         await decide(id, "pending").catch(() => {});
         throw new Error(message);
       }
+      return data as { email_sent?: boolean };
     },
-    onSuccess: () => {
-      toast.success("Approved — their account is set up and they have been emailed");
+    onSuccess: (data) => {
+      if (data?.email_sent === false) {
+        toast.warning("Approved and their account is set up, but the email to them could not be sent");
+      } else {
+        toast.success("Approved — their account is set up and they have been emailed");
+      }
       setApproving(null);
       queryClient.invalidateQueries({ queryKey: ["access-requests"] });
       queryClient.invalidateQueries({ queryKey: pendingRequestsQueryKey });

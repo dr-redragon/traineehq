@@ -917,13 +917,20 @@ Deno.serve(async (req) => {
         ? linkData.properties.action_link
         : "#";
 
-      await sendEmail(
-        applicantEmail,
-        "Access Approved — TraineeHQ",
-        approvedHtml(applicantName, resetLink, extra),
-      );
+      // The account exists now whatever happens to the email, so a failed send
+      // is reported, not thrown: an error here would read as "not approved".
+      try {
+        await sendEmail(
+          applicantEmail,
+          "Access Approved — TraineeHQ",
+          approvedHtml(applicantName, resetLink, extra),
+        );
+      } catch (e) {
+        console.error("Approval email failed:", e);
+        return json({ success: true, user_id: userId, email_sent: false });
+      }
 
-      return json({ success: true, user_id: userId });
+      return json({ success: true, user_id: userId, email_sent: true });
     }
 
     const reason = (request.review_note ?? "").trim().slice(0, MAX_NOTE) || "No reason provided.";

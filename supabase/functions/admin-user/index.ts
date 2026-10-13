@@ -4,9 +4,10 @@
 // browser:
 //
 //   delete           — remove the person's sign-in account, not just their
-//                      profile, then email them that it has gone. Deleting the profiles row alone left auth.users
-//                      behind and the person could still log in, landing in an
-//                      app with no profile and no access.
+//                      profile, then email them that it has gone. Deleting
+//                      the profiles row alone left auth.users behind and the
+//                      person could still log in, landing in an app with no
+//                      profile and no access.
 //   send_reset_link  — email them a link to choose a new password.
 //   set_password     — set a new password for them directly.
 //
