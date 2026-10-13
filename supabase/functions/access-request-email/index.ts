@@ -311,6 +311,42 @@ async function sendEmail(to: string, subject: string, html: string) {
   return res.json();
 }
 
+type NotificationKind = "account_requests" | "register_account_requests" | "specialty_requests";
+
+/**
+ * Of the people who would be told about a request, the ones who still want
+ * to be: anyone who has turned this kind of email off, or narrowed their
+ * emails to deaneries this request is not in, is left out. No preferences row
+ * means the defaults, everything on for every deanery
+ * (20261013100000_notification_preferences).
+ */
+async function wantingEmail(
+  admin: ReturnType<typeof getSupabaseAdmin>,
+  userIds: string[],
+  kind: NotificationKind,
+  requestDeaneries: (string | null | undefined)[],
+): Promise<string[]> {
+  if (!userIds.length) return [];
+  const { data, error } = await admin
+    .from("notification_preferences")
+    .select("user_id, account_requests, register_account_requests, specialty_requests, deanery_ids")
+    .in("user_id", userIds);
+  // Fail open: a reviewer missing an email is worse than one they did not want.
+  if (error) { console.error("notification_preferences read failed:", error); return userIds; }
+
+  const deaneries = requestDeaneries.filter((d): d is string => !!d);
+  const prefs = new Map((data ?? []).map((p: Record<string, unknown>) => [p.user_id as string, p]));
+  return userIds.filter((id) => {
+    const p = prefs.get(id);
+    if (!p) return true;
+    if (p[kind] === false) return false;
+    const only = p.deanery_ids as string[] | null;
+    // A request with no deanery at all is never filtered out by deanery.
+    if (only && deaneries.length && !deaneries.some((d) => only.includes(d))) return false;
+    return true;
+  });
+}
+
 /** The caller's user id from their JWT, or null. */
 async function getCallerId(
   admin: ReturnType<typeof getSupabaseAdmin>,
@@ -419,8 +455,13 @@ async function handleSpecialtyRequest(
     const { data: facs } = specIds.length
       ? await admin.from("facilitator_specialties").select("user_id").in("specialty_id", specIds)
       : { data: [] };
-    const notifyIds = [...new Set([...adminIds, ...(facs ?? []).map((f: { user_id: string }) => f.user_id)])]
-      .filter((id) => id !== request.user_id);
+    const notifyIds = await wantingEmail(
+      admin,
+      [...new Set([...adminIds, ...(facs ?? []).map((f: { user_id: string }) => f.user_id)])]
+        .filter((id) => id !== request.user_id),
+      "specialty_requests",
+      [spec?.deanery_id],
+    );
 
     if (notifyIds.length) {
       const { data: profiles } = await admin.from("profiles").select("email").in("user_id", notifyIds);
@@ -739,7 +780,12 @@ Deno.serve(async (req) => {
           r.role === "super_admin" || r.deanery_id === null || requestDeaneries.has(r.deanery_id))
         .map((r: { user_id: string }) => r.user_id);
 
-      const notifyIds = [...new Set([...adminIds, ...facilitatorIds])];
+      const notifyIds = await wantingEmail(
+        supabaseAdmin,
+        [...new Set([...adminIds, ...facilitatorIds])],
+        forRegister ? "register_account_requests" : "account_requests",
+        [...requestDeaneries] as string[],
+      );
       if (notifyIds.length > 0) {
         const { data: profiles } = await supabaseAdmin
           .from("profiles")
@@ -770,7 +816,8 @@ Deno.serve(async (req) => {
       } else {
         // Nothing to send means nobody is watching the queue — say so, rather
         // than returning success on a request no human will ever see.
-        console.warn(`No admin or facilitator to notify about access request ${request.id}.`);
+        console.warn(`No admin or facilitator to notify about access request ${request.id} ` +
+          "(or all of them have turned these emails off).");
       }
 
       return json({ success: true });

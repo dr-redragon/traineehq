@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ColorSchemePicker } from "@/components/ColorSchemePicker";
 import { ThemePicker } from "@/components/ThemePicker";
 import { SpecialtyAccessRequests } from "@/components/SpecialtyAccessRequests";
+import { NotificationPreferences } from "@/components/NotificationPreferences";
 import { PolicyLink } from "@/components/PolicyLink";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -255,6 +256,11 @@ const MyProfile = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Which request emails an administrator gets. */}
+        {user && (userRole === "admin" || userRole === "super_admin") && (
+          <NotificationPreferences userId={user.id} />
+        )}
 
         {/* Asking for another specialty. Admins see every specialty in their
             deanery already, and assign themselves from the admin panel. */}
