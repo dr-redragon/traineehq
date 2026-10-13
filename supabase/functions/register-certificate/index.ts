@@ -15,6 +15,7 @@
 // service role bypasses row-level security, so that check happens here in code
 // or it does not happen at all.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { esc, paragraph, renderEmail } from "./email-layout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -49,27 +50,21 @@ const NO_EMAIL_DOMAIN = "@no-email.invalid";
 const MAX_PDF_BYTES = 2 * 1024 * 1024;
 
 /**
- * Escape anything interpolated into the email. The attendee's name is whatever
- * was typed at check-in — by anybody holding the link — and the titles are
- * organiser-written; none of it is markup.
+ * The attendee's name is whatever was typed at check-in, by anybody holding
+ * the link, and the titles are organiser-written; renderEmail escapes the
+ * plain-text parts and esc() the rest, so none of it is markup.
  */
-function esc(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
 function certificateHtml(name: string, sessionTitle: string, registerName: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Your certificate of attendance</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Dear ${esc(name)},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        Thank you for attending <strong>${esc(sessionTitle)}</strong> and for completing the
-        feedback form. Your certificate of attendance is attached.
-      </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— ${esc(registerName)}</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Certificate of attendance",
+    heading: "Your certificate is attached",
+    preheader: `Your certificate for ${sessionTitle}.`,
+    body: paragraph(`Dear ${esc(name)},`) +
+      paragraph(`Thank you for attending <strong>${esc(sessionTitle)}</strong> and for completing the ` +
+        "feedback form. Your certificate of attendance is attached to this email as a PDF."),
+    from: registerName,
+    reason: `You're receiving this because you attended a teaching day run through the ${registerName} register.`,
+  });
 }
 
 Deno.serve(async (req) => {

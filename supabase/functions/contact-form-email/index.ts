@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { details, esc, paragraph, renderEmail } from "./email-layout.ts";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 // Where enquiries land: the CONTACT_FORWARD_TO secret, set in Supabase → Edge
@@ -70,20 +71,10 @@ const MAX_NAME = 100;
 const MAX_EMAIL = 254;
 const MAX_MESSAGE = 5000;
 
-/**
- * Escape caller-supplied text before it goes into an HTML email body.
- * Without this, anything typed into the contact form is rendered as live markup in
- * the recipient's inbox — links, images and tracking pixels included.
- */
-function esc(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
+// Caller-supplied text is escaped before it goes into an HTML email body
+// (esc, from the shared layout). Without it, anything typed into the contact
+// form would render as live markup in the recipient's inbox: links, images and
+// tracking pixels included.
 function escMultiline(value: string): string {
   return esc(value).replace(/\r?\n/g, "<br />");
 }
@@ -155,12 +146,13 @@ serve(async (req) => {
       FROM_EMAIL,
       FORWARD_TO,
       `Contact Form: ${name.slice(0, 60)}`,
-      `
-        <h2>New Contact Form Message</h2>
-        <p><strong>From:</strong> ${esc(name)} (${esc(email)})</p>
-        <hr />
-        <p>${escMultiline(message)}</p>
-      `,
+      renderEmail({
+        kicker: "Contact form",
+        heading: "New message from the website",
+        preheader: `${name} wrote in through the contact form.`,
+        body: details([["From", name], ["Email", email]]) + paragraph(escMultiline(message)),
+        reason: "You're receiving this because your address is set to receive TraineeHQ's contact form messages.",
+      }),
     );
 
     await logSent(db, ENQUIRY_KIND, FORWARD_TO);
@@ -178,12 +170,14 @@ serve(async (req) => {
           FROM_EMAIL,
           email,
           "We've received your message",
-          `
-            <h2>Thank you for getting in touch</h2>
-            <p>We've received your message and will get back to you as soon as possible.</p>
-            <p>If you did not contact TraineeHQ, you can ignore this email.</p>
-            <p style="color:#888;font-size:12px;">TraineeHQ</p>
-          `,
+          renderEmail({
+            kicker: "Message received",
+            heading: "Thanks for getting in touch",
+            preheader: "We've received your message.",
+            body: paragraph("We've received your message and will get back to you as soon as possible."),
+            reason: "You're receiving this because this address was entered on the TraineeHQ contact form. " +
+              "If that wasn't you, you can ignore this email.",
+          }),
         );
         await logSent(db, CONFIRMATION_KIND, email);
       } catch (e) {

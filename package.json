@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "sync:email": "node scripts/sync-email-layout.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

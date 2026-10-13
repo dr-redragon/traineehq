@@ -510,6 +510,36 @@ export type Database = {
           },
         ]
       }
+      notification_preferences: {
+        Row: {
+          account_requests: boolean
+          created_at: string
+          deanery_ids: string[] | null
+          register_account_requests: boolean
+          specialty_requests: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_requests?: boolean
+          created_at?: string
+          deanery_ids?: string[] | null
+          register_account_requests?: boolean
+          specialty_requests?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_requests?: boolean
+          created_at?: string
+          deanery_ids?: string[] | null
+          register_account_requests?: boolean
+          specialty_requests?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           color_scheme: string | null
