@@ -1,0 +1,13 @@
+name: Email preview (temporary)
+on:
+  push:
+    branches: [tmp/email-preview]
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          url=$(grep -E '^VITE_SUPABASE_URL=' .env | cut -d= -f2- | tr -d '"')
+          key=$(grep -E '^VITE_SUPABASE_PUBLISHABLE_KEY=' .env | cut -d= -f2- | tr -d '"')
+          curl -sS --max-time 120 -X POST "$url/functions/v1/email-preview" -H "apikey: $key" -H "Authorization: Bearer $key"
