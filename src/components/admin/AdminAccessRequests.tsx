@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { CheckCircle, XCircle, Clock, Mail, User } from "lucide-react";
 import { toast } from "sonner";
 import { pendingRequestsQueryKey } from "@/hooks/usePendingRequests";
@@ -15,13 +16,26 @@ import { ApproveRequestDialog, type ApprovableRequest, type ApprovalGrant } from
  *   — the facilitator panel passes the specialties its reader runs. Admins see
  *   every request, including those with no specialty chosen.
  */
+const QUICK_APPROVE_KEY = "admin-quick-approve";
+
 export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] } = {}) {
   const queryClient = useQueryClient();
   const [reviewNote, setReviewNote] = useState<Record<string, string>>({});
   const [filter, setFilter] = useState<"pending" | "approved" | "rejected" | "all">("pending");
   // Admins choose what an approval grants first; the facilitator panel keeps
   // the one-press approve, giving exactly what was asked for.
-  const choosesGrant = !specialtyIds;
+  //
+  // Quick approve puts the one-press approve back for admins too: it grants
+  // exactly what was asked for. Off unless the admin turns it on, and
+  // remembered on this device only.
+  const [quickApprove, setQuickApprove] = useState(() => {
+    try { return localStorage.getItem(QUICK_APPROVE_KEY) === "on"; } catch { return false; }
+  });
+  const toggleQuickApprove = (on: boolean) => {
+    setQuickApprove(on);
+    try { localStorage.setItem(QUICK_APPROVE_KEY, on ? "on" : "off"); } catch { /* not remembered */ }
+  };
+  const choosesGrant = !specialtyIds && !quickApprove;
   const [approving, setApproving] = useState<ApprovableRequest | null>(null);
 
   const { data: requests, isLoading } = useQuery({
@@ -161,13 +175,20 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="font-semibold">Account Requests</h3>
           <p className="text-xs text-muted-foreground">
             {pendingCount > 0 ? `${pendingCount} pending request${pendingCount > 1 ? "s" : ""}` : "No pending requests"}
           </p>
         </div>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+        {!specialtyIds && (
+          <label htmlFor="quick-approve" className="flex cursor-pointer items-center gap-2 text-xs" title="Approve in one press, giving exactly what they asked for">
+            <Switch id="quick-approve" checked={quickApprove} onCheckedChange={toggleQuickApprove} />
+            <span className={quickApprove ? "font-medium text-foreground" : "text-muted-foreground"}>Quick approve</span>
+          </label>
+        )}
         <div className="flex items-center rounded-md border bg-background">
           {(["pending", "approved", "rejected", "all"] as const).map((f) => (
             <button
@@ -180,6 +201,7 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
               {f.charAt(0).toUpperCase() + f.slice(1)}
             </button>
           ))}
+        </div>
         </div>
       </div>
 
@@ -233,7 +255,7 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
                 </div>
 
                 {req.status === "pending" && (
-                  <div className="flex items-end gap-3 pt-2 border-t">
+                  <div className="flex flex-col gap-3 pt-2 border-t sm:flex-row sm:items-end">
                     <div className="flex-1 space-y-1">
                       <Textarea
                         value={reviewNote[req.id] ?? ""}
@@ -243,7 +265,7 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
                         className="text-xs"
                       />
                     </div>
-                    <div className="flex gap-2 shrink-0">
+                    <div className="flex shrink-0 flex-wrap justify-end gap-2">
                       <Button
                         size="sm"
                         variant="outline"
@@ -254,6 +276,17 @@ export function AdminAccessRequests({ specialtyIds }: { specialtyIds?: string[] 
                       >
                         <XCircle className="h-3.5 w-3.5" /> Reject
                       </Button>
+                      {!specialtyIds && quickApprove && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setApproving(req)}
+                          disabled={updateRequest.isPending || approveWithGrant.isPending}
+                          title="Choose their deanery, role and specialties before approving"
+                        >
+                          Set up…
+                        </Button>
+                      )}
                       <Button
                         size="sm"
                         className="gap-1.5"
