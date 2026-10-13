@@ -15,6 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { User, Mail, GraduationCap, Stethoscope, Save, Download, Trash2, Shield, Eye, UserCheck, Lock, Palette } from "lucide-react";
 import { toast } from "sonner";
+import { PasswordChecklist } from "@/components/PasswordChecklist";
+import { passwordMeetsRules } from "@/lib/passwordRules";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
@@ -359,16 +361,11 @@ const MyProfile = () => {
                 onChange={(e) => setConfirmNewPassword(e.target.value)}
               />
             </div>
-            {newPassword && confirmNewPassword && newPassword !== confirmNewPassword && (
-              <p className="text-xs text-destructive">Passwords do not match</p>
-            )}
-            {newPassword && newPassword.length < 6 && (
-              <p className="text-xs text-destructive">Password must be at least 6 characters</p>
-            )}
+            <PasswordChecklist password={newPassword} confirm={confirmNewPassword} />
             <Button
               disabled={
                 !currentPassword || !newPassword ||
-                newPassword.length < 6 || newPassword !== confirmNewPassword
+                !passwordMeetsRules(newPassword) || newPassword !== confirmNewPassword
               }
               onClick={async () => {
                 // Re-authenticate first. Supabase lets a signed-in session change

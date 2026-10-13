@@ -50,6 +50,9 @@ export function SpecialtyAccessRequests({
         .from("specialty_access_requests")
         .select("id, specialty_id, status, reason, review_note, created_at, reviewed_at")
         .eq("user_id", userId)
+        // Answered requests the person has cleared stay on record for the
+        // reviewers, but not on their profile.
+        .is("cleared_by_user_at", null)
         .order("created_at", { ascending: false })
         .limit(20);
       if (error) throw error;
@@ -145,6 +148,23 @@ export function SpecialtyAccessRequests({
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  // Hides answered requests from this page; the decision itself stays on
+  // record for whoever reviews requests.
+  const clear = useMutation({
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        const { error } = await supabase.rpc("clear_specialty_access_request", { _request_id: id });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, ids) => {
+      toast.success(ids.length === 1 ? "Cleared" : `${ids.length} answered requests cleared`);
+      invalidate();
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const answeredIds = (myRequests ?? []).filter((r) => r.status !== "pending").map((r) => r.id);
 
   const statusBadge = (status: string) => {
     switch (status) {
@@ -253,7 +273,20 @@ export function SpecialtyAccessRequests({
 
         {(myRequests?.length ?? 0) > 0 && (
           <div className="space-y-2">
-            <p className="text-sm font-medium">Your requests</p>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-medium">Your requests</p>
+              {answeredIds.length > 1 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs text-muted-foreground"
+                  disabled={clear.isPending}
+                  onClick={() => clear.mutate(answeredIds)}
+                >
+                  <X className="h-3.5 w-3.5" /> Clear all answered
+                </Button>
+              )}
+            </div>
             <ul className="divide-y border">
               {myRequests!.map((r) => (
                 <li key={r.id} className="flex items-start justify-between gap-3 p-3 text-sm">
@@ -270,6 +303,18 @@ export function SpecialtyAccessRequests({
                       <p className="text-xs italic text-muted-foreground">Note: {r.review_note}</p>
                     )}
                   </div>
+                  {r.status !== "pending" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="shrink-0 gap-1 text-xs text-muted-foreground"
+                      disabled={clear.isPending}
+                      onClick={() => clear.mutate([r.id])}
+                      aria-label={`Clear the answered request for ${requestLabel(r.specialty_id)}`}
+                    >
+                      <X className="h-3.5 w-3.5" /> Clear
+                    </Button>
+                  )}
                   {r.status === "pending" && (
                     <Button
                       variant="ghost"

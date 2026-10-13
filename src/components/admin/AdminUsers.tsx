@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import { PasswordChecklist } from "@/components/PasswordChecklist";
+import { passwordMeetsRules } from "@/lib/passwordRules";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -809,7 +811,7 @@ export function AdminUsers() {
             className="space-y-3"
             onSubmit={(e) => {
               e.preventDefault();
-              if (passwordTarget && newPassword.length >= 8) {
+              if (passwordTarget && passwordMeetsRules(newPassword)) {
                 setPassword.mutate({ userId: passwordTarget.user_id, password: newPassword });
               }
             }}
@@ -822,14 +824,15 @@ export function AdminUsers() {
                 autoComplete="off"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="At least 8 characters"
+                placeholder="At least 8 characters, letters and numbers"
               />
+              <PasswordChecklist password={newPassword} className="pt-1" />
               <p className="text-xs text-muted-foreground">
                 Their old password stops working straight away. Tell them the new one
                 securely, and ask them to change it from their profile.
               </p>
             </div>
-            <Button type="submit" className="w-full" disabled={newPassword.length < 8 || setPassword.isPending}>
+            <Button type="submit" className="w-full" disabled={!passwordMeetsRules(newPassword) || setPassword.isPending}>
               {setPassword.isPending ? "Saving…" : "Set password"}
             </Button>
           </form>
