@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { PolicyLink } from "@/components/PolicyLink";
 import { PortalShell, portalField, portalKicker, portalLabel } from "@/components/PortalShell";
+import { PasswordChecklist } from "@/components/PasswordChecklist";
+import { passwordMeetsRules } from "@/lib/passwordRules";
 
 /**
  * Setting a new password, in the same register as the door it leads back to.
@@ -35,8 +37,8 @@ const ResetPassword = () => {
       toast.error("Passwords do not match");
       return;
     }
-    if (password.length < 6) {
-      toast.error("Password must be at least 6 characters");
+    if (!passwordMeetsRules(password)) {
+      toast.error("The password needs at least 8 characters, with letters and numbers");
       return;
     }
     setIsLoading(true);
@@ -70,7 +72,7 @@ const ResetPassword = () => {
       </div>
 
       <p className="text-pretty text-[14.5px] text-muted-foreground">
-        Choose something at least six characters long.
+        Choose a password of at least 8 characters that mixes letters and numbers.
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-[18px]">
@@ -84,7 +86,8 @@ const ResetPassword = () => {
             onChange={(e) => setPassword(e.target.value)}
             className={portalField}
             required
-            minLength={6}
+            minLength={8}
+            aria-describedby="password-requirements"
           />
         </div>
 
@@ -98,14 +101,16 @@ const ResetPassword = () => {
             onChange={(e) => setConfirmPassword(e.target.value)}
             className={portalField}
             required
-            minLength={6}
+            minLength={8}
           />
         </div>
+
+        <PasswordChecklist id="password-requirements" password={password} confirm={confirmPassword} />
 
         <Button
           type="submit"
           className="h-12 w-full justify-between text-[15px]"
-          disabled={isLoading}
+          disabled={isLoading || !passwordMeetsRules(password) || password !== confirmPassword}
         >
           {isLoading ? "Updating…" : "Update password"}
           {!isLoading && <ArrowRight className="h-4 w-4" />}
