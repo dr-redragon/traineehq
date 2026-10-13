@@ -21,6 +21,7 @@
 // Everything personal cascades from auth.users (see delete-account); authored
 // library content is ON DELETE SET NULL and stays.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { esc, paragraph, renderEmail } from "./email-layout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,46 +53,34 @@ function safeRedirect(requested: unknown): string | undefined {
   }
 }
 
-function esc(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
 function resetHtml(name: string, link: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Reset your password</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        An administrator of <strong>TraineeHQ</strong> has sent you a link to choose a new password.
-      </p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${esc(link)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-          Choose a new password
-        </a>
-      </div>
-      <p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the login page.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Password reset",
+    heading: "Choose a new password",
+    preheader: "An administrator sent you a link to choose a new password.",
+    body: paragraph(`Hi ${esc(name) || "there"},`) +
+      paragraph("An administrator of <strong>TraineeHQ</strong> has sent you a link to choose a new password. " +
+        "It works once and expires shortly."),
+    button: { label: "Choose a new password", url: link },
+    notice: "Your current password keeps working until you set a new one.",
+    reason: "You're receiving this because an administrator sent you a password reset link. " +
+      "If you didn't expect it, you can ignore this email and nothing will change.",
+  });
 }
 
 function deletedHtml(name: string, note: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Your account has been closed</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        An administrator has deleted your <strong>TraineeHQ</strong> account. You can no longer sign in,
-        and your profile, roles, specialty access and register memberships have been removed.
-      </p>
-      ${note ? `<p style="color:#4a4a5a;line-height:1.6;border-left:3px solid #dd2b0f;padding-left:12px">${esc(note)}</p>` : ""}
-      <p style="color:#4a4a5a;line-height:1.6">
-        If you think this is a mistake, or you need access again, contact your deanery's programme
-        administrator. They can invite you back.
-      </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Account closed",
+    heading: "Your account has been closed",
+    preheader: "An administrator has deleted your TraineeHQ account.",
+    body: paragraph(`Hi ${esc(name) || "there"},`) +
+      paragraph("An administrator has deleted your <strong>TraineeHQ</strong> account. You can no longer sign in, " +
+        "and your profile, roles, specialty access and register memberships have been removed.") +
+      paragraph("If you think this is a mistake, or you need access again, contact your deanery's programme " +
+        "administrator. They can invite you back."),
+    notice: note ? `<strong>Message from the administrator:</strong><br>${esc(note)}` : undefined,
+    reason: "You're receiving this because your TraineeHQ account was closed.",
+  });
 }
 
 async function sendEmail(to: string, subject: string, html: string) {

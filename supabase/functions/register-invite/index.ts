@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { esc, paragraph, renderEmail } from "./email-layout.ts";
 
 /**
  * Add somebody to a teaching register by email address.
@@ -66,13 +67,6 @@ function safeRedirect(requested: unknown): string | undefined {
   }
 }
 
-/** Escape anything interpolated into the email — names and titles are user-written. */
-function esc(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
 /**
  * The auth account for an address, if there is one. listUsers() is paginated;
  * reading one page misses every account beyond it.
@@ -116,26 +110,18 @@ async function grantFacilitator(admin: any, userId: string, deaneryId: string | 
 }
 
 function joinedHtml(registerName: string, inviterName: string, link: string, needsPassword: boolean) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">You've been added to a teaching register</h2>
-      <p style="color:#4a4a5a;line-height:1.6">
-        ${esc(inviterName) || "A colleague"} has given you access to the
-        <strong>${esc(registerName)}</strong> teaching register on TraineeHQ.
-      </p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        You can record attendance, run the teaching day sign-in, and generate reports for it.
-      </p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${esc(link)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-          ${needsPassword ? "Set your password" : "Open the register"}
-        </a>
-      </div>
-      ${needsPassword
-        ? `<p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the sign-in page.</p>`
-        : ""}
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Teaching register",
+    heading: "You've been added to a register",
+    preheader: `You now have access to the ${registerName} teaching register.`,
+    body: paragraph(`${esc(inviterName) || "A colleague"} has given you access to the ` +
+        `<strong>${esc(registerName)}</strong> teaching register on <strong>TraineeHQ</strong>.`) +
+      paragraph("You can record attendance, run the teaching day sign-in, and generate reports for it."),
+    button: { label: needsPassword ? "Set your password" : "Open the register", url: link },
+    reason: needsPassword
+      ? "You're receiving this because a register owner added you. If the link has expired, use \"Forgot password\" on the sign-in page."
+      : "You're receiving this because a register owner added you to their register.",
+  });
 }
 
 async function sendEmail(to: string, subject: string, html: string) {

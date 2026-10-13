@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { esc, paragraph, renderEmail } from "./email-layout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -42,13 +43,6 @@ function safeRedirect(requested: unknown): string | undefined {
   }
 }
 
-/** Escape anything interpolated into an email body. */
-function esc(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
-}
-
 /**
  * The auth account for an address, if there is one. listUsers() is paginated
  * (50 a page by default); reading only the first page misses everybody after
@@ -69,21 +63,18 @@ async function findUserByEmail(admin: any, email: string): Promise<{ id: string 
 }
 
 function inviteHtml(name: string, roleLabel: string, link: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">You've been invited</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        You've been invited to <strong>TraineeHQ</strong> as <strong>${esc(roleLabel)}</strong>.
-      </p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${esc(link)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-          Set Your Password
-        </a>
-      </div>
-      <p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the login page.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "You're invited",
+    heading: "Join TraineeHQ",
+    preheader: "Accept your invitation and choose a password.",
+    body: paragraph(`Hi ${esc(name) || "there"},`) +
+      paragraph(`You've been invited to <strong>TraineeHQ</strong> as <strong>${esc(roleLabel)}</strong>: ` +
+        "teaching resources, registers and notices for your specialty, all in one place.") +
+      paragraph("Accept the invitation to choose a password and sign in."),
+    button: { label: "Accept invitation", url: link },
+    reason: "You're receiving this because an administrator invited you. If the link has expired, " +
+      "use \"Forgot password\" on the sign-in page. If you weren't expecting this, you can ignore it.",
+  });
 }
 
 async function sendEmail(to: string, subject: string, html: string) {

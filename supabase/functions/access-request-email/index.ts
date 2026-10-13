@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { details, esc, paragraph, renderEmail, small } from "./email-layout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,16 +75,6 @@ function getSupabaseAdmin() {
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
-}
-
-/** Escape anything interpolated into an email body — all of it is caller-supplied. */
-function esc(value: unknown): string {
-  return String(value ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 function json(body: unknown, status = 200) {
@@ -361,48 +352,48 @@ async function getCallerId(
 function specialtyRequestAlertHtml(
   name: string, email: string, specialty: string, reason: string | null, siteUrl: string,
 ) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Specialty Access Request</h2>
-      <p style="color:#4a4a5a;line-height:1.6">
-        <strong>${esc(name)}</strong> (${esc(email)}) has asked to join <strong>${esc(specialty)}</strong>.
-      </p>
-      ${reason ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><em>${esc(reason)}</em></p>` : ""}
-      <p style="color:#4a4a5a;line-height:1.6">
-        Review it in the Admin Panel or Facilitator Panel${siteUrl ? `: <a href="${esc(siteUrl)}">${esc(siteUrl)}</a>` : "."}
-      </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Specialty access request",
+    heading: `${name} asked to join ${specialty}`,
+    preheader: `${name} has asked to join ${specialty}.`,
+    body: details([["Name", name], ["Email", email], ["Specialty", specialty]]) +
+      paragraph("Review it in the Admin Panel or the Facilitator Panel."),
+    // The same email goes to admins and facilitators, whose review pages differ.
+    button: { label: "Open TraineeHQ", url: `${siteUrl.replace(/\/+$/, "")}/dashboard` },
+    notice: reason ? `<strong>Their reason:</strong><br>${esc(reason)}` : undefined,
+    reason: "You're receiving this because you can review requests for this specialty. " +
+      "You can change which requests you're emailed about on your profile page.",
+  });
 }
 
 function specialtyRequestReceivedHtml(name: string, specialty: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Request Received</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        Your request to join <strong>${esc(specialty)}</strong> has been sent for review.
-        You'll get another email once it has been decided.
-      </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Request received",
+    heading: "Your request has been sent",
+    preheader: `Your request to join ${specialty} is with the reviewers.`,
+    body: paragraph(`Hi ${esc(name)},`) +
+      paragraph(`Your request to join <strong>${esc(specialty)}</strong> has been sent for review. ` +
+        "You'll get another email once it has been decided."),
+    reason: "You're receiving this because you asked for access to a specialty on TraineeHQ.",
+  });
 }
 
 function specialtyRequestDecidedHtml(
   name: string, specialty: string, approved: boolean, note: string | null,
 ) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">${approved ? "Specialty Access Approved ✅" : "Specialty Access Request Update"}</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        ${approved
-          ? `Your request to join <strong>${esc(specialty)}</strong> has been approved. It is in your sidebar the next time you sign in or refresh the page.`
-          : `Your request to join <strong>${esc(specialty)}</strong> was not approved at this time.`}
-      </p>
-      ${note ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><strong>Note:</strong> <em>${esc(note)}</em></p>` : ""}
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: approved ? "Request approved" : "Request update",
+    heading: approved ? `You now have access to ${specialty}` : "Your request was not approved",
+    preheader: approved ? `You can now see ${specialty}.` : `An update on your request to join ${specialty}.`,
+    body: paragraph(`Hi ${esc(name)},`) +
+      paragraph(approved
+        ? `Your request to join <strong>${esc(specialty)}</strong> has been approved. It appears in your ` +
+          "sidebar the next time you sign in or refresh the page."
+        : `Your request to join <strong>${esc(specialty)}</strong> was not approved at this time.`),
+    button: approved ? { label: "Open TraineeHQ", url: `${SITE_URL}/dashboard` } : undefined,
+    notice: note ? `<strong>Note from the reviewer:</strong><br>${esc(note)}` : undefined,
+    reason: "You're receiving this because you asked for access to a specialty on TraineeHQ.",
+  });
 }
 
 /**
@@ -531,118 +522,95 @@ async function logEmail(admin: ReturnType<typeof getSupabaseAdmin>, kind: string
 }
 
 function existingAccountHtml(resetLink: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">You already have an account</h2>
-      <p style="color:#4a4a5a;line-height:1.6">
-        Somebody asked for access to <strong>TraineeHQ</strong> with this email address,
-        but it already has an account. If that was you, set a new password and sign in:
-      </p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${esc(resetLink)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-          Set a new password
-        </a>
-      </div>
-      <p style="color:#8a8a9a;font-size:13px">If it was not you, you can ignore this email; nothing has changed.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Account",
+    heading: "You already have an account",
+    preheader: "This email address already has a TraineeHQ account.",
+    body: paragraph("Somebody asked for access to <strong>TraineeHQ</strong> with this email address, but it " +
+      "already has an account. If that was you, set a new password and sign in."),
+    button: { label: "Set a new password", url: resetLink },
+    reason: "You're receiving this because this address was entered on the Request access form. " +
+      "If it wasn't you, you can ignore this email; nothing has changed.",
+  });
 }
 
 function submissionConfirmationHtml(name: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Request Received</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        Thank you for requesting access to <strong>TraineeHQ</strong>.
-        Your application has been received and will be reviewed by an administrator.
-      </p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        You'll receive another email once your request has been reviewed.
-      </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Request received",
+    heading: "Thanks for requesting access",
+    preheader: "Your request is with the administrators.",
+    body: paragraph(`Hi ${esc(name)},`) +
+      paragraph("Thank you for requesting access to <strong>TraineeHQ</strong>. Your application has been " +
+        "received and will be reviewed by an administrator.") +
+      paragraph("You'll receive another email once it has been reviewed."),
+    reason: "You're receiving this because this address was entered on the TraineeHQ Request access form.",
+  });
 }
 
 function requestedForYouHtml(name: string, requester: string, registerName: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">An account has been requested for you</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        ${esc(requester)} has asked for an account on <strong>TraineeHQ</strong> for you,
-        so that you can help run the <strong>${esc(registerName)}</strong> teaching register.
-      </p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        An administrator will review it, and you'll receive another email with a link to set your password once it is approved.
-      </p>
-      <p style="color:#8a8a9a;font-size:13px">If you were not expecting this, you can ignore this email.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Account requested",
+    heading: "An account has been requested for you",
+    preheader: `${requester} asked for a TraineeHQ account for you.`,
+    body: paragraph(`Hi ${esc(name)},`) +
+      paragraph(`${esc(requester)} has asked for an account on <strong>TraineeHQ</strong> for you, so that ` +
+        `you can help run the <strong>${esc(registerName)}</strong> teaching register.`) +
+      paragraph("An administrator will review it, and you'll receive another email with a link to set your " +
+        "password once it is approved."),
+    reason: "You're receiving this because a register owner asked for an account for this address. " +
+      "If you weren't expecting it, you can ignore this email.",
+  });
 }
 
 function newRequestAlertHtml(
   name: string, email: string, specialty: string, grade?: string,
   forRegister?: { registerName: string; requester: string; reason: string | null },
 ) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">New Access Request</h2>
-      <p style="color:#4a4a5a;line-height:1.6">A new access request has been submitted:</p>
-      <table style="border-collapse:collapse;width:100%;margin:16px 0">
-        <tr><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Name</td><td style="padding:8px 12px;color:#1a1a2e;font-weight:600">${esc(name)}</td></tr>
-        <tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Email</td><td style="padding:8px 12px;color:#1a1a2e">${esc(email)}</td></tr>
-        <tr><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Specialty</td><td style="padding:8px 12px;color:#1a1a2e">${esc(specialty)}</td></tr>
-        ${grade ? `<tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Grade</td><td style="padding:8px 12px;color:#1a1a2e">${esc(grade)}</td></tr>` : ""}
-        ${forRegister ? `<tr style="background:#f8f8fc"><td style="padding:8px 12px;color:#8a8a9a;font-size:13px">Register</td><td style="padding:8px 12px;color:#1a1a2e">${esc(forRegister.registerName)}, requested by ${esc(forRegister.requester)}</td></tr>` : ""}
-      </table>
-      ${forRegister ? `<p style="color:#4a4a5a;line-height:1.6">Approving it creates the account, adds them to the register and makes them a <strong>facilitator of ${esc(specialty)}</strong>. Only admins can decide it.</p>` : ""}
-      ${forRegister?.reason ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><em>${esc(forRegister.reason)}</em></p>` : ""}
-      <p style="color:#4a4a5a;line-height:1.6">Please log in to the Admin Panel to review this request.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: forRegister ? "Account request for a register" : "New account request",
+    heading: `${name} has asked for an account`,
+    preheader: `${name} is waiting for an account on TraineeHQ.`,
+    body: details([
+        ["Name", name], ["Email", email], ["Specialty", specialty], ["Grade", grade],
+        ["Register", forRegister ? `${forRegister.registerName}, requested by ${forRegister.requester}` : undefined],
+      ]) +
+      (forRegister
+        ? paragraph("Approving it creates the account, adds them to the register and makes them a " +
+            `<strong>facilitator of ${esc(specialty)}</strong>. Only admins can decide it.`)
+        : paragraph("Review it in the Admin Panel, or the Facilitator Panel if it is for your specialty.")),
+    button: { label: "Open TraineeHQ", url: `${SITE_URL}/dashboard` },
+    notice: forRegister?.reason ? `<strong>Their reason:</strong><br>${esc(forRegister.reason)}` : undefined,
+    reason: "You're receiving this because you can review account requests for this deanery. " +
+      "You can change which requests you're emailed about on your profile page.",
+  });
 }
 
 function approvedHtml(name: string, resetLink: string, extra?: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Access Approved ✅</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        Great news! Your access request for <strong>TraineeHQ</strong> has been approved.
-      </p>
-      ${extra ? `<p style="color:#4a4a5a;line-height:1.6">${extra}</p>` : ""}
-      <p style="color:#4a4a5a;line-height:1.6">
-        Click the button below to set your password and activate your account:
-      </p>
-      <div style="text-align:center;margin:28px 0">
-        <a href="${esc(resetLink)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
-          Set Your Password
-        </a>
-      </div>
-      <p style="color:#8a8a9a;font-size:13px">
-        This link will expire in 24 hours. If it expires, you can request a new one from the login page using "Forgot password".
-      </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Access approved",
+    heading: "Welcome to TraineeHQ",
+    preheader: "Your access request has been approved. Set your password to sign in.",
+    body: paragraph(`Hi ${esc(name)},`) +
+      paragraph("Your access request for <strong>TraineeHQ</strong> has been approved.") +
+      (extra ? paragraph(extra) : "") +
+      paragraph("Set your password to activate your account and sign in."),
+    button: { label: "Set your password", url: resetLink },
+    notice: "This link expires in 24 hours. If it does, use \"Forgot password\" on the sign-in page.",
+    reason: "You're receiving this because you requested access to TraineeHQ.",
+  });
 }
 
 function rejectedHtml(name: string, reason: string) {
-  return `
-    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
-      <h2 style="color:#1a1a2e;margin-bottom:16px">Access Request Update</h2>
-      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        Unfortunately, your access request for TraineeHQ was not approved at this time.
-      </p>
-      <p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc">
-        <strong>Reason:</strong> <em>${esc(reason)}</em>
-      </p>
-      <p style="color:#4a4a5a;line-height:1.6">
-        If you believe this was in error, please contact your training programme director.
-      </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
-    </div>`;
+  return renderEmail({
+    kicker: "Request update",
+    heading: "Your request was not approved",
+    preheader: "An update on your TraineeHQ access request.",
+    body: paragraph(`Hi ${esc(name)},`) +
+      paragraph("Unfortunately, your access request for TraineeHQ was not approved at this time.") +
+      small("If you believe this was in error, please contact your training programme director."),
+    notice: `<strong>Reason:</strong><br>${esc(reason)}`,
+    reason: "You're receiving this because you requested access to TraineeHQ.",
+  });
 }
 
 Deno.serve(async (req) => {

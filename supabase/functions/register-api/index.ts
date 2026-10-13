@@ -23,6 +23,7 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import {
   emailConfigured, explainFailure, fromEmail, sendEmail, usingSandboxSender,
 } from "./email.ts";
+import { paragraph, renderEmail } from "./email-layout.ts";
 
 // Where the feedback link in an outbound email points. Derived from the
 // environment, never from the request: a member could otherwise have the
@@ -489,15 +490,17 @@ async function handleEmailFeedbackLink(
     const res = await sendEmail({
       to: t.email,
       subject: `Feedback for ${session.title} — and your certificate`,
-      html: `<div style="font-family:Segoe UI,system-ui,sans-serif;font-size:15px;color:#15211c;line-height:1.55">
-        <p>Dear ${esc(t.name)},</p>
-        <p>Thank you for attending <strong>${esc(session.title)}</strong> on ${esc(dateLabel)}.</p>
-        <p>Please complete the short feedback form below. It is anonymous — your answers are stored
-           with no name or address attached. Once it is submitted, your certificate of attendance
-           follows automatically.</p>
-        <p><a href="${url}" style="display:inline-block;background:#2c4d39;color:#fff;text-decoration:none;padding:11px 20px;border-radius:8px;font-weight:600">Give feedback and get your certificate</a></p>
-        <p style="color:#7a7568;font-size:13px">Or paste this into your browser: ${url}</p>
-      </div>`,
+      html: renderEmail({
+        kicker: "Teaching day feedback",
+        heading: "How was the teaching day?",
+        preheader: `Give feedback on ${session.title} to get your certificate.`,
+        body: paragraph(`Dear ${esc(t.name)},`) +
+          paragraph(`Thank you for attending <strong>${esc(session.title)}</strong> on ${esc(dateLabel)}.`) +
+          paragraph("Please complete the short feedback form. It is anonymous: your answers are stored with " +
+            "no name or address attached. Once it is submitted, your certificate of attendance follows automatically."),
+        button: { label: "Give feedback and get your certificate", url },
+        reason: "You're receiving this because you signed in at this teaching day.",
+      }),
       text: `Dear ${t.name},\n\nThank you for attending ${session.title} on ${dateLabel}. ` +
         `Please complete the anonymous feedback form to receive your certificate:\n${url}`,
     });
@@ -556,9 +559,16 @@ async function handleChaseAbsences(
   // Everyone goes in BCC so recipients cannot see one another. The visible To:
   // is the sending identity itself, which is the usual way to do this.
   const visibleTo = fromEmail();
-  const html = `<div style="font-family:Segoe UI,system-ui,sans-serif;font-size:15px;color:#15211c;line-height:1.55">` +
-    message.split(/\n{2,}/).map((p) => `<p>${esc(p).replace(/\n/g, "<br>")}</p>`).join("") +
-    `</div>`;
+  const { data: register } = await db.from("registers")
+    .select("name").eq("id", registerId).maybeSingle();
+  const html = renderEmail({
+    kicker: "Teaching register",
+    heading: subject,
+    preheader: message.slice(0, 120),
+    body: message.split(/\n{2,}/).map((p) => paragraph(esc(p).replace(/\n/g, "<br>"))).join(""),
+    from: register?.name ?? undefined,
+    reason: "You're receiving this because you are on the roster of a TraineeHQ teaching register.",
+  });
 
   // Resend caps one message at 50 recipients, so this goes out in batches.
   const BATCH = 45;
