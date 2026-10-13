@@ -37,11 +37,11 @@ const RESEND_API = "https://api.resend.com/emails";
 // The address Resend sends from. Until a domain is verified at
 // resend.com/domains, onboarding@resend.dev only delivers to the Resend
 // account's own address and refuses every other recipient with a 403 — so set
-// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// RESEND_FROM to an address on the verified domain ("TraineeHQ
 // <noreply@example.nhs.uk>") and every function picks it up with no code change.
 // Declared per function rather than shared, so each one deploys on its own.
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
-  "HST Training Hub <onboarding@resend.dev>";
+  "TraineeHQ <onboarding@resend.dev>";
 
 // Where replies land. The sender above is a no-reply address with no mailbox
 // behind it, so without this a trainee replying to their certificate gets a
@@ -121,7 +121,7 @@ function joinedHtml(registerName: string, inviterName: string, link: string, nee
       <h2 style="color:#1a1a2e;margin-bottom:16px">You've been added to a teaching register</h2>
       <p style="color:#4a4a5a;line-height:1.6">
         ${esc(inviterName) || "A colleague"} has given you access to the
-        <strong>${esc(registerName)}</strong> teaching register on the HST Training Hub.
+        <strong>${esc(registerName)}</strong> teaching register on TraineeHQ.
       </p>
       <p style="color:#4a4a5a;line-height:1.6">
         You can record attendance, run the teaching day sign-in, and generate reports for it.
@@ -134,7 +134,7 @@ function joinedHtml(registerName: string, inviterName: string, link: string, nee
       ${needsPassword
         ? `<p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the sign-in page.</p>`
         : ""}
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 

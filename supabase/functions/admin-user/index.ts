@@ -4,9 +4,10 @@
 // browser:
 //
 //   delete           — remove the person's sign-in account, not just their
-//                      profile. Deleting the profiles row alone left auth.users
-//                      behind and the person could still log in, landing in an
-//                      app with no profile and no access.
+//                      profile, then email them that it has gone. Deleting
+//                      the profiles row alone left auth.users behind and the
+//                      person could still log in, landing in an app with no
+//                      profile and no access.
 //   send_reset_link  — email them a link to choose a new password.
 //   set_password     — set a new password for them directly.
 //
@@ -31,7 +32,7 @@ const corsHeaders = {
 const RESEND_API = "https://api.resend.com/emails";
 // Same sender settings as invite-user; see the notes there.
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
-  "HST Training Hub <onboarding@resend.dev>";
+  "TraineeHQ <onboarding@resend.dev>";
 const REPLY_TO = (Deno.env.get("RESEND_REPLY_TO") ?? "")
   .split(/[,;\s]+/).map((s) => s.trim()).filter(Boolean);
 const replyTo = REPLY_TO.length ? { reply_to: REPLY_TO } : {};
@@ -63,7 +64,7 @@ function resetHtml(name: string, link: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Reset your password</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        An administrator of the <strong>HST Training Hub</strong> has sent you a link to choose a new password.
+        An administrator of <strong>TraineeHQ</strong> has sent you a link to choose a new password.
       </p>
       <div style="text-align:center;margin:28px 0">
         <a href="${esc(link)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
@@ -71,7 +72,25 @@ function resetHtml(name: string, link: string) {
         </a>
       </div>
       <p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the login page.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
+    </div>`;
+}
+
+function deletedHtml(name: string, note: string) {
+  return `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
+      <h2 style="color:#1a1a2e;margin-bottom:16px">Your account has been closed</h2>
+      <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
+      <p style="color:#4a4a5a;line-height:1.6">
+        An administrator has deleted your <strong>TraineeHQ</strong> account. You can no longer sign in,
+        and your profile, roles, specialty access and register memberships have been removed.
+      </p>
+      ${note ? `<p style="color:#4a4a5a;line-height:1.6;border-left:3px solid #dd2b0f;padding-left:12px">${esc(note)}</p>` : ""}
+      <p style="color:#4a4a5a;line-height:1.6">
+        If you think this is a mistake, or you need access again, contact your deanery's programme
+        administrator. They can invite you back.
+      </p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -162,12 +181,31 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Read who they are before the cascade takes the profile with it.
+      const { data: profile } = await admin
+        .from("profiles").select("first_name").eq("user_id", targetId).maybeSingle();
+
       const { error: deleteErr } = await admin.auth.admin.deleteUser(targetId);
       if (deleteErr) {
         console.error("admin-user delete failed:", deleteErr);
         return json({ error: "Could not delete the account. Please try again." }, 500);
       }
-      return json({ success: true });
+
+      // Tell them, once the account is really gone. A failed email does not
+      // undo the deletion; the admin is told it did not go.
+      if (!targetUser.email) return json({ success: true, email_sent: false });
+      const note = String(body.note ?? "").trim().slice(0, 1000);
+      try {
+        await sendEmail(
+          targetUser.email,
+          "Your TraineeHQ account has been closed",
+          deletedHtml(profile?.first_name ?? "", note),
+        );
+      } catch (e) {
+        console.error("Deletion email failed:", e);
+        return json({ success: true, email_sent: false });
+      }
+      return json({ success: true, email_sent: true });
     }
 
     if (targetErr || !targetUser?.email) {
@@ -201,7 +239,7 @@ Deno.serve(async (req) => {
     try {
       await sendEmail(
         targetUser.email,
-        "Reset your password — HST Training Hub",
+        "Reset your password — TraineeHQ",
         resetHtml(profile?.first_name ?? "", link),
       );
     } catch (e) {

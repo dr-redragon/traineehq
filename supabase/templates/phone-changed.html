@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light only">
+  <title>Your phone number was changed</title>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background:#f3f2f2;-webkit-text-size-adjust:100%">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f3f2f2">The phone number on your account was just changed.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f3f2f2" style="background:#f3f2f2">
+    <tr>
+      <td align="center" style="padding:32px 12px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;font-family:'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif">
+          <!-- Ink band: wordmark -->
+          <tr>
+            <td bgcolor="#201e1d" style="background:#201e1d;padding:20px 32px">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td width="14" height="14" bgcolor="#dd2b0f" style="background:#dd2b0f;width:14px;height:14px;font-size:0;line-height:0">&nbsp;</td>
+                  <td style="padding-left:10px;font-family:'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:20px;font-weight:800;letter-spacing:-0.02em;color:#ffffff">TraineeHQ</td>
+                </tr>
+              </table>
+              <p style="margin:6px 0 0;font-family:'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:11px;font-weight:600;letter-spacing:0.14em;text-transform:uppercase;color:#ff9f8a">Higher specialty training</p>
+            </td>
+          </tr>
+          <!-- Accent rule -->
+          <tr><td height="4" bgcolor="#dd2b0f" style="background:#dd2b0f;height:4px;font-size:0;line-height:0">&nbsp;</td></tr>
+          <!-- Body -->
+          <tr>
+            <td bgcolor="#ffffff" style="background:#ffffff;padding:36px 32px 32px">
+            <p style="margin:0 0 10px;font-size:11px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:#ae1800">Security notice</p>
+            <h1 style="margin:0 0 20px;font-family:'Archivo', 'Helvetica Neue', Helvetica, Arial, sans-serif;font-size:28px;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:#201e1d">Your phone number was changed</h1>
+            <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#3d3a39">The phone number on your <strong>TraineeHQ</strong> account, <strong>{{ .Email }}</strong>, was changed to <strong>{{ .Phone }}</strong>.</p><p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#3d3a39">If you made this change, there's nothing more to do.</p><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 0">
+              <tr>
+                <td style="background:#fff2ef;border-left:3px solid #dd2b0f;padding:14px 16px;font-size:14px;line-height:1.6;color:#3d3a39">
+                  <strong style="color:#201e1d">Wasn't you?</strong> Reset your password straight away from the sign-in page, and contact your deanery administrator.
+                </td>
+              </tr>
+            </table>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="padding:20px 32px 0;border-top:2px solid #d9d6d6">
+              <p style="margin:0 0 6px;font-size:12px;line-height:1.6;color:#605d5d">This is an automatic security notice about your TraineeHQ account ({{ .Email }}). You don't need to reply.</p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#605d5d">
+                <strong style="color:#201e1d">TraineeHQ</strong> &middot; Resources for NHS higher specialty trainees &middot;
+                <a href="{{ .SiteURL }}" style="color:#ae1800;text-decoration:underline">traineehq.com</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

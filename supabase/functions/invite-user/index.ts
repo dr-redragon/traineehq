@@ -10,11 +10,11 @@ const RESEND_API = "https://api.resend.com/emails";
 // The address Resend sends from. Until a domain is verified at
 // resend.com/domains, onboarding@resend.dev only delivers to the Resend
 // account's own address and refuses every other recipient with a 403 — so set
-// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// RESEND_FROM to an address on the verified domain ("TraineeHQ
 // <noreply@example.nhs.uk>") and every function picks it up with no code change.
 // Declared per function rather than shared, so each one deploys on its own.
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
-  "HST Training Hub <onboarding@resend.dev>";
+  "TraineeHQ <onboarding@resend.dev>";
 
 // Where replies land. The sender above is a no-reply address with no mailbox
 // behind it, so without this a trainee replying to their certificate gets a
@@ -74,7 +74,7 @@ function inviteHtml(name: string, roleLabel: string, link: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">You've been invited</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name) || "there"},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        You've been invited to the <strong>HST Training Hub</strong> as <strong>${esc(roleLabel)}</strong>.
+        You've been invited to <strong>TraineeHQ</strong> as <strong>${esc(roleLabel)}</strong>.
       </p>
       <div style="text-align:center;margin:28px 0">
         <a href="${esc(link)}" style="display:inline-block;background:#1a1a2e;color:#ffffff;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px">
@@ -82,7 +82,7 @@ function inviteHtml(name: string, roleLabel: string, link: string) {
         </a>
       </div>
       <p style="color:#8a8a9a;font-size:13px">If the link expires, use "Forgot password" on the login page.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -254,7 +254,7 @@ Deno.serve(async (req) => {
       role === "facilitator" ? "Facilitator" : "Trainee";
 
     try {
-      await sendEmail(email, "You've been invited — HST Training Hub", inviteHtml(firstName, roleLabel, link));
+      await sendEmail(email, "You've been invited — TraineeHQ", inviteHtml(firstName, roleLabel, link));
     } catch (e) {
       console.error("Invite email failed:", e);
       return json({ success: true, user_id: userId, email_sent: false });

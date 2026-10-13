@@ -46,7 +46,7 @@ export function emailConfigured(): boolean {
  * classifies failures by the bare address and the UI quotes it at the organiser.
  */
 export function fromAddress(): string {
-  return (Deno.env.get("RESEND_FROM") ?? "HST Training Hub <onboarding@resend.dev>").trim();
+  return (Deno.env.get("RESEND_FROM") ?? "TraineeHQ <onboarding@resend.dev>").trim();
 }
 
 export function fromEmail(): string {

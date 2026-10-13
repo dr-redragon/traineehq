@@ -1,6 +1,6 @@
 # Going live
 
-Everything that has to be true before HST Training Hub — dashboard, resources,
+Everything that has to be true before TraineeHQ — dashboard, resources,
 discussions, admin panel and the teaching registers — is a production system
 rather than a preview.
 
@@ -184,7 +184,7 @@ Then, in Supabase → Edge Functions → Secrets:
 
 | Secret | Value | Why |
 |---|---|---|
-| `RESEND_FROM` | `HST Training Hub <no-reply@traineehq.com>` | The sending identity. The mailbox does not need to exist. A root-domain address is fine even though the return path lives on `send.` — DMARC passes on DKIM alignment with the root, which is what Resend signs. |
+| `RESEND_FROM` | `TraineeHQ <no-reply@traineehq.com>` | The sending identity. The mailbox does not need to exist. A root-domain address is fine even though the return path lives on `send.` — DMARC passes on DKIM alignment with the root, which is what Resend signs. |
 | `RESEND_REPLY_TO` | a real mailbox you read | Where replies go. **A reply-to is not a sender**, so this can be an NHS or Gmail address on any domain. Without it, anyone replying to a certificate or an invitation is writing to `no-reply@`, which bounces. |
 | `APP_BASE_URL` | `https://traineehq.com` | Where the feedback link in an emailed form points. Deliberately a secret rather than something the browser sends, so a register member cannot have the hub's own sender mail a link of their choosing to a whole cohort. Only `register-api` reads it, and it already defaults to this. |
 

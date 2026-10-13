@@ -8,11 +8,11 @@ const FORWARD_TO = (Deno.env.get("CONTACT_FORWARD_TO") ?? "").trim();
 // The address Resend sends from. Until a domain is verified at
 // resend.com/domains, onboarding@resend.dev only delivers to the Resend
 // account's own address and refuses every other recipient with a 403 — so set
-// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// RESEND_FROM to an address on the verified domain ("TraineeHQ
 // <noreply@example.nhs.uk>") and every function picks it up with no code change.
 // Declared per function rather than shared, so each one deploys on its own.
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
-  "HST Training Hub <onboarding@resend.dev>";
+  "TraineeHQ <onboarding@resend.dev>";
 
 // Where replies land. The sender above is a no-reply address with no mailbox
 // behind it, so without this a trainee replying to their certificate gets a
@@ -181,8 +181,8 @@ serve(async (req) => {
           `
             <h2>Thank you for getting in touch</h2>
             <p>We've received your message and will get back to you as soon as possible.</p>
-            <p>If you did not contact the HST Training Hub, you can ignore this email.</p>
-            <p style="color:#888;font-size:12px;">HST Training Hub</p>
+            <p>If you did not contact TraineeHQ, you can ignore this email.</p>
+            <p style="color:#888;font-size:12px;">TraineeHQ</p>
           `,
         );
         await logSent(db, CONFIRMATION_KIND, email);

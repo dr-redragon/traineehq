@@ -317,7 +317,7 @@ const Index = () => {
         <div className="flex flex-wrap items-end justify-between gap-8 bg-primary px-9 py-11 text-primary-foreground">
           <div className="min-w-0 max-w-3xl">
             <p className="text-[12px] font-bold uppercase tracking-[0.16em]">
-              {activeDeanery?.name ?? ""} HST Training Hub
+              TraineeHQ{activeDeanery?.name ? ` · ${activeDeanery.name}` : ""}
             </p>
             <h1 className="mt-3 font-display text-[clamp(34px,5.2vw,62px)] font-extrabold leading-[0.95] tracking-[-0.035em]">
               Welcome back{firstName ? `, ${firstName}` : ""}

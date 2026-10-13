@@ -1,4 +1,4 @@
-# TraineeHQ / HST Training Hub — Codebase Evaluation
+# TraineeHQ — Codebase Evaluation
 
 A complete map of the application as it stands, written as the reference for future
 modifications. Every claim below was checked against the source; file:line references

@@ -15,7 +15,7 @@ import { RequestAccessForm } from "@/components/RequestAccessForm";
 type Mode = "signin" | "request";
 
 const copy = {
-  signin: { kicker: "Members only", heading: "Sign in to the Training Hub" },
+  signin: { kicker: "Members only", heading: "Sign in to TraineeHQ" },
   request: { kicker: "New to the hub", heading: "Request programme access" },
 } as const;
 

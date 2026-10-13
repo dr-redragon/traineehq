@@ -10,11 +10,11 @@ const RESEND_API = "https://api.resend.com/emails";
 // The address Resend sends from. Until a domain is verified at
 // resend.com/domains, onboarding@resend.dev only delivers to the Resend
 // account's own address and refuses every other recipient with a 403 — so set
-// RESEND_FROM to an address on the verified domain ("HST Training Hub
+// RESEND_FROM to an address on the verified domain ("TraineeHQ
 // <noreply@example.nhs.uk>") and every function picks it up with no code change.
 // Declared per function rather than shared, so each one deploys on its own.
 const FROM_EMAIL = Deno.env.get("RESEND_FROM") ??
-  "HST Training Hub <onboarding@resend.dev>";
+  "TraineeHQ <onboarding@resend.dev>";
 
 // Where replies land. The sender above is a no-reply address with no mailbox
 // behind it, so without this a trainee replying to their certificate gets a
@@ -41,7 +41,16 @@ interface EmailPayload {
    * Who to email, and what to say, are read from that row, never from the caller.
    */
   request_id?: string;
+  /**
+   * approved only, optional: what the reviewer chose to give the new account
+   * in place of what the request asked for. Admins only; checked against what
+   * this caller may grant before anything is applied.
+   */
+  grant?: { role?: string; deanery_id?: string | null; specialty_ids?: string[] };
 }
+
+type GrantRole = "trainee" | "facilitator" | "admin" | "super_admin";
+interface Grant { role: GrantRole; deaneryId: string | null; specialtyIds: string[] }
 
 interface AccessRequestRow {
   id: string;
@@ -179,6 +188,87 @@ async function canReviewRequest(
 }
 
 /**
+ * Check a reviewer's chosen set-up for a new account against what they may
+ * grant — the same rules invite-user applies to an invitation, because this is
+ * an invitation in all but name. Returns the grant, or a reason to refuse it.
+ */
+async function checkGrant(
+  admin: ReturnType<typeof getSupabaseAdmin>, callerId: string, raw: EmailPayload["grant"],
+): Promise<Grant | string> {
+  const role = String(raw?.role ?? "trainee") as GrantRole;
+  if (!["trainee", "facilitator", "admin", "super_admin"].includes(role)) return "That role does not exist";
+  const deaneryId = raw?.deanery_id ? String(raw.deanery_id) : null;
+  if (deaneryId && !UUID_RE.test(deaneryId)) return "That deanery does not exist";
+  const specialtyIds = [...new Set((Array.isArray(raw?.specialty_ids) ? raw.specialty_ids : []).map(String))];
+  if (specialtyIds.some((id) => !UUID_RE.test(id)) || specialtyIds.length > 200) return "Invalid specialties";
+
+  const { data: roles } = await admin.from("user_roles").select("role, deanery_id").eq("user_id", callerId);
+  const held = (roles ?? []) as { role: string; deanery_id: string | null }[];
+  const isSuper = held.some((r) => r.role === "super_admin");
+  const isGlobal = isSuper || held.some((r) => r.role === "admin" && r.deanery_id === null);
+  const adminOf = new Set(held.filter((r) => r.role === "admin" && r.deanery_id).map((r) => r.deanery_id as string));
+  if (!isGlobal && adminOf.size === 0) return "Only administrators can change what an approval grants";
+
+  if (role === "super_admin" && !isSuper) return "Only super admins can make somebody a super admin";
+  if (role === "admin" && deaneryId === null && !isSuper) return "Only super admins can create an admin for every deanery";
+  if (deaneryId === null ? !isGlobal : !(isGlobal || adminOf.has(deaneryId))) {
+    return "You can only place people in a deanery you administer";
+  }
+
+  if (role === "trainee" || role === "facilitator") {
+    if (specialtyIds.length && !deaneryId) return "Choose a deanery for those specialties";
+    if (specialtyIds.length) {
+      const { data: specs } = await admin
+        .from("specialties").select("id, deanery_id").in("id", specialtyIds);
+      if ((specs ?? []).length !== specialtyIds.length ||
+          (specs ?? []).some((sp: { deanery_id: string }) => sp.deanery_id !== deaneryId)) {
+        return "Every specialty must belong to the chosen deanery";
+      }
+    }
+  }
+  return { role, deaneryId, specialtyIds: role === "trainee" || role === "facilitator" ? specialtyIds : [] };
+}
+
+/**
+ * Give an account what the reviewer chose. Adds to whatever they already
+ * hold — approving a request never takes access away.
+ */
+async function applyGrant(
+  admin: ReturnType<typeof getSupabaseAdmin>, userId: string, grant: Grant,
+): Promise<string> {
+  const { role, deaneryId, specialtyIds } = grant;
+  // Every account keeps its trainee row (the signup trigger adds one); give it the deanery.
+  await admin.from("user_roles").upsert(
+    { user_id: userId, role: "trainee", deanery_id: deaneryId },
+    { onConflict: "user_id,role" },
+  );
+  if (role !== "trainee") {
+    const { error } = await admin.from("user_roles").upsert(
+      { user_id: userId, role, deanery_id: role === "super_admin" ? null : deaneryId },
+      { onConflict: "user_id,role" },
+    );
+    if (error) throw new Error(`Could not grant the ${role} role: ${error.message}`);
+  }
+  if (specialtyIds.length) {
+    const table = role === "facilitator" ? "facilitator_specialties" : "trainee_specialties";
+    const { error } = await admin.from(table).upsert(
+      specialtyIds.map((sid) => ({ user_id: userId, specialty_id: sid })),
+      { onConflict: "user_id,specialty_id", ignoreDuplicates: true },
+    );
+    if (error) throw new Error(`Could not assign specialties: ${error.message}`);
+  }
+  if (deaneryId) {
+    await admin.from("profiles").update({ deanery_id: deaneryId }).eq("user_id", userId);
+  }
+
+  const label = { trainee: "a trainee", facilitator: "a facilitator", admin: "an administrator", super_admin: "a super admin" }[role];
+  if (!specialtyIds.length) return `You have been set up as ${label}.`;
+  const { data: names } = await admin.from("specialties").select("short_name").in("id", specialtyIds);
+  const list = (names ?? []).map((n: { short_name: string }) => `<strong>${esc(n.short_name)}</strong>`).join(", ");
+  return `You have been set up as ${label} with access to ${list}.`;
+}
+
+/**
  * Make somebody a facilitator of a specialty: the role, in its deanery, and
  * the specialty itself. Never narrows anything they already hold.
  */
@@ -245,7 +335,7 @@ function specialtyRequestAlertHtml(
       <p style="color:#4a4a5a;line-height:1.6">
         Review it in the Admin Panel or Facilitator Panel${siteUrl ? `: <a href="${esc(siteUrl)}">${esc(siteUrl)}</a>` : "."}
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -258,7 +348,7 @@ function specialtyRequestReceivedHtml(name: string, specialty: string) {
         Your request to join <strong>${esc(specialty)}</strong> has been sent for review.
         You'll get another email once it has been decided.
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -275,7 +365,7 @@ function specialtyRequestDecidedHtml(
           : `Your request to join <strong>${esc(specialty)}</strong> was not approved at this time.`}
       </p>
       ${note ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><strong>Note:</strong> <em>${esc(note)}</em></p>` : ""}
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -349,7 +439,7 @@ async function handleSpecialtyRequest(
     if (person?.email) {
       await sendEmail(
         person.email,
-        `Request received: ${specialtyName} — HST Training Hub`,
+        `Request received: ${specialtyName} — TraineeHQ`,
         specialtyRequestReceivedHtml(name, specialtyName),
       );
     }
@@ -368,8 +458,8 @@ async function handleSpecialtyRequest(
   await sendEmail(
     person.email,
     approved
-      ? `Access approved: ${specialtyName} — HST Training Hub`
-      : `Specialty access request update — HST Training Hub`,
+      ? `Access approved: ${specialtyName} — TraineeHQ`
+      : `Specialty access request update — TraineeHQ`,
     specialtyRequestDecidedHtml(name, specialtyName, approved, request.review_note),
   );
   return json({ success: true });
@@ -404,7 +494,7 @@ function existingAccountHtml(resetLink: string) {
     <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px">
       <h2 style="color:#1a1a2e;margin-bottom:16px">You already have an account</h2>
       <p style="color:#4a4a5a;line-height:1.6">
-        Somebody asked for access to the <strong>HST Training Hub</strong> with this email address,
+        Somebody asked for access to <strong>TraineeHQ</strong> with this email address,
         but it already has an account. If that was you, set a new password and sign in:
       </p>
       <div style="text-align:center;margin:28px 0">
@@ -413,7 +503,7 @@ function existingAccountHtml(resetLink: string) {
         </a>
       </div>
       <p style="color:#8a8a9a;font-size:13px">If it was not you, you can ignore this email; nothing has changed.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -423,13 +513,13 @@ function submissionConfirmationHtml(name: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Request Received</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        Thank you for requesting access to the <strong>HST Training Hub</strong>.
+        Thank you for requesting access to <strong>TraineeHQ</strong>.
         Your application has been received and will be reviewed by an administrator.
       </p>
       <p style="color:#4a4a5a;line-height:1.6">
         You'll receive another email once your request has been reviewed.
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -439,14 +529,14 @@ function requestedForYouHtml(name: string, requester: string, registerName: stri
       <h2 style="color:#1a1a2e;margin-bottom:16px">An account has been requested for you</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        ${esc(requester)} has asked for an account on the <strong>HST Training Hub</strong> for you,
+        ${esc(requester)} has asked for an account on <strong>TraineeHQ</strong> for you,
         so that you can help run the <strong>${esc(registerName)}</strong> teaching register.
       </p>
       <p style="color:#4a4a5a;line-height:1.6">
         An administrator will review it, and you'll receive another email with a link to set your password once it is approved.
       </p>
       <p style="color:#8a8a9a;font-size:13px">If you were not expecting this, you can ignore this email.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -468,7 +558,7 @@ function newRequestAlertHtml(
       ${forRegister ? `<p style="color:#4a4a5a;line-height:1.6">Approving it creates the account, adds them to the register and makes them a <strong>facilitator of ${esc(specialty)}</strong>. Only admins can decide it.</p>` : ""}
       ${forRegister?.reason ? `<p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc"><em>${esc(forRegister.reason)}</em></p>` : ""}
       <p style="color:#4a4a5a;line-height:1.6">Please log in to the Admin Panel to review this request.</p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -478,7 +568,7 @@ function approvedHtml(name: string, resetLink: string, extra?: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Access Approved ✅</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        Great news! Your access request for the <strong>HST Training Hub</strong> has been approved.
+        Great news! Your access request for <strong>TraineeHQ</strong> has been approved.
       </p>
       ${extra ? `<p style="color:#4a4a5a;line-height:1.6">${extra}</p>` : ""}
       <p style="color:#4a4a5a;line-height:1.6">
@@ -492,7 +582,7 @@ function approvedHtml(name: string, resetLink: string, extra?: string) {
       <p style="color:#8a8a9a;font-size:13px">
         This link will expire in 24 hours. If it expires, you can request a new one from the login page using "Forgot password".
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -502,7 +592,7 @@ function rejectedHtml(name: string, reason: string) {
       <h2 style="color:#1a1a2e;margin-bottom:16px">Access Request Update</h2>
       <p style="color:#4a4a5a;line-height:1.6">Hi ${esc(name)},</p>
       <p style="color:#4a4a5a;line-height:1.6">
-        Unfortunately, your access request for the HST Training Hub was not approved at this time.
+        Unfortunately, your access request for TraineeHQ was not approved at this time.
       </p>
       <p style="color:#4a4a5a;line-height:1.6;background:#f8f8fc;padding:12px 16px;border-radius:8px;border-left:3px solid #ccc">
         <strong>Reason:</strong> <em>${esc(reason)}</em>
@@ -510,7 +600,7 @@ function rejectedHtml(name: string, reason: string) {
       <p style="color:#4a4a5a;line-height:1.6">
         If you believe this was in error, please contact your training programme director.
       </p>
-      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— HST Training Hub</p>
+      <p style="color:#8a8a9a;font-size:13px;margin-top:32px">— TraineeHQ</p>
     </div>`;
 }
 
@@ -563,7 +653,7 @@ Deno.serve(async (req) => {
           const link = linkData?.properties?.action_link;
           if (link) {
             try {
-              await sendEmail(applicantEmail, "You already have an account — HST Training Hub", existingAccountHtml(link));
+              await sendEmail(applicantEmail, "You already have an account — TraineeHQ", existingAccountHtml(link));
               await logEmail(supabaseAdmin, "existing_account_nudge", applicantEmail);
             } catch (e) { console.error("existing-account email failed:", e); }
           }
@@ -605,8 +695,8 @@ Deno.serve(async (req) => {
       await sendEmail(
         request.email,
         forRegister
-          ? "An account has been requested for you — HST Training Hub"
-          : "Access Request Received — HST Training Hub",
+          ? "An account has been requested for you — TraineeHQ"
+          : "Access Request Received — TraineeHQ",
         forRegister
           ? requestedForYouHtml(name, forRegister.requester, forRegister.registerName)
           : submissionConfirmationHtml(name),
@@ -721,6 +811,15 @@ Deno.serve(async (req) => {
       return json({ error: "The request does not hold a valid email address" }, 422);
     }
 
+    // A reviewer's own choice of role, deanery and specialties, checked before
+    // any account is made so a refused choice leaves nothing half done.
+    let grant: Grant | null = null;
+    if (type === "approved" && payload.grant) {
+      const checked = await checkGrant(supabaseAdmin, caller.id, payload.grant);
+      if (typeof checked === "string") return json({ error: checked }, 403);
+      grant = checked;
+    }
+
     if (type === "approved") {
       const firstName = request.first_name ?? "";
       const lastName = request.last_name ?? "";
@@ -754,8 +853,18 @@ Deno.serve(async (req) => {
       //    account request instead makes them a facilitator of it, and adds
       //    them to the register (20261012150000).
       let extra: string | undefined;
+      // An existing account is somebody the reviewer may not administer; only
+      // change their roles if they could have done so in the Users tab.
+      if (grant && userId && existingUser) {
+        const { data: allowed } = await supabaseAdmin.rpc("can_admin_user", { _admin: caller.id, _target: userId });
+        if (allowed !== true) {
+          return json({ error: "That email already has an account you do not administer" }, 403);
+        }
+      }
+      const granted = grant && userId ? await applyGrant(supabaseAdmin, userId, grant) : undefined;
+
       if (userId && request.register_id) {
-        const facilitates = request.specialty_id
+        const facilitates = request.specialty_id && !grant
           ? await grantFacilitator(supabaseAdmin, userId, request.deanery_id, request.specialty_id)
           : null;
         const { data: reg } = await supabaseAdmin
@@ -773,7 +882,10 @@ Deno.serve(async (req) => {
         extra = [
           reg ? `You have been added to the <strong>${esc(reg.name)}</strong> teaching register.` : "",
           facilitates ? `You are a facilitator of <strong>${esc(facilitates)}</strong>.` : "",
+          granted ?? "",
         ].filter(Boolean).join(" ") || undefined;
+      } else if (granted) {
+        extra = granted;
       } else if (userId && request.specialty_id) {
         const { error: assignError } = await supabaseAdmin.from("trainee_specialties").insert({
           user_id: userId,
@@ -785,7 +897,7 @@ Deno.serve(async (req) => {
       }
 
       // 2b. Record the request's deanery on the profile
-      if (userId && request.deanery_id) {
+      if (userId && request.deanery_id && !grant) {
         const { error: deaneryError } = await supabaseAdmin
           .from("profiles")
           .update({ deanery_id: request.deanery_id })
@@ -805,17 +917,24 @@ Deno.serve(async (req) => {
         ? linkData.properties.action_link
         : "#";
 
-      await sendEmail(
-        applicantEmail,
-        "Access Approved — HST Training Hub",
-        approvedHtml(applicantName, resetLink, extra),
-      );
+      // The account exists now whatever happens to the email, so a failed send
+      // is reported, not thrown: an error here would read as "not approved".
+      try {
+        await sendEmail(
+          applicantEmail,
+          "Access Approved — TraineeHQ",
+          approvedHtml(applicantName, resetLink, extra),
+        );
+      } catch (e) {
+        console.error("Approval email failed:", e);
+        return json({ success: true, user_id: userId, email_sent: false });
+      }
 
-      return json({ success: true, user_id: userId });
+      return json({ success: true, user_id: userId, email_sent: true });
     }
 
     const reason = (request.review_note ?? "").trim().slice(0, MAX_NOTE) || "No reason provided.";
-    await sendEmail(applicantEmail, "Access Request Update — HST Training Hub", rejectedHtml(applicantName, reason));
+    await sendEmail(applicantEmail, "Access Request Update — TraineeHQ", rejectedHtml(applicantName, reason));
     return json({ success: true });
   } catch (error) {
     console.error("Email function error:", error);
