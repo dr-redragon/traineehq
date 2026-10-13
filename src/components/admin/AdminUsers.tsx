@@ -10,14 +10,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, UserPlus, Shield, Trash2, Settings, UserCheck, Eye, Crown } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Search, UserPlus, Shield, Trash2, Settings, UserCheck, Eye, Crown, MoreVertical, Mail, KeyRound, Copy,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { useUserRole } from "@/hooks/useUserRole";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
 type RoleName = "super_admin" | "admin" | "facilitator" | "trainee";
@@ -44,6 +48,12 @@ export function AdminUsers() {
   const [selectedRole, setSelectedRole] = useState<RoleName>("trainee");
   const [selectedDeaneryId, setSelectedDeaneryId] = useState<string>("");
   const [selectedSpecialties, setSelectedSpecialties] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<Tables<"profiles"> | null>(null);
+  const [resetTarget, setResetTarget] = useState<Tables<"profiles"> | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<Tables<"profiles"> | null>(null);
+  const [newPassword, setNewPassword] = useState("");
+  // When the reset email cannot be sent, the link is shown here to pass on.
+  const [resetLink, setResetLink] = useState<{ name: string; link: string } | null>(null);
 
   const { data: profiles, isLoading } = useQuery({
     queryKey: ["admin-profiles"],
@@ -220,15 +230,60 @@ export function AdminUsers() {
   });
 
 
+  // Acting on somebody's sign-in account needs the service role, so it goes
+  // through the admin-user function, which re-checks can_admin_user().
+  const adminUserAction = async (body: Record<string, string>) => {
+    const { data, error } = await supabase.functions.invoke("admin-user", { body });
+    if (error) {
+      // A non-2xx response carries the function's own message in its body.
+      const context = (error as { context?: Response }).context;
+      const detail = context && typeof context.json === "function"
+        ? await context.json().catch(() => null)
+        : null;
+      throw new Error(detail?.error ?? error.message);
+    }
+    if (data?.error) throw new Error(data.error);
+    return data as { email_sent?: boolean; link?: string };
+  };
+
   const deleteUser = useMutation({
-    mutationFn: async (userId: string) => {
-      const { error } = await supabase.from("profiles").delete().eq("user_id", userId);
-      if (error) throw error;
-    },
+    mutationFn: (userId: string) => adminUserAction({ action: "delete", user_id: userId }),
     onSuccess: () => {
-      toast.success("User removed");
+      toast.success("User deleted — they can no longer sign in");
+      setDeleteTarget(null);
       queryClient.invalidateQueries({ queryKey: ["admin-profiles"] });
       queryClient.invalidateQueries({ queryKey: ["admin-roles"] });
+      queryClient.invalidateQueries({ queryKey: ["facilitator-specialties"] });
+      queryClient.invalidateQueries({ queryKey: ["trainee-specialties"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const sendResetLink = useMutation({
+    mutationFn: (profile: Tables<"profiles">) =>
+      adminUserAction({
+        action: "send_reset_link",
+        user_id: profile.user_id,
+        redirect_to: `${window.location.origin}/reset-password`,
+      }),
+    onSuccess: (data, profile) => {
+      setResetTarget(null);
+      if (data?.email_sent === false && data.link) {
+        setResetLink({ name: `${profile.first_name ?? ""} ${profile.last_name ?? ""}`.trim(), link: data.link });
+      } else {
+        toast.success(`Reset link sent to ${profile.email}`);
+      }
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const setPassword = useMutation({
+    mutationFn: ({ userId, password }: { userId: string; password: string }) =>
+      adminUserAction({ action: "set_password", user_id: userId, password }),
+    onSuccess: () => {
+      toast.success("Password updated");
+      setPasswordTarget(null);
+      setNewPassword("");
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -293,10 +348,45 @@ export function AdminUsers() {
     return specialties?.filter((s) => specs.includes(s.id)).map((s) => s.short_name).join(", ") ?? "—";
   };
 
+  // A render function, not a component: defined in here, a component would be
+  // a new type every render and remount its menu each time.
+  const userActions = (profile: Tables<"profiles">) => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label={`Actions for ${profile.first_name ?? ""} ${profile.last_name ?? ""}`}>
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52">
+        <DropdownMenuItem onClick={() => openPermissions(profile)}>
+          <Settings className="mr-2 h-3.5 w-3.5" /> Manage permissions
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setResetTarget(profile)}>
+          <Mail className="mr-2 h-3.5 w-3.5" /> Send password reset link
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => { setNewPassword(""); setPasswordTarget(profile); }}>
+          <KeyRound className="mr-2 h-3.5 w-3.5" /> Set password
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem className="text-destructive" onClick={() => setDeleteTarget(profile)}>
+          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete user
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   return (
-    <div className="space-y-4">
-      {/* Role legend */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="space-y-3 sm:space-y-4">
+      {/* Role legend. On a phone it is a single line of names (the description
+          is the tooltip); the cards with descriptions come back from sm up. */}
+      <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground sm:hidden">
+        {(Object.entries(roleConfig) as [RoleName, typeof roleConfig.admin][]).map(([key, cfg]) => (
+          <span key={key} className="inline-flex items-center gap-1" title={cfg.description}>
+            <cfg.icon className="h-3 w-3" /> {cfg.label}
+          </span>
+        ))}
+      </div>
+      <div className="hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
         {(Object.entries(roleConfig) as [RoleName, typeof roleConfig.admin][]).map(([key, cfg]) => (
           <Card key={key} className="border-dashed">
             <CardContent className="p-3 flex items-center gap-3">
@@ -311,13 +401,13 @@ export function AdminUsers() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+        <div className="relative w-full sm:w-auto sm:flex-1 sm:min-w-[200px] sm:max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search users…" value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+          <Input placeholder="Search users…" value={search} onChange={(e) => setSearch(e.target.value)} className="h-9 pl-10 sm:h-10" />
         </div>
         <Select value={filterDeanery} onValueChange={(v) => { setFilterDeanery(v); setFilterSpecialty("all"); }}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="All Deaneries" /></SelectTrigger>
+          <SelectTrigger className="h-9 flex-1 sm:h-10 sm:w-[180px] sm:flex-none"><SelectValue placeholder="All Deaneries" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Deaneries</SelectItem>
             <SelectItem value="unassigned">Unassigned</SelectItem>
@@ -327,7 +417,7 @@ export function AdminUsers() {
           </SelectContent>
         </Select>
         <Select value={filterSpecialty} onValueChange={setFilterSpecialty}>
-          <SelectTrigger className="w-[180px]"><SelectValue placeholder="All Specialties" /></SelectTrigger>
+          <SelectTrigger className="h-9 flex-1 sm:h-10 sm:w-[180px] sm:flex-none"><SelectValue placeholder="All Specialties" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Specialties</SelectItem>
             {filterDeanerySpecs.filter((s) => s.is_active).map((s) => (
@@ -511,7 +601,7 @@ export function AdminUsers() {
       </Dialog>
 
       {/* Users table */}
-      <Card>
+      <Card className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -521,7 +611,7 @@ export function AdminUsers() {
               <TableHead>Role</TableHead>
               <TableHead>Specialties</TableHead>
               <TableHead>Joined</TableHead>
-              <TableHead className="w-28">Actions</TableHead>
+              <TableHead className="w-14"><span className="sr-only">Actions</span></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -557,39 +647,7 @@ export function AdminUsers() {
                       {new Date(p.created_at).toLocaleDateString("en-GB")}
                     </TableCell>
                     <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon" title="Manage permissions" onClick={() => openPermissions(p)}>
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="icon" title="Remove user">
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Remove {p.first_name} {p.last_name}?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This removes their profile, roles and specialty assignments.
-                                Their sign-in account is not deleted, so they can still log in
-                                with no access until an administrator restores them.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                onClick={() => deleteUser.mutate(p.user_id)}
-                              >
-                                Remove user
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                      {userActions(p)}
                     </TableCell>
                   </TableRow>
                 );
@@ -598,6 +656,162 @@ export function AdminUsers() {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Users on a phone: a compact card each, instead of a seven-column
+          table that has to be scrolled sideways. */}
+      <div className="space-y-2 md:hidden">
+        {isLoading ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+        ) : !filtered?.length ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">No users found</p>
+        ) : (
+          filtered.map((p) => {
+            const role = getUserRole(p.user_id);
+            const cfg = roleConfig[role];
+            return (
+              <div key={p.id} className="flex items-start gap-2 rounded-md border bg-card px-3 py-2">
+                <div className="min-w-0 flex-1 space-y-1">
+                  <p className="truncate text-sm font-medium">{p.first_name} {p.last_name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{p.email}</p>
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Badge
+                      variant={role === "super_admin" || role === "admin" ? "destructive" : role === "facilitator" ? "default" : "secondary"}
+                      className="gap-1 px-1.5 py-0 text-[10px]"
+                    >
+                      <cfg.icon className="h-2.5 w-2.5" /> {cfg.label}
+                    </Badge>
+                    <Badge variant="outline" className="px-1.5 py-0 text-[10px]">{getDeaneryName(p.deanery_id)}</Badge>
+                  </div>
+                  <p className="truncate text-[11px] text-muted-foreground">{specLabelFn(role, p.user_id)}</p>
+                </div>
+                {userActions(p)}
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Delete */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(o) => { if (!o && !deleteUser.isPending) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {deleteTarget?.first_name} {deleteTarget?.last_name}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This deletes their sign-in account along with their profile, roles,
+              specialty assignments and register memberships. They will no longer be
+              able to log in. Resources they added stay in the library. This cannot be
+              undone — to let them back in, invite them again.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteUser.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteUser.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget) deleteUser.mutate(deleteTarget.user_id);
+              }}
+            >
+              {deleteUser.isPending ? "Deleting…" : "Delete user"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Send reset link */}
+      <AlertDialog open={!!resetTarget} onOpenChange={(o) => { if (!o && !sendResetLink.isPending) setResetTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send a password reset link?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {resetTarget?.first_name} {resetTarget?.last_name} will be emailed a link at{" "}
+              <span className="font-medium text-foreground">{resetTarget?.email}</span> to choose a new
+              password. Their current password keeps working until they do.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={sendResetLink.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={sendResetLink.isPending}
+              onClick={(e) => {
+                e.preventDefault();
+                if (resetTarget) sendResetLink.mutate(resetTarget);
+              }}
+            >
+              {sendResetLink.isPending ? "Sending…" : "Send link"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Reset link that could not be emailed */}
+      <Dialog open={!!resetLink} onOpenChange={(o) => { if (!o) setResetLink(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader><DialogTitle>The email could not be sent</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Pass this link to {resetLink?.name || "them"} yourself. It lets whoever opens it
+              set the password, so send it only to them. It expires after a short while.
+            </p>
+            <Input readOnly value={resetLink?.link ?? ""} onFocus={(e) => e.target.select()} className="font-mono text-xs" />
+            <Button
+              className="w-full gap-1.5"
+              onClick={() => {
+                if (!resetLink) return;
+                navigator.clipboard.writeText(resetLink.link).then(
+                  () => toast.success("Link copied"),
+                  () => toast.error("Could not copy — select the link and copy it"),
+                );
+              }}
+            >
+              <Copy className="h-4 w-4" /> Copy link
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set password */}
+      <Dialog
+        open={!!passwordTarget}
+        onOpenChange={(o) => { if (!o && !setPassword.isPending) { setPasswordTarget(null); setNewPassword(""); } }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Set password — {passwordTarget?.first_name} {passwordTarget?.last_name}</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (passwordTarget && newPassword.length >= 8) {
+                setPassword.mutate({ userId: passwordTarget.user_id, password: newPassword });
+              }
+            }}
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="admin-new-password">New password</Label>
+              <Input
+                id="admin-new-password"
+                type="text"
+                autoComplete="off"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="At least 8 characters"
+              />
+              <p className="text-xs text-muted-foreground">
+                Their old password stops working straight away. Tell them the new one
+                securely, and ask them to change it from their profile.
+              </p>
+            </div>
+            <Button type="submit" className="w-full" disabled={newPassword.length < 8 || setPassword.isPending}>
+              {setPassword.isPending ? "Saving…" : "Set password"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -83,6 +83,19 @@ describe("DriveBrowser", () => {
     expect(dialog).toHaveTextContent("Calman day (top of category)");
     expect(dialog).not.toHaveTextContent("Past papers");
   });
+
+  // "Select all" was judged before the rows were counted, so it never knew
+  // everything was selected and never offered the way back.
+  it("turns Select all into Deselect all, and back", () => {
+    renderBrowser(false);
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    fireEvent.click(screen.getByRole("button", { name: "Select all" }));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Deselect all" }));
+    expect(screen.queryByText("1 selected")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Select all" })).toBeInTheDocument();
+  });
 });
 
 /*
