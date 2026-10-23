@@ -231,6 +231,7 @@ export type Database = {
           phone: string | null
           profile_url: string | null
           role: string
+          school_id: string | null
           specialty_id: string | null
           updated_at: string
         }
@@ -246,6 +247,7 @@ export type Database = {
           phone?: string | null
           profile_url?: string | null
           role: string
+          school_id?: string | null
           specialty_id?: string | null
           updated_at?: string
         }
@@ -261,10 +263,18 @@ export type Database = {
           phone?: string | null
           profile_url?: string | null
           role?: string
+          school_id?: string | null
           specialty_id?: string | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "contacts_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "contacts_deanery_id_fkey"
             columns: ["deanery_id"]
@@ -713,6 +723,47 @@ export type Database = {
           },
         ]
       }
+      schools: {
+        Row: {
+          created_at: string
+          deanery_id: string
+          id: string
+          name: string
+          short_name: string
+          slug: string
+          sort_order: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deanery_id: string
+          id?: string
+          name: string
+          short_name: string
+          slug: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deanery_id?: string
+          id?: string
+          name?: string
+          short_name?: string
+          slug?: string
+          sort_order?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "schools_deanery_id_fkey"
+            columns: ["deanery_id"]
+            isOneToOne: false
+            referencedRelation: "deaneries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       specialties: {
         Row: {
           color: string | null
@@ -724,6 +775,7 @@ export type Database = {
           is_active: boolean
           name: string
           parent_specialty_id: string | null
+          school_id: string | null
           short_name: string
           slug: string
           sort_order: number | null
@@ -739,6 +791,7 @@ export type Database = {
           is_active?: boolean
           name: string
           parent_specialty_id?: string | null
+          school_id?: string | null
           short_name: string
           slug: string
           sort_order?: number | null
@@ -754,6 +807,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           parent_specialty_id?: string | null
+          school_id?: string | null
           short_name?: string
           slug?: string
           sort_order?: number | null
@@ -772,6 +826,13 @@ export type Database = {
             columns: ["parent_specialty_id"]
             isOneToOne: false
             referencedRelation: "specialties"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "specialties_school_id_fkey"
+            columns: ["school_id"]
+            isOneToOne: false
+            referencedRelation: "schools"
             referencedColumns: ["id"]
           },
         ]

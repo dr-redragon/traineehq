@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useDeanery } from "@/contexts/DeaneryContext";
 import { ContactFormDialog, type ContactFormValues } from "@/components/ContactFormDialog";
 import type { Tables } from "@/integrations/supabase/types";
+import { scopeColumns } from "@/lib/contactForm";
 
 
 export function AdminContacts() {
@@ -30,6 +31,17 @@ export function AdminContacts() {
     },
   });
 
+  const { data: schools } = useQuery({
+    queryKey: ["schools", activeDeanery?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("schools").select("id, name").eq("deanery_id", activeDeanery!.id).order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeDeanery,
+  });
+
   const { data: contacts, isLoading } = useQuery({
     queryKey: ["admin-contacts"],
     queryFn: async () => {
@@ -45,7 +57,7 @@ export function AdminContacts() {
       const payload = {
         name: form.name, role: form.role, category: form.category,
         organisation: form.organisation, email: form.email,
-        phone: form.phone || null, specialty_id: form.specialty_id === "none" ? null : form.specialty_id, archived: form.archived,
+        phone: form.phone || null, ...scopeColumns(form.scope), archived: form.archived,
         deanery_id: activeDeanery?.id ?? null,
       };
       if (editing) {
@@ -81,6 +93,14 @@ export function AdminContacts() {
     setDialogOpen(true);
   };
 
+  // Where each contact shows, so a deanery-wide or school contact is not
+  // mistaken for one specialty's.
+  const scopeLabel = (c: Tables<"contacts">) => {
+    if (c.specialty_id) return specialties?.find((s) => s.id === c.specialty_id)?.short_name ?? "Specialty";
+    if (c.school_id) return schools?.find((s) => s.id === c.school_id)?.name ?? "School";
+    return "Whole deanery";
+  };
+
   const closeDialog = () => { setDialogOpen(false); setEditing(null); };
 
   const filtered = contacts?.filter((c) => {
@@ -110,6 +130,7 @@ export function AdminContacts() {
             contact={editing}
             saving={saveMutation.isPending}
             specialties={specialties ?? []}
+            schools={schools ?? []}
             allowArchive
             onSubmit={(values) => saveMutation.mutate(values)}
           />
@@ -129,6 +150,7 @@ export function AdminContacts() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <h4 className="text-sm font-semibold">{c.name}</h4>
+                      <Badge variant="outline" className="text-[10px]">{scopeLabel(c)}</Badge>
                       {c.archived && <Badge variant="secondary" className="text-[10px]">Archived</Badge>}
                     </div>
                     <p className="text-xs text-muted-foreground">{c.role}</p>

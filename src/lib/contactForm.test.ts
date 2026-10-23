@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { contactFormErrors, emptyContactValues } from "./contactForm";
+import { contactFormErrors, emptyContactValues, scopeColumns, scopeOf } from "./contactForm";
 
 const valid = {
   ...emptyContactValues,
@@ -30,5 +30,21 @@ describe("contactFormErrors", () => {
   it("catches an email with no domain", () => {
     expect(contactFormErrors({ ...valid, email: "priya@" }).email).toMatch(/doesn't look like/);
     expect(contactFormErrors({ ...valid, email: " priya@nhs.net " }).email).toBeUndefined();
+  });
+});
+
+describe("contact scope", () => {
+  it("round-trips each of the three places a contact can live", () => {
+    for (const row of [
+      { specialty_id: null, school_id: null },
+      { specialty_id: null, school_id: "sch-1" },
+      { specialty_id: "sp-1", school_id: null },
+    ]) {
+      expect(scopeColumns(scopeOf(row))).toEqual(row);
+    }
+  });
+
+  it("starts a new contact as deanery-wide", () => {
+    expect(scopeColumns(emptyContactValues.scope)).toEqual({ specialty_id: null, school_id: null });
   });
 });
