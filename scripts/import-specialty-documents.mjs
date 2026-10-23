@@ -8,7 +8,8 @@
 // Signs in as an admin (TRAINEEHQ_ADMIN_EMAIL / TRAINEEHQ_ADMIN_PASSWORD) with
 // the app's own URL and publishable key from .env, so row-level security
 // applies exactly as in the app. SUPABASE_SERVICE_ROLE_KEY may be given
-// instead of the login.
+// instead of the login. Behind an HTTPS proxy, run with NODE_USE_ENV_PROXY=1
+// (Node 22.21+): Node's fetch ignores HTTPS_PROXY otherwise.
 //
 // Sections: each manifest section is filed into the specialty's first existing
 // section whose name matches its `match` pattern, so documents land in the
