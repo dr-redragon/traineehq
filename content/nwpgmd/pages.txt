@@ -1,0 +1,41 @@
+# Pages TraineeHQ's contacts and documents are copied from. One URL per line.
+https://www.nwpgmd.nhs.uk/School-Contacts
+# School of Surgery
+https://www.nwpgmd.nhs.uk/Surgery
+https://www.nwpgmd.nhs.uk/Surgery/Resident_Doctors
+https://www.nwpgmd.nhs.uk/Surgery/ARCP
+https://www.nwpgmd.nhs.uk/Surgery/TPDs
+https://www.nwpgmd.nhs.uk/Surgery/TRES
+https://www.nwpgmd.nhs.uk/Surgery/MACH
+https://www.nwpgmd.nhs.uk/Surgery/SuppoRTT
+https://www.nwpgmd.nhs.uk/Surgery/CST
+https://www.nwpgmd.nhs.uk/Surgery/CST/GMLandSC
+https://www.nwpgmd.nhs.uk/Surgery/CST/CandM
+https://www.nwpgmd.nhs.uk/Surgery/CST/ARCP_Requirements
+https://www.nwpgmd.nhs.uk/Surgery/Cardiothoracic-Surgery
+https://www.nwpgmd.nhs.uk/Surgery/ENT
+https://www.nwpgmd.nhs.uk/Surgery/ENT/ARCP
+https://www.nwpgmd.nhs.uk/Surgery/General-Surgery/GMLandSC
+https://www.nwpgmd.nhs.uk/Surgery/General-Surgery/CandM
+https://www.nwpgmd.nhs.uk/Surgery/Neurosurgery/GMLandSC
+https://www.nwpgmd.nhs.uk/Surgery/Neurosurgery/CandM
+https://www.nwpgmd.nhs.uk/Surgery/OMFS
+https://www.nwpgmd.nhs.uk/Surgery/Paediatric-Surgery
+https://www.nwpgmd.nhs.uk/Surgery/Plastic-Surgery/GMLandSC
+https://www.nwpgmd.nhs.uk/Surgery/Plastic-Surgery/CandM
+https://www.nwpgmd.nhs.uk/Surgery/TandO/GMLandSC
+https://www.nwpgmd.nhs.uk/Surgery/TandO/CandM
+https://www.nwpgmd.nhs.uk/Surgery/Urology/GMLandSC
+https://www.nwpgmd.nhs.uk/Surgery/Urology/CandM
+https://www.nwpgmd.nhs.uk/Surgery/Vascular
+# Other schools
+https://www.nwpgmd.nhs.uk/Ophthalmology
+https://www.nwpgmd.nhs.uk/OandG
+https://www.nwpgmd.nhs.uk/OandG/TPD
+https://www.nwpgmd.nhs.uk/Anaesthetics
+https://www.nwpgmd.nhs.uk/ICM
+https://www.nwpgmd.nhs.uk/Radiology
+https://www.nwpgmd.nhs.uk/Psychiatry
+https://www.nwpgmd.nhs.uk/Medicine
+https://www.nwpgmd.nhs.uk/Emergency-Medicine
+https://www.nwpgmd.nhs.uk/Paediatrics

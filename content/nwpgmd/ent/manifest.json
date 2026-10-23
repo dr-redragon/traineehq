@@ -56,7 +56,7 @@
     },
     {
       "name": "Training Programme & Policies",
-      "match": "programme|polic|process|curriculum|guidance",
+      "match": "guideline|protocol|polic|programme|process|guidance",
       "resources": [
         {
           "title": "CCT, Portfolio and the Combined Programme",
