@@ -48,12 +48,21 @@ begin
   if _n <> 2 then raise exception 'FAIL 2: expected both Urology TPDs, got %', _n; end if;
 
   select count(*) into _n from public.contacts c join public.specialties s on s.id = c.specialty_id
-   where s.slug = 'nw-ophth' and c.name = 'Miss Natasha Spiteri';
+   where s.slug = 'nw-ophth' and c.name = 'Ms Natasha Spiteri';
   if _n <> 1 then raise exception 'FAIL 2: Ophthalmology TPD not prefilled'; end if;
 
   select count(*) into _n from public.contacts c join public.specialties s on s.id = c.specialty_id
-   where s.slug = 'nw-paeds-surg' and c.name = 'Mrs Sarah Wood';
-  if _n <> 1 then raise exception 'FAIL 2: Paediatric Surgery TPD not prefilled (or prefilled twice)'; end if;
+   where s.slug = 'nw-paeds-surg' and c.category = 'tpd';
+  if _n <> 1 then raise exception 'FAIL 2: Paediatric Surgery should have its one TPD, got %', _n; end if;
+
+  select count(*) into _n from public.contacts c join public.specialties s on s.id = c.specialty_id
+   where s.slug = 'nw-ent' and c.name = 'Mr Sunil Sharma';
+  if _n <> 1 then raise exception 'FAIL 2: ENT TPD not prefilled'; end if;
+
+  -- Deanery-wide services are filed once, on no specialty and no school.
+  select count(*) into _n from public.contacts
+   where name = 'Lead Employer Team' and specialty_id is null and school_id is null;
+  if _n <> 1 then raise exception 'FAIL 2: Lead Employer should be one deanery-wide contact, got %', _n; end if;
 
   -- "general surg" must not catch Paediatric Surgery, nor T&O catch anything else.
   select count(*) into _n from public.contacts c join public.specialties s on s.id = c.specialty_id

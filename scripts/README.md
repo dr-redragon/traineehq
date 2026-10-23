@@ -10,6 +10,13 @@ Standalone tooling, independent of the app — nothing imports any of it.
 - **`anonymise-register-import.sql`** — copy a register out of the standalone ENT
   project with every name, address and free-text reason replaced. Read-only
   against the source; returns the blob and a checksum to verify the copy.
+- **`import-specialty-documents.mjs`** — load a specialty's documents and links
+  from a manifest (e.g. `content/nwpgmd/ent/manifest.json`, the ENT documents
+  from the North West School of Surgery) into its sections, as an admin would.
+  Needs `TRAINEEHQ_ADMIN_EMAIL` and `TRAINEEHQ_ADMIN_PASSWORD`; `--dry-run`
+  shows where everything would go. Safe to re-run.
+- **`verify-school-contacts-schema.sh`** — checks school-scoped key contacts and
+  the North West contact seed against a throwaway database.
 - **`seed-classic-register.sql`** — fill a classic teaching register with a
   fictional cohort and three years of teaching days, so its features can be
   tested against something the size of a real programme.
