@@ -19,6 +19,7 @@ import { downloadResourcesAsZip } from "@/lib/resourceDownloads";
 import { removeStoredFiles } from "@/lib/storageUtils";
 
 import type { TablesUpdate } from "@/integrations/supabase/types";
+import { useSchoolsReady } from "@/hooks/useSchoolsReady";
 
 
 export function AdminSpecialties() {
@@ -65,6 +66,7 @@ export function AdminSpecialties() {
 
   // Schools group specialties so a contact can be filed once for all of them,
   // e.g. the School of Surgery's Head of School.
+  const schoolsReady = useSchoolsReady();
   const { data: schools } = useQuery({
     queryKey: ["schools", activeDeanery?.id],
     queryFn: async () => {
@@ -73,7 +75,7 @@ export function AdminSpecialties() {
       if (error) throw error;
       return data;
     },
-    enabled: !!activeDeanery,
+    enabled: !!activeDeanery && !!schoolsReady,
   });
   const deletedSpecialties = (allRows ?? []).filter((s: any) => !!s.deleted_at);
 
