@@ -12,6 +12,7 @@ import { useDeanery } from "@/contexts/DeaneryContext";
 import { ContactFormDialog, type ContactFormValues } from "@/components/ContactFormDialog";
 import type { Tables } from "@/integrations/supabase/types";
 import { scopeColumns } from "@/lib/contactForm";
+import { useSchoolsReady } from "@/hooks/useSchoolsReady";
 
 
 export function AdminContacts() {
@@ -31,6 +32,7 @@ export function AdminContacts() {
     },
   });
 
+  const schoolsReady = useSchoolsReady();
   const { data: schools } = useQuery({
     queryKey: ["schools", activeDeanery?.id],
     queryFn: async () => {
@@ -39,7 +41,7 @@ export function AdminContacts() {
       if (error) throw error;
       return data;
     },
-    enabled: !!activeDeanery,
+    enabled: !!activeDeanery && !!schoolsReady,
   });
 
   const { data: contacts, isLoading } = useQuery({
@@ -57,7 +59,9 @@ export function AdminContacts() {
       const payload = {
         name: form.name, role: form.role, category: form.category,
         organisation: form.organisation, email: form.email,
-        phone: form.phone || null, ...scopeColumns(form.scope), archived: form.archived,
+        phone: form.phone || null, archived: form.archived,
+        // Without the schools migration there is no school_id column to write.
+        ...(schoolsReady ? scopeColumns(form.scope) : { specialty_id: scopeColumns(form.scope).specialty_id }),
         deanery_id: activeDeanery?.id ?? null,
       };
       if (editing) {
