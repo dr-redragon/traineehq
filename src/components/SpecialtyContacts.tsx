@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +14,8 @@ import { useUserRole } from "@/hooks/useUserRole";
 import type { Tables } from "@/integrations/supabase/types";
 
 interface SpecialtyContactsProps {
-  specialty: Pick<Tables<"specialties">, "id" | "short_name" | "deanery_id">;
+  specialty: Pick<Tables<"specialties">, "id" | "short_name" | "deanery_id"> &
+    Partial<Pick<Tables<"specialties">, "school_id">>;
   contacts: Tables<"contacts">[];
   /** Edit rights *and* edit mode on, the same switch the rest of the page uses. */
   canManage: boolean;
@@ -29,14 +30,26 @@ interface SpecialtyContactsProps {
  * here, in the tab where the contacts are read.
  *
  * Who may change which contact mirrors the database: a facilitator looks after
- * their specialty's own contacts; the general directory (no specialty) shows on
- * every specialty page and is left to admins, so it is shown here but not
- * offered for editing to anyone else.
+ * their specialty's own contacts; school contacts (shown on every specialty in
+ * the school) and deanery-wide ones (shown on every specialty) are left to
+ * admins, so they are shown here but not offered for editing to anyone else.
  */
 export function SpecialtyContacts({ specialty, contacts, canManage }: SpecialtyContactsProps) {
   const queryClient = useQueryClient();
   const { data: role } = useUserRole();
   const isAdmin = role === "admin" || role === "super_admin";
+
+  const schoolId = specialty.school_id ?? null;
+  const { data: school } = useQuery({
+    queryKey: ["school", schoolId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("schools").select("name").eq("id", schoolId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!schoolId,
+  });
+  const schoolWide = school?.name ? `every ${school.name} specialty` : "every specialty in its school";
 
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Tables<"contacts"> | null>(null);
@@ -96,9 +109,18 @@ export function SpecialtyContacts({ specialty, contacts, canManage }: SpecialtyC
   const openEdit = (c: Tables<"contacts">) => { setEditing(c); setFormOpen(true); };
 
   // The specialty's own contacts first: they are the ones this page is for,
-  // and the ones an editor came here to look after.
-  const ordered = [...contacts].sort((a, b) =>
-    Number(a.specialty_id === null) - Number(b.specialty_id === null) || a.name.localeCompare(b.name));
+  // and the ones an editor came here to look after. Then the school's, then
+  // the deanery's.
+  const rank = (c: Tables<"contacts">) => (c.specialty_id ? 0 : c.school_id ? 1 : 2);
+  const ordered = [...contacts].sort((a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name));
+
+  // While editing, say why a shared contact has no edit buttons — or, for an
+  // admin, that changing it changes it everywhere it shows.
+  const sharedNote = (c: Tables<"contacts">) => {
+    if (!canManage || c.specialty_id) return undefined;
+    const where = c.school_id ? schoolWide : "every specialty";
+    return isAdmin ? `Shown on ${where} — edits apply everywhere` : `Shown on ${where} · managed by admins`;
+  };
 
   return (
     <div className="space-y-4">
@@ -137,11 +159,7 @@ export function SpecialtyContacts({ specialty, contacts, canManage }: SpecialtyC
               contact={c}
               onEdit={editable(c) ? () => openEdit(c) : undefined}
               onDelete={editable(c) ? () => setRemoving(c) : undefined}
-              // While editing, say why a general contact has no edit buttons
-              // — or, for an admin, that changing it changes it everywhere.
-              note={canManage && c.specialty_id === null
-                ? isAdmin ? "Shown on every specialty — edits apply everywhere" : "Shown on every specialty · managed by admins"
-                : undefined}
+              note={sharedNote(c)}
             />
           ))}
         </div>
@@ -161,9 +179,11 @@ export function SpecialtyContacts({ specialty, contacts, canManage }: SpecialtyC
           <AlertDialogHeader>
             <AlertDialogTitle>Remove {removing?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
-              {removing?.specialty_id === null
-                ? "This contact is shown on every specialty, so removing it takes it off all of them."
-                : `They will no longer be listed for ${specialty.short_name}.`}
+              {removing?.specialty_id
+                ? `They will no longer be listed for ${specialty.short_name}.`
+                : removing?.school_id
+                  ? `This contact is shown on ${schoolWide}, so removing it takes it off all of them.`
+                  : "This contact is shown on every specialty, so removing it takes it off all of them."}
               {" "}This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>

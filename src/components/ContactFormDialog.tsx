@@ -3,13 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { contactCategories } from "@/lib/contacts";
 import type { Enums, Tables } from "@/integrations/supabase/types";
-import { contactFormErrors, emptyContactValues, type ContactFormValues } from "@/lib/contactForm";
+import { contactFormErrors, emptyContactValues, scopeOf, type ContactFormValues } from "@/lib/contactForm";
 
 export type { ContactFormValues };
 
@@ -23,10 +25,13 @@ interface ContactFormDialogProps {
   /** Under the title, e.g. "Shown on the ENT page". */
   description?: string;
   /**
-   * Offer a choice of specialty. The admin panel files contacts anywhere; on a
+   * Offer a choice of where the contact applies: the whole deanery, a school
+   * or one specialty. The admin panel files contacts anywhere; on a
    * specialty's own page the specialty is already decided, so it is left out.
    */
   specialties?: { id: string; short_name: string }[];
+  /** Schools offered alongside the specialties, e.g. the School of Surgery. */
+  schools?: { id: string; name: string }[];
   /** Offer the archive switch when editing. Admin panel only. */
   allowArchive?: boolean;
 }
@@ -39,7 +44,7 @@ interface ContactFormDialogProps {
  * own message straight away.
  */
 export function ContactFormDialog({
-  open, onOpenChange, contact, onSubmit, saving, description, specialties, allowArchive,
+  open, onOpenChange, contact, onSubmit, saving, description, specialties, schools, allowArchive,
 }: ContactFormDialogProps) {
   const [values, setValues] = useState<ContactFormValues>(emptyContactValues);
   const [attempted, setAttempted] = useState(false);
@@ -52,7 +57,7 @@ export function ContactFormDialog({
     setValues(contact ? {
       name: contact.name, role: contact.role, category: contact.category,
       organisation: contact.organisation, email: contact.email, phone: contact.phone ?? "",
-      specialty_id: contact.specialty_id ?? "none", archived: contact.archived ?? false,
+      scope: scopeOf(contact), archived: contact.archived ?? false,
     } : emptyContactValues);
   }, [open, contact]);
 
@@ -106,12 +111,23 @@ export function ContactFormDialog({
               </Select>
             </Field>
             {specialties && (
-              <Field id="contact-specialty" label="Specialty">
-                <Select value={values.specialty_id} onValueChange={(v) => set("specialty_id", v)}>
-                  <SelectTrigger id="contact-specialty"><SelectValue placeholder="All specialties" /></SelectTrigger>
+              <Field id="contact-scope" label="Applies to">
+                <Select value={values.scope} onValueChange={(v) => set("scope", v)}>
+                  <SelectTrigger id="contact-scope"><SelectValue placeholder="Whole deanery" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">All specialties</SelectItem>
-                    {specialties.map((s) => <SelectItem key={s.id} value={s.id}>{s.short_name}</SelectItem>)}
+                    <SelectItem value="deanery">Whole deanery</SelectItem>
+                    {!!schools?.length && (
+                      <SelectGroup>
+                        <SelectLabel>Schools</SelectLabel>
+                        {schools.map((s) => <SelectItem key={s.id} value={`school:${s.id}`}>{s.name}</SelectItem>)}
+                      </SelectGroup>
+                    )}
+                    {!!specialties.length && (
+                      <SelectGroup>
+                        <SelectLabel>Specialties</SelectLabel>
+                        {specialties.map((s) => <SelectItem key={s.id} value={s.id}>{s.short_name}</SelectItem>)}
+                      </SelectGroup>
+                    )}
                   </SelectContent>
                 </Select>
               </Field>

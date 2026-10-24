@@ -188,19 +188,28 @@ const SpecialtyDetail = () => {
     enabled: subsectionIds.length > 0,
   });
 
+  const schoolId = specialty?.school_id ?? null;
   const { data: contacts } = useQuery({
-    queryKey: ["contacts", id],
+    queryKey: ["contacts", id, schoolId],
     queryFn: async () => {
+      // This specialty's own, its school's (e.g. the School of Surgery's), and
+      // the deanery-wide ones that belong to neither.
+      const scopes = [
+        `specialty_id.eq.${orFilterValue(id!)}`,
+        "and(specialty_id.is.null,school_id.is.null)",
+        ...(schoolId ? [`school_id.eq.${orFilterValue(schoolId)}`] : []),
+      ];
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .or(`specialty_id.eq.${orFilterValue(id!)},specialty_id.is.null`)
+        .or(scopes.join(","))
         .eq("archived", false);
       if (error) throw error;
       return data;
     },
-    // The id lands inside an `or` filter expression, so only run it for a well-formed uuid.
-    enabled: isUuid(id),
+    // Ids land inside an `or` filter expression, so only run it for well-formed uuids,
+    // and only once the specialty says which school it is in.
+    enabled: isUuid(id) && !!specialty && (!schoolId || isUuid(schoolId)),
   });
 
   const reorderSubsections = useMutation({

@@ -1,0 +1,189 @@
+{
+  "source": "https://www.nwpgmd.nhs.uk/Surgery",
+  "retrieved": "2026-10-23",
+  "specialty": { "deanery": "north west", "match": "otolaryng|\\bENT\\b" },
+  "sections": [
+    {
+      "name": "ARCP",
+      "match": "arcp|assessment|progression",
+      "resources": [
+        {
+          "title": "ARCP Requirements – Otolaryngology (ENT)",
+          "description": "NHS England – North West School of Surgery ARCP requirements for ENT resident doctors on the post-August 2021 curriculum.",
+          "file": "ARCP Requirements - Otolaryngology (ENT).pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Post%202021%20NHSE%20NW%20ARCP%20Requirements%20Otolaryngology_1.pdf"
+        },
+        {
+          "title": "Learning Agreement and MCR suggested timeline",
+          "description": "When to set Learning Agreement objectives and complete the Multiple Consultant Report through the year.",
+          "file": "Learning Agreement and MCR timeline.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/LA%20and%20MCR%20timeline_0.pdf"
+        },
+        {
+          "title": "ARCP Protocol Appendix 2 – Exceptional Circumstances",
+          "description": "What NHS England – North West counts as exceptional circumstances in the ARCP process.",
+          "file": "ARCP Protocol Appendix 2 - Exceptional Circumstances.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Appendix%202%20-%20Exceptional%20Circumstances%20Sept%2018%20-%20FINAL_0.pdf"
+        },
+        {
+          "title": "ENT ARCP page – dates and Form R",
+          "description": "Next ARCP panel dates, evidence deadlines and Form R (Part B) requirements, kept current by the School of Surgery.",
+          "url": "https://www.nwpgmd.nhs.uk/Surgery/ENT/ARCP"
+        },
+        {
+          "title": "End of Phase 2 (ST6) requirements – ISCP",
+          "description": "Minimum requirements to be signed off for the FRCS examination.",
+          "url": "https://www.iscp.ac.uk/iscp/curriculum/otolaryngology-curriculum/3-programme-of-learning/#heading_3"
+        },
+        {
+          "title": "Certification (CCT) requirements – ISCP",
+          "url": "https://www.iscp.ac.uk/iscp/curriculum/otolaryngology-curriculum/5-programme-of-assessment/#heading_3"
+        },
+        {
+          "title": "Capabilities in Practice (CiPs) – ISCP",
+          "url": "https://www.iscp.ac.uk/media/1139/all-cips-including-specialties-specific-2021.pdf"
+        },
+        {
+          "title": "Generic Professional Capabilities framework – GMC",
+          "url": "https://www.gmc-uk.org/-/media/documents/generic-professional-capabilities-framework--0817_pdf-70417127.pdf"
+        },
+        {
+          "title": "Form R via TIS Self Service",
+          "description": "Form R (Part B) must be completed in TSS within 8 weeks before each ARCP.",
+          "url": "https://trainee.tis.nhs.uk/"
+        }
+      ]
+    },
+    {
+      "name": "Training Programme & Policies",
+      "match": "guideline|protocol|polic|programme|process|guidance",
+      "resources": [
+        {
+          "title": "CCT, Portfolio and the Combined Programme",
+          "description": "Guide to the routes onto the GMC specialist register for doctors training in NHS England – North West (v4.4).",
+          "file": "CCT, Portfolio and the Combined Programme.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/CCT%2C%20CESR%20and%20the%20Combined%20programme%20V4.4.pdf"
+        },
+        {
+          "title": "Early Completion of a Training Programme – NW School of Surgery",
+          "description": "School of Surgery guidance on completing training early (v1.1).",
+          "file": "Early Completion of a Training Programme - NW School of Surgery.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/NW%20School%20of%20Surgery%20-%20Early%20Completeion%20of%20a%20Training%20Programe%20-%20V1.1.pdf"
+        },
+        {
+          "title": "Guidance for run-through training programmes – NW School of Surgery",
+          "description": "Includes how to enter placements on ISCP.",
+          "file": "Guidance for run-through training programmes - NW School of Surgery.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Guidance%20for%20NW%20School%20of%20Surgery%20trainees%20on%20run-through%20training%20programmes_0.pdf"
+        },
+        {
+          "title": "Core Specialty and ST3 Preparation Checklist – ENT",
+          "description": "For core surgical doctors aiming for ENT ST3.",
+          "file": "Core Specialty and ST3 Preparation Checklist - ENT.docx",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/CST%20Core%20Specialty%20and%20ST3%20Preparation%20Checklist%20-%20Otolaryngology%20%28ENT%29_2.docx"
+        },
+        {
+          "title": "Time Out of Training – GMC position statement",
+          "file": "Time Out of Training - GMC position statement.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/20121130-Time-out-of-Training-GMC-position-statement-Nov-2012_pdf_pdf-60998809_0.pdf"
+        },
+        {
+          "title": "Resident doctors and private (non-NHS) patients – NHS England guidance",
+          "file": "Resident doctors and private patients - NHS England guidance.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/HEE%20trainee%20involvement%20in%20the%20care%20of%20private%20patients%20-%20corrected%20Nov17_0.pdf"
+        },
+        {
+          "title": "JCST Early Certification Principles",
+          "url": "https://www.jcst.org/-/media/files/jcst/key-documents/early-certification-principles_final.pdf"
+        },
+        {
+          "title": "JCST – Requesting a change to provisional certification date (flowchart)",
+          "url": "https://www.jcst.org/-/media/files/jcst/key-documents/early_certifcation_process_flowchart_of_responsibilities_april_2019.pdf"
+        },
+        {
+          "title": "NHS England – North West policies and procedures",
+          "description": "ARCP protocol, LTFT, OOP, study leave and the rest of the region's training policies.",
+          "url": "https://www.nwpgmd.nhs.uk/policies-procedures"
+        },
+        {
+          "title": "North West ENT programme page",
+          "description": "Rotation hospitals, teaching, recruitment and key contacts.",
+          "url": "https://www.nwpgmd.nhs.uk/Surgery/ENT"
+        }
+      ]
+    },
+    {
+      "name": "Supervision & Reflection",
+      "match": "supervis|reflect|feedback|portfolio",
+      "resources": [
+        {
+          "title": "Educational and Clinical Supervisor meeting checklist",
+          "description": "What to cover in ES/CS meetings and the ES report.",
+          "file": "Educational and Clinical Supervisor meeting checklist.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/ES-CS%20Meeting%20Checklist_0.pdf"
+        },
+        {
+          "title": "Enhancing Supervision for Resident Doctors – Handbook",
+          "file": "Enhancing Supervision for Resident Doctors - Handbook.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Enhancing%20Supervision%20for%20Postgraduate%20Doctors%20in%20Training%20%E2%80%93%20Handbook_0.pdf"
+        },
+        {
+          "title": "Improving feedback and reflection to improve learning",
+          "description": "A practical guide for resident doctors and trainers (AoMRC).",
+          "file": "Improving feedback and reflection to improve learning.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Improving_Feedback_0517_1.pdf"
+        },
+        {
+          "title": "Reflective Practice Toolkit – AoMRC and COPMeD",
+          "file": "Reflective Practice Toolkit - AoMRC and COPMeD.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Academy_and_COPMeD_Reflective_Practice_Toolkit_0.pdf"
+        },
+        {
+          "title": "Guidance for entering reflection on e-portfolios – AoMRC",
+          "file": "Guidance for entering reflection on e-portfolios - AoMRC.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Academy_Guidance_on_e-Portfolios_201916%20%282%29_0.pdf"
+        },
+        {
+          "title": "Supervision of resident doctors in outpatient clinics – COPMeD",
+          "file": "Supervision of resident doctors in outpatient clinics - COPMeD.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/COPMED_OPD_0.pdf"
+        },
+        {
+          "title": "Professional development plans for surgeons",
+          "file": "Professional development plans for surgeons.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/Professional%20development%20plan%20for%20surgeons_0.pdf"
+        }
+      ]
+    },
+    {
+      "name": "Wellbeing & Support",
+      "match": "wellbeing|well-being|support|pastoral|mentor",
+      "resources": [
+        {
+          "title": "NHS Practitioner Health leaflet",
+          "description": "Confidential support for doctors with mental health or addiction concerns.",
+          "file": "NHS Practitioner Health leaflet.pdf",
+          "source": "https://www.nwpgmd.nhs.uk/sites/default/files/PH%20Leaflet%202019_0.pdf"
+        },
+        {
+          "title": "MACH – Mentorship, Advice and Connection Hub",
+          "description": "The School of Surgery's mentoring scheme, with mentor and mentee application forms.",
+          "url": "https://www.nwpgmd.nhs.uk/Surgery/MACH"
+        },
+        {
+          "title": "TRES – Trainees Requiring Extra Support",
+          "url": "https://www.nwpgmd.nhs.uk/Surgery/TRES"
+        },
+        {
+          "title": "SuppoRTT – Supported Return to Training",
+          "url": "https://www.nwpgmd.nhs.uk/Surgery/SuppoRTT"
+        },
+        {
+          "title": "Training Support Network",
+          "description": "Specialist support services for resident doctors whose training is affected by difficulties.",
+          "url": "https://www.nwpgmd.nhs.uk/TSN"
+        }
+      ]
+    }
+  ]
+}

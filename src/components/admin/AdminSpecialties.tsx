@@ -62,6 +62,19 @@ export function AdminSpecialties() {
   });
 
   const specialties = allRows?.filter((s: any) => !s.deleted_at);
+
+  // Schools group specialties so a contact can be filed once for all of them,
+  // e.g. the School of Surgery's Head of School.
+  const { data: schools } = useQuery({
+    queryKey: ["schools", activeDeanery?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("schools").select("id, name").eq("deanery_id", activeDeanery!.id).order("sort_order");
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!activeDeanery,
+  });
   const deletedSpecialties = (allRows ?? []).filter((s: any) => !!s.deleted_at);
 
   // Source deanery specialties for cloning
@@ -230,6 +243,19 @@ export function AdminSpecialties() {
   const toggleParent = (id: string) =>
     setExpandedParents((prev) => ({ ...prev, [id]: !prev[id] }));
 
+  const setSchool = useMutation({
+    mutationFn: async ({ id, school_id }: { id: string; school_id: string | null }) => {
+      const { error } = await supabase.from("specialties").update({ school_id }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-specialties"] });
+      queryClient.invalidateQueries({ queryKey: ["specialty"] });
+      queryClient.invalidateQueries({ queryKey: ["contacts"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   const updateAppearance = useMutation({
     mutationFn: async ({ id, icon_name, color }: { id: string; icon_name?: string; color?: string }) => {
       const update: TablesUpdate<"specialties"> = {};
@@ -389,6 +415,21 @@ export function AdminSpecialties() {
                 {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                 {children.length} sub
               </Button>
+            )}
+
+            {!isChild && !!schools?.length && (
+              <Select
+                value={spec.school_id ?? "none"}
+                onValueChange={(v) => setSchool.mutate({ id: spec.id, school_id: v === "none" ? null : v })}
+              >
+                <SelectTrigger className="h-7 w-36 shrink-0 text-xs" aria-label={`School for ${spec.short_name}`}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">No school</SelectItem>
+                  {schools.map((sc) => <SelectItem key={sc.id} value={sc.id}>{sc.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             )}
 
             <div className="flex items-center gap-2 shrink-0">
