@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-// @ts-expect-error plain .mjs script, no types
 import { planSections, resourceTypeFor } from "../../scripts/import-specialty-documents.mjs";
 
 const manifestPath = path.resolve(__dirname, "../../content/nwpgmd/ent/manifest.json");

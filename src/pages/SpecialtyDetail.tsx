@@ -31,6 +31,7 @@ import { useCanManageSpecialty } from "@/hooks/useUserRole";
 import { getIcon } from "@/lib/iconMap";
 import { specialtyColorVars } from "@/lib/specialtyColor";
 import { isUuid, orFilterValue } from "@/lib/queryFilters";
+import { useSchoolsReady } from "@/hooks/useSchoolsReady";
 import { DragProvider, moveItems, slotForEdge, type DropEvent } from "@/lib/dnd";
 import { SortableTabTrigger } from "@/components/SortableTabTrigger";
 
@@ -188,17 +189,22 @@ const SpecialtyDetail = () => {
     enabled: subsectionIds.length > 0,
   });
 
+  const schoolsReady = useSchoolsReady();
   const schoolId = specialty?.school_id ?? null;
   const { data: contacts } = useQuery({
-    queryKey: ["contacts", id, schoolId],
+    queryKey: ["contacts", id, schoolId, schoolsReady],
     queryFn: async () => {
       // This specialty's own, its school's (e.g. the School of Surgery's), and
-      // the deanery-wide ones that belong to neither.
-      const scopes = [
-        `specialty_id.eq.${orFilterValue(id!)}`,
-        "and(specialty_id.is.null,school_id.is.null)",
-        ...(schoolId ? [`school_id.eq.${orFilterValue(schoolId)}`] : []),
-      ];
+      // the deanery-wide ones that belong to neither. Before the schools
+      // migration there is no school_id to filter on: every contact without a
+      // specialty is deanery-wide.
+      const scopes = schoolsReady
+        ? [
+            `specialty_id.eq.${orFilterValue(id!)}`,
+            "and(specialty_id.is.null,school_id.is.null)",
+            ...(schoolId ? [`school_id.eq.${orFilterValue(schoolId)}`] : []),
+          ]
+        : [`specialty_id.eq.${orFilterValue(id!)}`, "specialty_id.is.null"];
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
@@ -209,7 +215,7 @@ const SpecialtyDetail = () => {
     },
     // Ids land inside an `or` filter expression, so only run it for well-formed uuids,
     // and only once the specialty says which school it is in.
-    enabled: isUuid(id) && !!specialty && (!schoolId || isUuid(schoolId)),
+    enabled: isUuid(id) && !!specialty && schoolsReady !== undefined && (!schoolId || isUuid(schoolId)),
   });
 
   const reorderSubsections = useMutation({
