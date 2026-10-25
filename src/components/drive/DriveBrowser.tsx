@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useContext } from "react";
+import { useState, useMemo, useRef, useEffect, useContext, type ReactNode } from "react";
 import {
   DragProvider, slotForEdge, useDropTarget,
   type DragSource, type DropEvent,
@@ -84,6 +84,19 @@ interface DriveBrowserProps {
   arrivalKey?: string;
   /** Called once the highlighted file has been opened, to drop `?open=1`. */
   onOpenedHighlighted?: () => void;
+  /**
+   * A folder to treat as the top of the browser, for a subpage in the pages
+   * layout: the trail starts at it, Back stops at it, and anything added at
+   * the top goes into it. Left out, the top is the section itself.
+   */
+  rootFolderId?: string | null;
+  /**
+   * Folders not to list. In the pages layout these are the subpages, which
+   * have a place of their own in the page tree rather than among the files.
+   */
+  hiddenFolderIds?: ReadonlySet<string>;
+  /** Drawn between the toolbar and the list for the folder being looked at (null at the top). */
+  renderIntro?: (folder: Tables<"resource_folders"> | null) => ReactNode;
 }
 
 /** A selection id for a folder. Files are stored under their own id. */
@@ -95,11 +108,12 @@ export function DriveBrowser({
   subsection, specialtyId, resources, folders, canManage, openFolderId,
   categories = [], allFolders = [],
   highlightId, openHighlighted, arrivalKey, onOpenedHighlighted,
+  rootFolderId = null, hiddenFolderIds, renderIntro,
 }: DriveBrowserProps) {
   const queryClient = useQueryClient();
 
   /* ---------- Local state ---------- */
-  const [currentFolderId, setCurrentFolderId] = useState<string | null>(openFolderId ?? null);
+  const [currentFolderId, setCurrentFolderId] = useState<string | null>(openFolderId ?? rootFolderId);
   const [selection, setSelection] = useState<Set<string>>(new Set()); // ids of selected items (files or `folder-row:id`)
 
   // Following a second folder result while already in the drive changes the
@@ -123,7 +137,7 @@ export function DriveBrowser({
   // front of you, even if you had drilled somewhere else in the meantime.
   useEffect(() => {
     if (!highlightId) return;
-    setCurrentFolderId(openFolderId ?? null);
+    setCurrentFolderId(openFolderId ?? rootFolderId);
     setHighlighted(highlightId);
     setSelection(new Set());
     arrivedRef.current = false;
@@ -181,6 +195,23 @@ export function DriveBrowser({
   const currentFolder = useMemo(
     () => folders.find((f) => f.id === currentFolderId) ?? null,
     [folders, currentFolderId]
+  );
+  const rootFolder = useMemo(
+    () => (rootFolderId ? folders.find((f) => f.id === rootFolderId) ?? null : null),
+    [folders, rootFolderId]
+  );
+  const atRoot = (currentFolder?.id ?? null) === rootFolderId;
+  // The trail from the top of this browser down to where you are, without the
+  // top itself: that is the crumb the trail starts from.
+  const trailFromRoot = (() => {
+    const full = folderPath(folders, currentFolder?.id ?? null);
+    if (!rootFolderId) return full;
+    const at = full.findIndex((f) => f.id === rootFolderId);
+    return at === -1 ? full : full.slice(at + 1);
+  })();
+  const listedFolders = useMemo(
+    () => (hiddenFolderIds?.size ? folders.filter((f) => !hiddenFolderIds.has(f.id)) : folders),
+    [folders, hiddenFolderIds]
   );
 
 
@@ -744,7 +775,7 @@ export function DriveBrowser({
       // A breadcrumb moves things back up to that level; "crumb:root" is the
       // section, which is where a folder with no parent belongs.
       const crumb = overId.replace("crumb:", "");
-      return { folderId: crumb === "root" ? null : crumb };
+      return { folderId: crumb === "root" ? rootFolderId : crumb };
     }
     if (overId === "section-root") return { folderId: currentFolder?.id ?? null };
     return null;
@@ -999,7 +1030,7 @@ export function DriveBrowser({
    * one step further. `flattenDrive` works that out; this draws it.
    */
   const rows = flattenDrive({
-    folders,
+    folders: listedFolders,
     files: resources,
     rootId: currentFolder?.id ?? null,
     expanded,
@@ -1202,7 +1233,7 @@ export function DriveBrowser({
       <MaybeDragProvider host={!!dragHost} handlers={dragHandlers}>
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
-        {currentFolder && (
+        {!atRoot && (
           <Button
             variant="ghost"
             size="sm"
@@ -1212,7 +1243,7 @@ export function DriveBrowser({
               // meaning "the section" would throw away two steps of context.
               const trail = folderPath(folders, currentFolder?.id ?? null);
               const parent = trail.length > 1 ? trail[trail.length - 2].id : null;
-              setCurrentFolderId(parent);
+              setCurrentFolderId(parent ?? rootFolderId);
               clearSelection();
             }}
             aria-label="Up one level"
@@ -1221,9 +1252,9 @@ export function DriveBrowser({
           </Button>
         )}
         <Breadcrumb
-          subsectionName={subsection.name}
-          path={folderPath(folders, currentFolder?.id ?? null)}
-          onNavigate={(id) => { setCurrentFolderId(id); clearSelection(); }}
+          subsectionName={rootFolder?.name ?? subsection.name}
+          path={trailFromRoot}
+          onNavigate={(id) => { setCurrentFolderId(id ?? rootFolderId); clearSelection(); }}
         />
         <div className="ml-auto flex items-center gap-1.5 flex-wrap">
           <SortMenu sort={sort} onChange={setSort} />
@@ -1293,6 +1324,8 @@ export function DriveBrowser({
           )}
         </div>
       </div>
+
+      {renderIntro?.(atRoot ? null : currentFolder)}
 
       {uploading && uploadProgress.total > 0 && (
         <UploadProgressBar

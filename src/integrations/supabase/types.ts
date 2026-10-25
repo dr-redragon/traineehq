@@ -615,8 +615,11 @@ export type Database = {
       }
       resource_folders: {
         Row: {
+          body: string | null
+          body_updated_at: string | null
           created_at: string
           id: string
+          is_page: boolean
           name: string
           parent_folder_id: string | null
           sort_order: number | null
@@ -625,8 +628,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          body?: string | null
+          body_updated_at?: string | null
           created_at?: string
           id?: string
+          is_page?: boolean
           name: string
           parent_folder_id?: string | null
           sort_order?: number | null
@@ -635,8 +641,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          body?: string | null
+          body_updated_at?: string | null
           created_at?: string
           id?: string
+          is_page?: boolean
           name?: string
           parent_folder_id?: string | null
           sort_order?: number | null
@@ -774,6 +783,7 @@ export type Database = {
           id: string
           is_active: boolean
           name: string
+          page_layout: string
           parent_specialty_id: string | null
           school_id: string | null
           short_name: string
@@ -790,6 +800,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name: string
+          page_layout?: string
           parent_specialty_id?: string | null
           school_id?: string | null
           short_name: string
@@ -806,6 +817,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           name?: string
+          page_layout?: string
           parent_specialty_id?: string | null
           school_id?: string | null
           short_name?: string
@@ -956,6 +968,8 @@ export type Database = {
       }
       subsections: {
         Row: {
+          body: string | null
+          body_updated_at: string | null
           created_at: string
           id: string
           name: string
@@ -964,6 +978,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          body?: string | null
+          body_updated_at?: string | null
           created_at?: string
           id?: string
           name: string
@@ -972,6 +988,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          body?: string | null
+          body_updated_at?: string | null
           created_at?: string
           id?: string
           name?: string
