@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { pageTextSummary, parseInline, parsePageText, safeHref, toggleLinePrefix } from "./pageText";
+import {
+  pageTextSnippet, pageTextSummary, parseInline, parsePageText, safeHref, toggleLinePrefix,
+} from "./pageText";
 
 describe("parsePageText", () => {
   it("is empty for no text", () => {
@@ -89,5 +91,29 @@ describe("toggleLinePrefix", () => {
 
   it("replaces another marker rather than stacking", () => {
     expect(toggleLinePrefix("- Dates", 3, 3, "## ").value).toBe("## Dates");
+  });
+});
+
+describe("pageTextSnippet", () => {
+  const text = "## Overview\nEvery doctor, including LTFT, must have an **ARCP** at least once every 12 calendar months. Form R is required before each one.";
+
+  it("shows the words around the match, without markup", () => {
+    const snippet = pageTextSnippet(text, "arcp", 20)!;
+    expect(snippet).toContain("ARCP");
+    expect(snippet).not.toContain("**");
+    expect(snippet.startsWith("…")).toBe(true);
+    expect(snippet.endsWith("…")).toBe(true);
+  });
+
+  it("does not cut words in half", () => {
+    const snippet = pageTextSnippet(text, "Form R", 15)!;
+    for (const word of snippet.replace(/…/g, "").split(" ")) {
+      expect(text.replace(/\*\*/g, "")).toContain(word);
+    }
+  });
+
+  it("is null when the term is not in the text", () => {
+    expect(pageTextSnippet(text, "viva")).toBeNull();
+    expect(pageTextSnippet(null, "arcp")).toBeNull();
   });
 });

@@ -3,12 +3,14 @@ import { useQuery } from "@tanstack/react-query";
 
 import { supabase } from "@/integrations/supabase/client";
 import { orIlikePattern } from "@/lib/queryFilters";
+import { pageTextSnippet } from "@/lib/pageText";
 import { useVisibleSpecialties } from "@/hooks/useVisibleSpecialties";
+import { usePagesReady } from "@/hooks/usePagesReady";
 import {
   keepVisible, matchesTerm, toVisibleIdSet,
 } from "@/lib/searchVisibility";
 
-export type SearchKind = "specialty" | "folder" | "resource" | "contact" | "discussion";
+export type SearchKind = "specialty" | "page" | "folder" | "resource" | "contact" | "discussion";
 
 /** A resource with the specialty it hangs off, reached through its subsection. */
 interface ResourceRow {
@@ -25,6 +27,24 @@ interface FolderRow {
   name: string;
   subsection_id: string;
   parent_folder_id: string | null;
+  subsections: { specialty_id: string; specialties: { short_name: string } };
+}
+
+/** A section, as a page: found by its name or by its text. */
+export interface SectionPageRow {
+  id: string;
+  name: string;
+  body: string | null;
+  specialty_id: string;
+  specialties: { short_name: string };
+}
+
+/** A folder found by its text. Its name is the folder search's to find. */
+export interface FolderTextRow {
+  id: string;
+  name: string;
+  body: string | null;
+  subsection_id: string;
   subsections: { specialty_id: string; specialties: { short_name: string } };
 }
 
@@ -51,6 +71,7 @@ export interface SearchHit {
 
 export const KIND_LABELS: Record<SearchKind, string> = {
   specialty: "Specialties",
+  page: "Pages",
   folder: "Folders",
   resource: "Resources",
   contact: "Contacts",
@@ -58,7 +79,7 @@ export const KIND_LABELS: Record<SearchKind, string> = {
 };
 
 /** The order groups appear in — most specific first. */
-export const KIND_ORDER: SearchKind[] = ["specialty", "folder", "resource", "contact", "discussion"];
+export const KIND_ORDER: SearchKind[] = ["specialty", "page", "folder", "resource", "contact", "discussion"];
 
 /**
  * A place in a specialty's drive. `folder` is the folder to stand in (none is
@@ -77,6 +98,54 @@ export function drivePath(
   return `/specialty/${specialtyId}?${params}`;
 }
 
+/**
+ * Results for the text written on sections and folders.
+ *
+ * A section is a page in either layout, so it is found by its name as well as
+ * its text. A folder is found here only by its text: by name it is already a
+ * folder result, and listing it twice would be noise. The second line says
+ * where in the text the term is, so the reader can tell a page that is about
+ * ARCP from one that mentions it once.
+ *
+ * Both go to the place the text is shown: the top of the section, or inside
+ * the folder (which the pages layout turns into the page that holds it).
+ */
+export function pageHits(
+  sections: readonly SectionPageRow[],
+  folders: readonly FolderTextRow[],
+  query: string,
+  { skipFolderIds = new Set<string>() }: { skipFolderIds?: ReadonlySet<string> } = {},
+): SearchHit[] {
+  const term = query.toLowerCase();
+  const describe = (specialty: string | undefined, body: string | null) =>
+    [specialty, pageTextSnippet(body, query) ?? undefined].filter(Boolean).join(" · ");
+
+  // Name matches first: a page called "ARCP" is a better answer to "arcp"
+  // than one that mentions it in passing.
+  const ordered = [...sections].sort(
+    (a, b) => Number(b.name.toLowerCase().includes(term)) - Number(a.name.toLowerCase().includes(term)),
+  );
+
+  return [
+    ...ordered.map((s) => ({
+      key: `page-section-${s.id}`,
+      kind: "page" as const,
+      label: s.name,
+      sublabel: describe(s.specialties?.short_name, s.body),
+      path: drivePath(s.specialty_id, s.id),
+    })),
+    ...folders
+      .filter((f) => !skipFolderIds.has(f.id))
+      .map((f) => ({
+        key: `page-folder-${f.id}`,
+        kind: "page" as const,
+        label: f.name,
+        sublabel: describe(f.subsections?.specialties?.short_name, f.body),
+        path: drivePath(f.subsections.specialty_id, f.subsection_id, { folder: f.id }),
+      })),
+  ];
+}
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);
   useEffect(() => {
@@ -87,7 +156,8 @@ function useDebounce<T>(value: T, delay: number): T {
 }
 
 /**
- * Everything the search box can find, across the four things worth finding.
+ * Everything the search box can find: specialties, pages and their text,
+ * folders, files, contacts and discussions.
  *
  * Pulled out of the old command dialog so the header's inline box and anything
  * else that wants to search run the same four queries and rank them the same
@@ -125,6 +195,9 @@ export function useGlobalSearch(
   // after would flash other people's rows on screen, and searching with an
   // empty scope would ask PostgREST for `in.()`, which is a syntax error.
   const on = enabled && query.length > 0 && scopeLoaded && idList.length > 0;
+  // Page text exists only once 20261025090000 is applied; before that, asking
+  // for `body` is a 400 for every keystroke.
+  const pagesReady = usePagesReady();
 
   // No query of its own: the visible specialties are already loaded for the
   // rail, so this is a filter over them. That also makes it impossible for the
@@ -155,6 +228,37 @@ export function useGlobalSearch(
       return data ?? [];
     },
     enabled: on,
+  });
+
+  // Sections by name or text, and folders by text. Text can be long, so only
+  // what the result line needs comes back — the snippet is cut on the client.
+  const sectionPages = useQuery({
+    queryKey: ["search-section-pages", query, idList, full],
+    queryFn: async () => {
+      const pattern = orIlikePattern(query);
+      const { data } = await supabase
+        .from("subsections")
+        .select("id, name, body, specialty_id, specialties!inner(short_name)")
+        .or(`name.ilike.${pattern},body.ilike.${pattern}`)
+        .in("specialty_id", idList)
+        .limit(limit(4));
+      return data ?? [];
+    },
+    enabled: on && !!pagesReady,
+  });
+
+  const folderText = useQuery({
+    queryKey: ["search-folder-text", query, idList, full],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("resource_folders")
+        .select("id, name, body, subsection_id, subsections!inner(specialty_id, specialties!inner(short_name))")
+        .ilike("body", `%${query}%`)
+        .in("subsections.specialty_id", idList)
+        .limit(limit(4));
+      return data ?? [];
+    },
+    enabled: on && !!pagesReady,
   });
 
   const resources = useQuery({
@@ -218,6 +322,16 @@ export function useGlobalSearch(
     (f) => f.subsections?.specialty_id,
     visibleIds,
   );
+  const visibleSectionPages = keepVisible(
+    (sectionPages.data ?? []) as unknown as SectionPageRow[],
+    (s) => s.specialty_id,
+    visibleIds,
+  );
+  const visibleFolderText = keepVisible(
+    (folderText.data ?? []) as unknown as FolderTextRow[],
+    (f) => f.subsections?.specialty_id,
+    visibleIds,
+  );
   const visibleResources = keepVisible(
     (resources.data ?? []) as ResourceRow[],
     (r) => r.subsections?.specialty_id,
@@ -250,6 +364,11 @@ export function useGlobalSearch(
       iconName: s.icon_name,
     });
   }
+  hits.push(
+    ...pageHits(visibleSectionPages, visibleFolderText, query, {
+      skipFolderIds: new Set(visibleFolders.map((f) => f.id)),
+    }),
+  );
   for (const f of visibleFolders) {
     hits.push({
       key: `folder-${f.id}`,
@@ -307,7 +426,8 @@ export function useGlobalSearch(
     // The scope counts as fetching too, so the box says "Searching…" while it
     // loads rather than "Nothing matches" against a scope it does not have yet.
     isFetching:
-      scopeFetching || folders.isFetching || resources.isFetching ||
+      scopeFetching || sectionPages.isFetching || folderText.isFetching ||
+      folders.isFetching || resources.isFetching ||
       contacts.isFetching || discussions.isFetching,
   };
 }

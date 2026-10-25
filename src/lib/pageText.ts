@@ -153,3 +153,22 @@ export function toggleLinePrefix(
     .join("\n");
   return { value: value.slice(0, from) + next + value.slice(to), selectionStart: from, selectionEnd: from + next.length };
 }
+
+/**
+ * A few words of a page's text around where a search term appears, for a
+ * search result's second line, so it says *why* the page matched. Null when
+ * the term is not in the text (the page matched on its name).
+ */
+export function pageTextSnippet(input: string | null | undefined, term: string, radius = 60): string | null {
+  const plain = pageTextSummary(input, Number.MAX_SAFE_INTEGER);
+  const needle = term.trim().toLowerCase();
+  if (!plain || !needle) return null;
+  const at = plain.toLowerCase().indexOf(needle);
+  if (at === -1) return null;
+  // Out to a word boundary on each side rather than mid-word.
+  let from = Math.max(0, at - radius);
+  let to = Math.min(plain.length, at + needle.length + radius);
+  if (from > 0) from = plain.indexOf(" ", from) + 1 || from;
+  if (to < plain.length) to = plain.lastIndexOf(" ", to) > at + needle.length ? plain.lastIndexOf(" ", to) : to;
+  return `${from > 0 ? "…" : ""}${plain.slice(from, to).trim()}${to < plain.length ? "…" : ""}`;
+}

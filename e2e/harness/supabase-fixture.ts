@@ -262,7 +262,9 @@ function registerApi(body: { action?: string }) {
 const TABLES: Record<string, unknown[]> = {
   deaneries: [DEANERY],
   specialties: SPECIALTIES,
-  subsections: SUBSECTIONS,
+  // With its specialty embedded, as the search box selects it: a page result
+  // names the specialty it is in.
+  subsections: SUBSECTIONS.map((s) => ({ ...s, specialties: { short_name: specOf(s.specialty_id)?.short_name ?? "" } })),
   resources: RESOURCES.map(withSub),
   discussions: DISCUSSIONS,
   discussion_comments: COMMENTS,
