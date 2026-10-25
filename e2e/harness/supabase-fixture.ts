@@ -22,25 +22,27 @@
 const DEANERY = { id: "dny-1", name: "North West", slug: "north-west", is_active: true };
 
 const SPECIALTIES = [
-  { id: "sp-1", name: "Otolaryngology", short_name: "ENT", icon_name: "Stethoscope", color: "8 85% 50%", parent_specialty_id: null, sort_order: 1, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
-  { id: "sp-2", name: "Trauma & Orthopaedics", short_name: "T&O", icon_name: "Bone", color: "20 5% 12%", parent_specialty_id: null, sort_order: 2, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
-  { id: "sp-3", name: "General Surgery", short_name: "Gen Surg", icon_name: "Scissors", color: "0 2% 37%", parent_specialty_id: null, sort_order: 3, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
-  { id: "sp-4", name: "Upper GI", short_name: "Upper GI", icon_name: "Activity", color: "0 2% 48%", parent_specialty_id: "sp-3", sort_order: 4, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
-  { id: "sp-5", name: "Colorectal", short_name: "Colorectal", icon_name: "Activity", color: "0 2% 48%", parent_specialty_id: "sp-3", sort_order: 5, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
-  { id: "sp-6", name: "Vascular Surgery", short_name: "Vascular", icon_name: "HeartPulse", color: "8 87% 46%", parent_specialty_id: "sp-3", sort_order: 6, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
-  { id: "sp-7", name: "Paediatric Surgery", short_name: "Paeds", icon_name: "Baby", color: "0 2% 60%", parent_specialty_id: null, sort_order: 7, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
-  { id: "sp-8", name: "Urology", short_name: "Urology", icon_name: "Droplet", color: "0 2% 37%", parent_specialty_id: null, sort_order: 8, deanery_id: DEANERY.id, is_active: true, deleted_at: null },
+  { id: "sp-1", name: "Otolaryngology", short_name: "ENT", icon_name: "Stethoscope", color: "8 85% 50%", parent_specialty_id: null, sort_order: 1, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
+  { id: "sp-2", name: "Trauma & Orthopaedics", short_name: "T&O", icon_name: "Bone", color: "20 5% 12%", parent_specialty_id: null, sort_order: 2, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
+  { id: "sp-3", name: "General Surgery", short_name: "Gen Surg", icon_name: "Scissors", color: "0 2% 37%", parent_specialty_id: null, sort_order: 3, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
+  { id: "sp-4", name: "Upper GI", short_name: "Upper GI", icon_name: "Activity", color: "0 2% 48%", parent_specialty_id: "sp-3", sort_order: 4, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
+  { id: "sp-5", name: "Colorectal", short_name: "Colorectal", icon_name: "Activity", color: "0 2% 48%", parent_specialty_id: "sp-3", sort_order: 5, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
+  { id: "sp-6", name: "Vascular Surgery", short_name: "Vascular", icon_name: "HeartPulse", color: "8 87% 46%", parent_specialty_id: "sp-3", sort_order: 6, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
+  { id: "sp-7", name: "Paediatric Surgery", short_name: "Paeds", icon_name: "Baby", color: "0 2% 60%", parent_specialty_id: null, sort_order: 7, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
+  { id: "sp-8", name: "Urology", short_name: "Urology", icon_name: "Droplet", color: "0 2% 37%", parent_specialty_id: null, sort_order: 8, deanery_id: DEANERY.id, is_active: true, deleted_at: null, page_layout: "classic" },
   // Withdrawn by an admin: still in the table, still readable to the people
   // assigned to it, and deliberately absent from the rail, the search box and
   // its own page. It is here so the preview demonstrates that rather than
   // leaving it to a unit test.
-  { id: "sp-9", name: "Ophthalmology", short_name: "Ophthalmology", icon_name: "Eye", color: "0 2% 37%", parent_specialty_id: null, sort_order: 9, deanery_id: DEANERY.id, is_active: false, deleted_at: null },
+  { id: "sp-9", name: "Ophthalmology", short_name: "Ophthalmology", icon_name: "Eye", color: "0 2% 37%", parent_specialty_id: null, sort_order: 9, deanery_id: DEANERY.id, is_active: false, deleted_at: null, page_layout: "classic" },
 ];
 
 const SUBSECTIONS = [
   { id: "sub-1", specialty_id: "sp-1", name: "Curriculum", sort_order: 1 },
   { id: "sub-2", specialty_id: "sp-1", name: "Operative Videos", sort_order: 2 },
-  { id: "sub-3", specialty_id: "sp-1", name: "FRCS Preparation", sort_order: 3 },
+  // Text of its own, so the preview shows a section with words above its
+  // files in both layouts.
+  { id: "sub-3", specialty_id: "sp-1", name: "FRCS Preparation", sort_order: 3, body_updated_at: "2026-09-18T09:00:00Z", body: "## Overview\nThe FRCS (ORL-HNS) is taken in two sections. Most trainees sit Section 1 in ST6 and Section 2 within the following year.\n\n- Book study leave at least **eight weeks** ahead.\n- Regional viva practice runs every spring.\n\n> Please note: application windows close earlier than the exam dates suggest. Check [the JCIE site](https://www.jcie.org.uk) before you plan leave." },
   { id: "sub-4", specialty_id: "sp-1", name: "Guidelines", sort_order: 4 },
   { id: "sub-5", specialty_id: "sp-1", name: "Audit & QI", sort_order: 5 },
   { id: "sub-6", specialty_id: "sp-9", name: "Cataract Surgery", sort_order: 1 },
@@ -84,7 +86,8 @@ const withSub = <T extends { subsection_id: string }>(r: T) => {
 // demonstrate none of the behaviour that matters.
 const FOLDERS = [
   { id: "fd-1", name: "Audit templates", subsection_id: "sub-5", parent_folder_id: null, subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
-  { id: "fd-2", name: "Past papers", subsection_id: "sub-3", parent_folder_id: null, subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z" },
+  // A folder that is a subpage in the pages layout, with text of its own.
+  { id: "fd-2", name: "Past papers", subsection_id: "sub-3", parent_folder_id: null, subheading: null, sort_order: 1, created_at: "2026-08-01T09:00:00Z", updated_at: "2026-08-01T09:00:00Z", is_page: true, body_updated_at: "2026-09-12T09:00:00Z", body: "Papers recalled by trainees after each sitting, grouped by year. They are recollections, not official papers.\n\n1. Start with the most recent sitting.\n2. Time yourself: 2 hours per paper." },
   { id: "fd-4", name: "2026 sitting", subsection_id: "sub-3", parent_folder_id: "fd-2", subheading: null, sort_order: 1, created_at: "2026-08-02T09:00:00Z", updated_at: "2026-09-01T09:00:00Z" },
   { id: "fd-5", name: "2025 sitting", subsection_id: "sub-3", parent_folder_id: "fd-2", subheading: null, sort_order: 2, created_at: "2026-08-02T09:00:00Z", updated_at: "2026-08-02T09:00:00Z" },
   { id: "fd-6", name: "Section 1", subsection_id: "sub-3", parent_folder_id: "fd-4", subheading: null, sort_order: 1, created_at: "2026-08-03T09:00:00Z", updated_at: "2026-08-03T09:00:00Z" },
@@ -410,11 +413,16 @@ function valueAt(row: Row, path: string): unknown {
 function builder(table: string) {
   let rows = [...((TABLES[table] ?? []) as Row[])];
 
+  // Copies, as the real client returns fresh JSON every time. Handing back
+  // the rows themselves meant an update below changed the objects already in
+  // React Query's cache, so the refetch after a save compared equal to them
+  // and the page never redrew.
+  const copies = () => rows.map((r) => ({ ...r }));
   const chain: Record<string, unknown> = {
     then: (resolve: (v: unknown) => unknown) =>
-      Promise.resolve({ data: rows, error: null, count: rows.length }).then(resolve),
-    single: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
-    maybeSingle: () => Promise.resolve({ data: rows[0] ?? null, error: null }),
+      Promise.resolve({ data: copies(), error: null, count: rows.length }).then(resolve),
+    single: () => Promise.resolve({ data: copies()[0] ?? null, error: null }),
+    maybeSingle: () => Promise.resolve({ data: copies()[0] ?? null, error: null }),
     csv: () => Promise.resolve({ data: "", error: null }),
 
     eq: (col: string, val: unknown) => {

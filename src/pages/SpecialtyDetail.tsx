@@ -8,6 +8,8 @@ import { SpecialtyContacts } from "@/components/SpecialtyContacts";
 import { SpecialtyDiscussionPreview } from "@/components/SpecialtyDiscussionPreview";
 import { SpecialtyNoticeBoard } from "@/components/SpecialtyNoticeBoard";
 import { SectionsEditor } from "@/components/SectionsEditor";
+import { PageTextPanel } from "@/components/PageTextPanel";
+import { SpecialtyPagesView } from "@/components/SpecialtyPagesView";
 import { DriveBrowser } from "@/components/drive/DriveBrowser";
 import {
   DriveDragHostContext, isDriveDrag, isSectionDrag, type DriveDragHandlers,
@@ -27,7 +29,10 @@ import {
 import { Settings2, Users, Plus, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 import { toast } from "sonner";
-import { useCanManageSpecialty } from "@/hooks/useUserRole";
+import { useCanManageSpecialty, useUserRole } from "@/hooks/useUserRole";
+import { usePagesReady } from "@/hooks/usePagesReady";
+import { usePageContent } from "@/hooks/usePageContent";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getIcon } from "@/lib/iconMap";
 import { specialtyColorVars } from "@/lib/specialtyColor";
 import { isUuid, orFilterValue } from "@/lib/queryFilters";
@@ -58,6 +63,11 @@ const SpecialtyDetail = () => {
   // it off to see the page as a trainee does.
   const [editMode, setEditMode] = useState(true);
   const canManage = !!hasEditRights && editMode;
+  // Page text and the pages layout need 20261025090000; until it is applied
+  // every specialty is drawn classic and nothing offers to write text.
+  const pagesReady = usePagesReady();
+  const { data: role } = useUserRole();
+  const { setLayout } = usePageContent(id ?? "");
   const discussionRef = useRef<HTMLDivElement>(null);
 
   const [activeTab, setActiveTab] = useState<string | null>(null);
@@ -390,6 +400,13 @@ const SpecialtyDetail = () => {
   const countOf = (subsectionId: string) =>
     (resources ?? []).filter((r) => r.subsection_id === subsectionId).length;
 
+  // Which way the specialty is drawn. Both read the same sections, folders and
+  // files, so switching is a matter of this one column and loses nothing.
+  const layout = pagesReady && specialty.page_layout === "pages" ? "pages" : "classic";
+  // The layout is a column on the specialty, which only its deanery's admins
+  // can write — a facilitator who can edit the content is not offered it.
+  const canChooseLayout = canManage && !!pagesReady && (role === "admin" || role === "super_admin");
+
   return (
     <DashboardLayout breadcrumb={`Specialties / ${specialty.short_name}`}>
       <div className="animate-fade-in">
@@ -439,6 +456,32 @@ const SpecialtyDetail = () => {
               </h1>
             </div>
             <p className="mt-2 text-muted-foreground">{specialty.name}</p>
+            {canChooseLayout && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span id="layout-label">Layout</span>
+                <ToggleGroup
+                  type="single"
+                  size="sm"
+                  variant="outline"
+                  value={layout}
+                  aria-labelledby="layout-label"
+                  disabled={setLayout.isPending}
+                  onValueChange={(value) => {
+                    if (value === "classic" || value === "pages") {
+                      if (value !== layout) setLayout.mutate(value);
+                    }
+                  }}
+                >
+                  <ToggleGroupItem value="classic" className="h-7 px-2.5 text-xs">Classic</ToggleGroupItem>
+                  <ToggleGroupItem value="pages" className="h-7 px-2.5 text-xs">Pages</ToggleGroupItem>
+                </ToggleGroup>
+                <span className="hidden sm:inline">
+                  {layout === "pages"
+                    ? "Pages with text, files and subpages. Switch back at any time."
+                    : "Sections and folders. Pages shows the same content as a tree of pages."}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* The notice board belongs to the specialty, not to its files, so
@@ -469,6 +512,27 @@ const SpecialtyDetail = () => {
             sections are reordered by dragging them in the rail, and files and
             folders are moved to another category by dropping them on its
             name. Each drag is routed by what was picked up. */}
+        {layout === "pages" ? (
+          <SpecialtyPagesView
+            specialty={specialty}
+            subsections={subsections ?? []}
+            resources={resources ?? []}
+            folders={resourceFolders ?? []}
+            contacts={contacts ?? []}
+            canManage={!!canManage}
+            arrivalKey={arrivalKey}
+            onOpenedHighlighted={clearOpenRequest}
+            onAddSection={(name) => addSubsection.mutate(name)}
+            onEditSections={() => setSectionsEditorOpen(true)}
+            onRenameSection={(sub) => { setRenameSubId(sub.id); setRenameSubName(sub.name); }}
+            onDeleteSection={(sub) => {
+              const others = (subsections ?? []).filter((s) => s.id !== sub.id);
+              setDeleteSubId(sub.id);
+              setDeleteAction(others.length > 0 ? "move" : "delete");
+              setMoveTargetId(others[0]?.id ?? "");
+            }}
+          />
+        ) : (
         <DriveDragHostContext.Provider value={driveDrag}>
         <DragProvider
           axis="vertical"
@@ -648,6 +712,20 @@ const SpecialtyDetail = () => {
                   categories={subsections.map((s) => ({ id: s.id, name: s.name }))}
                   allFolders={resourceFolders ?? []}
                   canManage={!!canManage}
+                  // The section's or open folder's own text, above its files.
+                  renderIntro={pagesReady ? (folder) => (
+                    <PageTextPanel
+                      key={folder?.id ?? sub.id}
+                      specialtyId={specialty.id}
+                      target={folder ? { kind: "folder", id: folder.id } : { kind: "section", id: sub.id }}
+                      name={folder?.name ?? sub.name}
+                      body={folder ? folder.body : sub.body}
+                      updatedAt={folder ? folder.body_updated_at : sub.body_updated_at}
+                      isPage={folder?.is_page}
+                      canManage={!!canManage}
+                      variant="panel"
+                    />
+                  ) : undefined}
                 />
               </TabsContent>
             );
@@ -662,6 +740,7 @@ const SpecialtyDetail = () => {
         </Tabs>
         </DragProvider>
         </DriveDragHostContext.Provider>
+        )}
 
         {/* The discussion is the specialty's, not the open category's, so it
             sits below the whole grid at full width rather than inside the

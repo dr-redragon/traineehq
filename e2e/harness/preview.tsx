@@ -19,6 +19,7 @@
 // switcher below is a component in a file with no exports, which is exactly
 // what react-refresh warns about and exactly what an entry point is.
 /* eslint-disable react-refresh/only-export-components */
+import { ThemeProvider } from "@/hooks/useTheme";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -133,6 +134,7 @@ function Switcher() {
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
       <TooltipProvider>
         <DeaneryProvider>
           <ColorSchemeSync />
@@ -158,6 +160,7 @@ createRoot(document.getElementById("root")!).render(
           <Switcher />
         </DeaneryProvider>
       </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
