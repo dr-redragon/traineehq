@@ -1,0 +1,399 @@
+import { useMemo, useState } from "react";
+import { FileText, Printer } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { YearChip } from "@/components/register/YearChip";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { availableAcademicYears, academicYearRange, sessionWhen, todayIso } from "@/lib/register/months";
+import {
+  buildReport, reportSummary, sessionStats, type ReportLayout, type ReportSection,
+} from "@/lib/register/report";
+import type { RegisterBlob } from "@/lib/register/types";
+import { cn } from "@/lib/utils";
+
+const MARK: Record<string, string> = { present: "✓", excused: "E", absent: "·", na: "–", upcoming: "" };
+
+function pctClass(pct: number | null) {
+  if (pct === null) return "text-muted-foreground";
+  if (pct >= 80) return "text-success";
+  if (pct >= 60) return "text-warning";
+  return "text-destructive";
+}
+
+export function ReportPanel({
+  blob, registerName, initialYears,
+}: {
+  blob: RegisterBlob;
+  registerName: string;
+  /** The years ticked to begin with — the ones the attendance grid was showing. */
+  initialYears?: string[];
+}) {
+  const years = useMemo(() => availableAcademicYears(blob.sessions), [blob.sessions]);
+
+  const [selected, setSelected] = useState<string[]>(() => {
+    const wanted = (initialYears ?? []).filter((y) => years.includes(y));
+    return wanted.length ? wanted : years.slice(-1);
+  });
+  const [layout, setLayout] = useState<ReportLayout>("per");
+  const [includeCct, setIncludeCct] = useState(true);
+  const [includeIdtOut, setIncludeIdtOut] = useState(true);
+  const [hideNoEligible, setHideNoEligible] = useState(true);
+  const [showSessions, setShowSessions] = useState(true);
+  const [showRaw, setShowRaw] = useState(true);
+  const [showAdj, setShowAdj] = useState(true);
+  const [summaryOnly, setSummaryOnly] = useState(false);
+  const [showSessionStats, setShowSessionStats] = useState(true);
+  const [generated, setGenerated] = useState(false);
+
+  const report = useMemo(
+    () => buildReport(blob, {
+      years: selected, layout, includeCct, includeIdtOut, hideNoEligible, asOf: todayIso(),
+    }),
+    [blob, selected, layout, includeCct, includeIdtOut, hideNoEligible],
+  );
+
+  const summary = useMemo(() => reportSummary(report.overall), [report.overall]);
+
+  const grid = showSessions && !summaryOnly;
+  const raw = showRaw && !summaryOnly;
+  const adj = showAdj && !summaryOnly;
+
+  const toggleYear = (year: string) =>
+    setSelected((s) => (s.includes(year) ? s.filter((y) => y !== year) : [...s, year]));
+
+  if (!years.length) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        There is nothing to report on yet — add a teaching day first.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Controls never print: a report that carries its own settings panel onto
+          paper looks like a screenshot rather than a document. */}
+      <Card className="print:hidden">
+        <CardContent className="grid gap-6 p-4 sm:grid-cols-3">
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Academic year · Aug – Jul
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {years.map((year) => (
+                <YearChip
+                  key={year}
+                  pressed={selected.includes(year)}
+                  title={academicYearRange(year)}
+                  onClick={() => toggleYear(year)}
+                >
+                  {year}
+                </YearChip>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-1 text-xs">
+              <button className="text-primary hover:underline" onClick={() => setSelected(years)}>
+                Select all
+              </button>
+              <button className="text-muted-foreground hover:underline" onClick={() => setSelected([])}>
+                Clear
+              </button>
+            </div>
+
+            {selected.length > 1 && (
+              <div className="space-y-1.5 pt-2">
+                <Label htmlFor="layout" className="text-xs">Layout</Label>
+                <Select value={layout} onValueChange={(v) => setLayout(v as ReportLayout)}>
+                  <SelectTrigger id="layout" className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="per">A table for each year</SelectItem>
+                    <SelectItem value="both">Combined overview, then each year</SelectItem>
+                    <SelectItem value="combined">One combined table</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Include trainees
+            </p>
+            {([
+              ["Who have completed training (CCT)", includeCct, setIncludeCct],
+              ["Who transferred out (IDT)", includeIdtOut, setIncludeIdtOut],
+            ] as const).map(([label, value, set]) => (
+              <Label key={label} className="flex cursor-pointer items-center gap-2 text-xs font-normal">
+                <Checkbox checked={value} onCheckedChange={(v) => set(v === true)} />
+                {label}
+              </Label>
+            ))}
+            <Label className="flex cursor-pointer items-center gap-2 text-xs font-normal">
+              <Checkbox
+                checked={hideNoEligible}
+                onCheckedChange={(v) => setHideNoEligible(v === true)}
+              />
+              Hide anyone not in programme
+            </Label>
+          </div>
+
+          <div className="space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Content
+            </p>
+            {([
+              ["Per-session grid", showSessions, setShowSessions],
+              ["Raw attendance %", showRaw, setShowRaw],
+              ["Adjusted attendance %", showAdj, setShowAdj],
+            ] as const).map(([label, value, set]) => (
+              <Label
+                key={label}
+                className={cn(
+                  "flex cursor-pointer items-center gap-2 text-xs font-normal",
+                  summaryOnly && "opacity-50",
+                )}
+              >
+                <Checkbox
+                  checked={value && !summaryOnly}
+                  disabled={summaryOnly}
+                  onCheckedChange={(v) => set(v === true)}
+                />
+                {label}
+              </Label>
+            ))}
+            <Label className="flex cursor-pointer items-center gap-2 text-xs font-normal">
+              <Checkbox
+                checked={showSessionStats}
+                onCheckedChange={(v) => setShowSessionStats(v === true)}
+              />
+              Attendance by teaching day
+            </Label>
+            <Label className="mt-2 flex cursor-pointer items-center gap-2 border-t pt-2 text-xs font-normal">
+              <Checkbox checked={summaryOnly} onCheckedChange={(v) => setSummaryOnly(v === true)} />
+              Summary only — totals, no grid or percentages
+            </Label>
+          </div>
+
+          <div className="flex flex-wrap gap-2 sm:col-span-3">
+            {/* Enabled even with nothing ticked: a disabled button with no
+                explanation leaves people hunting for what is wrong. */}
+            <Button
+              size="sm"
+              onClick={() => {
+                if (!selected.length) {
+                  toast.error("Select at least one academic year to create a report.");
+                  return;
+                }
+                setGenerated(true);
+              }}
+            >
+              <FileText className="mr-1.5 h-4 w-4" /> Generate report
+            </Button>
+            {generated && (
+              <Button size="sm" variant="outline" onClick={() => window.print()}>
+                <Printer className="mr-1.5 h-4 w-4" /> Print or save as PDF
+              </Button>
+            )}
+            {!selected.length && (
+              <p className="self-center text-xs text-muted-foreground">
+                Choose at least one academic year.
+              </p>
+            )}
+
+          </div>
+        </CardContent>
+      </Card>
+
+      {generated && selected.length > 0 && (
+        <div className="space-y-8">
+          <header className="space-y-1 border-b pb-4">
+            <h2 className="font-display text-lg font-bold">{registerName}</h2>
+            <p className="text-sm text-muted-foreground">
+              Attendance report · {report.years.join(", ")} · generated{" "}
+              {new Date().toLocaleDateString("en-GB", {
+                day: "numeric", month: "long", year: "numeric",
+              })}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {includeCct ? "Including" : "Excluding"} trainees who have completed training ·{" "}
+              {includeIdtOut ? "including" : "excluding"} those who transferred out ·{" "}
+              {hideNoEligible ? "hiding" : "showing"} anyone with no eligible day
+            </p>
+          </header>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {([
+              ["Trainees", String(summary.trainees)],
+              ["Teaching days", String(report.sessions.length)],
+              ["Cohort adjusted", summary.adjPct === null ? "—" : `${summary.adjPct}%`],
+              ["At or above 80%", `${summary.atOrAbove80} of ${summary.trainees}`],
+            ] as const).map(([label, value]) => (
+              // The register's summary tile: the figure set large in the
+              // heading serif over a small-caps label, the way the register's
+              // own dashboard states its numbers.
+              <div
+                key={label}
+                className="rounded-lg border border-border bg-card p-4 shadow-register print:shadow-none"
+              >
+                <p className="font-display text-2xl font-bold tabular-nums text-register-ink">
+                  {value}
+                </p>
+                <p className="mt-1 text-[11px] uppercase tracking-wider text-muted-foreground">
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {report.sections.map((section) => (
+            <section key={section.title} className="space-y-2 break-inside-avoid">
+              <div>
+                <h3 className="text-sm font-semibold">{section.title}</h3>
+                <p className="text-xs text-muted-foreground">{section.subtitle}</p>
+              </div>
+
+              {section.rows.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No trainees to report for this period.</p>
+              ) : (
+                <div className="overflow-x-auto rounded-lg border print:overflow-visible print:rounded-none">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-register-ink [&_th]:font-bold">
+                        <th className="px-3 py-2 font-medium">Trainee</th>
+                        {grid && section.sessions.map((s) => (
+                          <th key={s.id} className="px-1 py-2 text-center text-[11px] font-medium">
+                            {sessionWhen(s)}
+                          </th>
+                        ))}
+                        <th className="px-2 py-2 text-right font-medium">Att/Elig</th>
+                        {raw && <th className="px-2 py-2 text-right font-medium">Raw</th>}
+                        {adj && <th className="px-3 py-2 text-right font-medium">Adjusted</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.rows.map((row) => (
+                        <tr key={row.trainee.id} className="border-b last:border-0">
+                          <td className="px-3 py-1.5 font-medium">{row.trainee.name}</td>
+                          {grid && row.cells.map((cell) => (
+                            <td key={cell.session.id} className="px-1 py-1.5 text-center text-xs">
+                              {MARK[cell.state]}
+                            </td>
+                          ))}
+                          <td className="px-2 py-1.5 text-right tabular-nums">
+                            {row.attended}/{row.adjDenom > 0 ? row.adjDenom : row.eligible}
+                          </td>
+                          {raw && (
+                            <td className={cn("px-2 py-1.5 text-right tabular-nums", pctClass(row.total ? row.rawPct : null))}>
+                              {row.total ? `${row.rawPct}%` : "—"}
+                            </td>
+                          )}
+                          {adj && (
+                            <td className={cn("px-3 py-1.5 text-right font-semibold tabular-nums", pctClass(row.adjPct))}>
+                              {row.adjPct === null ? "—" : `${row.adjPct}%`}
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {showSessionStats && section.sessions.length > 0 && (
+                <SessionStatsTable blob={blob} section={section} showRate={!summaryOnly} />
+              )}
+            </section>
+          ))}
+
+          <footer className="space-y-1 border-t pt-4 text-[11px] text-muted-foreground">
+            {grid && (
+              <p>✓ attended · E excused · · missed · – not eligible (leave, pre-start or post-CCT)</p>
+            )}
+            <p>
+              Adjusted attendance excludes months a trainee was not in programme, and excused
+              absences, from the denominator. Raw counts every teaching day in the period.
+            </p>
+            {summary.below60 > 0 && (
+              <p>
+                <Badge variant="secondary" className="text-[10px]">
+                  {summary.below60} below 60%
+                </Badge>
+              </p>
+            )}
+          </footer>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Attendance by teaching day: one row per day, counted over the same trainees
+ * as the section's table above it, so the report's filters apply to both.
+ */
+function SessionStatsTable({
+  blob, section, showRate,
+}: {
+  blob: RegisterBlob;
+  section: ReportSection;
+  showRate: boolean;
+}) {
+  const stats = sessionStats(blob, section.rows, section.sessions, todayIso());
+  const held = stats.filter((s) => !s.upcoming);
+  const rated = held.filter((s) => s.rate !== null);
+  const meanAttended = held.length
+    ? (held.reduce((n, s) => n + s.attended, 0) / held.length).toFixed(1)
+    : null;
+  const meanRate = rated.length
+    ? Math.round(rated.reduce((n, s) => n + (s.rate ?? 0), 0) / rated.length)
+    : null;
+
+  return (
+    <div className="space-y-1 pt-3">
+      <h4 className="text-xs font-semibold">Attendance by teaching day</h4>
+      <p className="text-[11px] text-muted-foreground">
+        {meanAttended !== null && `Mean ${meanAttended} attending per day`}
+        {showRate && meanRate !== null && ` · mean ${meanRate}% of those expected`}
+        {showRate && " · excused and not-eligible trainees are left out of the rate"}
+      </p>
+      <div className="overflow-x-auto rounded-lg border print:overflow-visible print:rounded-none">
+        <table className="w-full border-collapse text-sm">
+          <thead>
+            <tr className="border-b border-border bg-muted text-left text-[11px] uppercase tracking-wider text-register-ink [&_th]:font-bold">
+              <th className="px-3 py-2 font-medium">Date</th>
+              <th className="px-2 py-2 font-medium">Teaching day</th>
+              <th className="px-2 py-2 text-right font-medium">Attended</th>
+              <th className="px-2 py-2 text-right font-medium">Absent</th>
+              <th className="px-2 py-2 text-right font-medium">Excused</th>
+              <th className="px-2 py-2 text-right font-medium">Not eligible</th>
+              <th className="px-2 py-2 text-right font-medium">Eligible</th>
+              {showRate && <th className="px-3 py-2 text-right font-medium">Attendance</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {stats.map((s) => (
+              <tr key={s.session.id} className="border-b last:border-0">
+                <td className="whitespace-nowrap px-3 py-1.5 text-muted-foreground">{sessionWhen(s.session)}</td>
+                <td className="px-2 py-1.5 font-medium">{s.session.title}</td>
+                <td className="px-2 py-1.5 text-right font-semibold tabular-nums">{s.attended}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{s.upcoming ? "—" : s.absent}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{s.excused}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums text-muted-foreground">{s.notEligible}</td>
+                <td className="px-2 py-1.5 text-right tabular-nums">{s.eligible}</td>
+                {showRate && (
+                  <td className={cn("px-3 py-1.5 text-right font-semibold tabular-nums", pctClass(s.rate))}>
+                    {s.upcoming ? "upcoming" : s.rate === null ? "—" : `${s.rate}%`}
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

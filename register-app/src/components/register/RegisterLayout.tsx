@@ -1,0 +1,105 @@
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { CircleUser, LogOut } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useRegister } from "@/contexts/RegisterContext";
+import { RegisterMasthead } from "@/components/register/RegisterMasthead";
+import { useClaimInvites } from "@/hooks/useClaimInvites";
+import { APP_NAME } from "@/lib/brand";
+
+/**
+ * The signed-in shell: masthead, register switcher, account and sign-out.
+ *
+ * It also accepts, once per sign-in, any invitation addressed to the address
+ * this person signed in with — so somebody invited never has to find the
+ * email. They sign in and the register is in their list.
+ */
+export function RegisterLayout() {
+  const { activeRegister, myRegisters, setActiveRegisterSlug } = useRegister();
+  const navigate = useNavigate();
+  const { search, pathname } = useLocation();
+  useClaimInvites();
+
+  // The switcher names the register on screen; on the list or the account
+  // page there is none, and it should not pretend otherwise.
+  const onRegister = /^\/registers\/[^/]+/.test(pathname);
+
+  /**
+   * Switching register opens it. The tab comes along — somebody on the day tab
+   * of one register wants the same tab of the next — but the year and the day
+   * do not, since they belong to the register left.
+   */
+  const switchTo = (slug: string) => {
+    setActiveRegisterSlug(slug);
+    const tab = new URLSearchParams(search).get("tab");
+    navigate(`/registers/${slug}${tab && onRegister ? `?tab=${encodeURIComponent(tab)}` : ""}`);
+  };
+
+  const switcher = (className: string) => (
+    <Select value={onRegister ? activeRegister?.slug : ""} onValueChange={switchTo}>
+      <SelectTrigger
+        aria-label="Switch register"
+        className={`${className} border-white/25 bg-white/10 text-register-deep-foreground focus:ring-register-gold [&>svg]:opacity-70`}
+      >
+        <SelectValue placeholder="Open a register" />
+      </SelectTrigger>
+      <SelectContent>
+        {myRegisters.map((r) => (
+          <SelectItem key={r.slug} value={r.slug} className="text-xs">{r.name}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const ghost =
+    "text-xs text-register-deep-foreground hover:bg-white/10 hover:text-register-deep-foreground";
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      {/* Two rows on a phone, one on a laptop: the switcher is the widest thing
+          here and the least willing to shrink, so on small screens it drops to
+          its own full-width row instead of being squeezed. */}
+      <RegisterMasthead
+        href="/registers"
+        actions={
+          <>
+            {myRegisters.length > 1 && (
+              <div className="hidden sm:block">{switcher("h-9 w-[240px] text-xs")}</div>
+            )}
+            {/* Labels collapse to icons on a phone; each keeps an accessible name. */}
+            <Button asChild variant="ghost" size="sm" className={ghost}>
+              <Link to="/account" aria-label="Account">
+                <CircleUser className="h-3.5 w-3.5 sm:mr-1.5" />
+                <span className="hidden sm:inline">Account</span>
+              </Link>
+            </Button>
+            <Button variant="ghost" size="sm" className={ghost} aria-label="Sign out"
+              onClick={() => supabase.auth.signOut()}>
+              <LogOut className="h-3.5 w-3.5 sm:mr-1.5" />
+              <span className="hidden sm:inline">Sign out</span>
+            </Button>
+          </>
+        }
+        below={
+          myRegisters.length > 1 ? (
+            <div className="pt-3 sm:hidden">{switcher("h-9 w-full text-xs")}</div>
+          ) : null
+        }
+      />
+
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:py-8">
+        <Outlet />
+      </main>
+
+      <footer className="border-t py-4 print:hidden">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-1 px-4 text-xs text-muted-foreground">
+          <span>{APP_NAME} — attendance, check-in, feedback and certificates.</span>
+          <span className="flex-1" />
+          <Link to="/privacy" className="hover:text-foreground hover:underline">Privacy</Link>
+          <Link to="/terms" className="hover:text-foreground hover:underline">Terms</Link>
+        </div>
+      </footer>
+    </div>
+  );
+}
