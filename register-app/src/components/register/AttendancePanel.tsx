@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { saveFile } from "@/lib/saveFile";
 import { Download, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,7 +41,7 @@ const csvCell = (value: string | number) => {
  * its turnout, who missed it without a reason, and the actions that follow.
  */
 export function AttendancePanel({
-  blob, slug, register, view, onEdit, onToggle,
+  blob, slug, register, view, onEdit, onToggle, canEdit = true,
 }: {
   blob: RegisterBlob;
   slug: string;
@@ -49,6 +50,8 @@ export function AttendancePanel({
   view: RegisterView;
   onEdit: (edit: RegisterEdit) => void;
   onToggle: (traineeId: string, sessionId: string, nowPresent: boolean) => void;
+  /** False for a viewer, or a register that is read-only. */
+  canEdit?: boolean;
 }) {
   const [options, setOptions] = useState<GridOptions>({
     search: "", hideNotInProgramme: true, sortKey: "name", sortDir: 1,
@@ -108,13 +111,9 @@ export function AttendancePanel({
         ...row.cells.map((c) => CSV_STATE[c.state]),
       ].map(csvCell).join(","));
     }
-    const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${slug}-attendance-${scopeLabel.replace("/", "-")}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success("Attendance exported.");
+    void saveFile(lines.join("\n"), `${slug}-attendance-${scopeLabel.replace("/", "-")}.csv`, "text/csv;charset=utf-8")
+      .then(() => toast.success("Attendance exported."))
+      .catch((e: Error) => toast.error(e.message));
   };
 
   const tiles: [string, string, boolean?][] = [
@@ -194,7 +193,7 @@ export function AttendancePanel({
                 blob={blob}
                 sessions={block.sessions}
                 onEdit={onEdit}
-                canEdit
+                canEdit={canEdit}
                 onToggle={onToggle}
                 options={options}
                 onSort={sortBy}

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { YearTabs } from "@/components/register/YearTabs";
 import { addExcusal, removeExcusal } from "@/lib/register/blob";
-import { EXCUSAL_REASONS, OTHER_REASON } from "@/lib/register/constants";
+import { excusalReasonsOf, OTHER_REASON } from "@/lib/register/constants";
 import { ALL_YEARS, academicYearOf, sessionsSorted, sessionWhen } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import type { RegisterView } from "@/hooks/useRegisterView";
@@ -44,7 +44,8 @@ export function ExcusalsPanel({
 
   const [traineeId, setTraineeId] = useState("");
   const sessionId = view.day?.id ?? "";
-  const [reason, setReason] = useState<string>(EXCUSAL_REASONS[0]);
+  const reasons = useMemo(() => excusalReasonsOf(blob), [blob]);
+  const [reason, setReason] = useState<string>(() => excusalReasonsOf(blob)[0]);
   const [otherReason, setOtherReason] = useState("");
   const [editing, setEditing] = useState<RegisterExcusal | null>(null);
 
@@ -138,7 +139,7 @@ export function ExcusalsPanel({
               <Select value={reason} onValueChange={setReason}>
                 <SelectTrigger id="ex-reason"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {EXCUSAL_REASONS.map((r) => (
+                  {reasons.map((r) => (
                     <SelectItem key={r} value={r}>{r}</SelectItem>
                   ))}
                 </SelectContent>
@@ -257,7 +258,8 @@ function EditExcusalDialog({
   onClose: () => void;
   onSave: (excusal: RegisterExcusal) => void;
 }) {
-  const listed = (EXCUSAL_REASONS as readonly string[]).includes(excusal.reason);
+  const reasons = excusalReasonsOf(blob);
+  const listed = reasons.includes(excusal.reason);
   const [traineeId, setTraineeId] = useState(excusal.trainee);
   const [sessionId, setSessionId] = useState(excusal.session);
   const [reason, setReason] = useState<string>(listed ? excusal.reason : OTHER_REASON);
@@ -295,7 +297,7 @@ function EditExcusalDialog({
             <Select value={reason} onValueChange={setReason}>
               <SelectTrigger id="ex-edit-reason"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {EXCUSAL_REASONS.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                {reasons.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

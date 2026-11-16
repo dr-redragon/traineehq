@@ -92,7 +92,7 @@ export function RegisterLayout() {
         <Outlet />
       </main>
 
-      <footer className="border-t py-4 print:hidden">
+      <footer className="border-t pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 print:hidden">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-1 px-4 text-xs text-muted-foreground">
           <span>{APP_NAME} — attendance, check-in, feedback and certificates.</span>
           <span className="flex-1" />

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { FullPageMessage } from "@/components/app/RequireAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +16,10 @@ import { takeDestination } from "@/lib/signIn";
 export default function AuthCallback() {
   const navigate = useNavigate();
   const [problem, setProblem] = useState<string | null>(null);
+  const { search } = useLocation();
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(search);
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const refused = params.get("error_description") || hash.get("error_description");
     if (refused) {
@@ -48,7 +49,7 @@ export default function AuthCallback() {
       subscription.unsubscribe();
       window.clearTimeout(timer);
     };
-  }, [navigate]);
+  }, [navigate, search]);
 
   if (!problem) return <FullPageMessage>Signing you in…</FullPageMessage>;
 

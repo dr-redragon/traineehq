@@ -16,24 +16,8 @@
     <meta property="og:description" content="A register people sign themselves: QR check-in, attendance, feedback and certificates." />
     <meta property="og:type" content="website" />
 
-    <!-- Light or dark, applied before first paint so the page never flashes the
-         wrong one. It follows the device; there is no in-app switch. The
-         `scheme-ink` class is the near-mono accent the register is drawn in. -->
-    <script>
-      (function () {
-        var root = document.documentElement;
-        root.classList.add("scheme-ink");
-        try {
-          var mq = window.matchMedia("(prefers-color-scheme: dark)");
-          var apply = function () {
-            root.classList.toggle("dark", mq.matches);
-            root.style.colorScheme = mq.matches ? "dark" : "light";
-          };
-          apply();
-          mq.addEventListener("change", apply);
-        } catch (e) { /* no matchMedia: light stands */ }
-      })();
-    </script>
+    <!-- Theme, before first paint. External so the CSP can forbid inline script. -->
+    <script src="/theme.js"></script>
   </head>
 
   <body>

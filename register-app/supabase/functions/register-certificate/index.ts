@@ -116,13 +116,16 @@ Deno.serve(async (req) => {
 
     const { data: membership } = await admin
       .from("register_members")
-      .select("user_id")
+      .select("role")
       .eq("register_id", session.register_id)
       .eq("user_id", caller.id)
       .maybeSingle();
 
     if (!membership) {
       return json({ error: "You do not have access to that register" }, 403);
+    }
+    if (membership.role === "viewer") {
+      return json({ error: "You have view-only access to this register" }, 403);
     }
 
     // Sending is a write. A regular register none of whose owners is

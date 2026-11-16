@@ -1,6 +1,7 @@
-import { useEffect, type ReactNode } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2, Lock } from "lucide-react";
+import { ArrowLeft, Eye, Loader2, Lock } from "lucide-react";
+import { toast } from "sonner";
 import { ReadOnlyNotice } from "@/components/register/ReadOnlyNotice";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -70,10 +71,11 @@ export default function RegisterDetail() {
   // A regular register whose owners have all let their subscription go can be
   // read but not written. The database refuses the write; this only stops the
   // page attempting the ones it makes by itself on load.
-  const writable = entry?.entitled ?? false;
+  const isViewer = entry?.my_role === "viewer";
+  const writable = (entry?.entitled ?? false) && !isViewer;
   const isEvent = entry?.kind === "event";
 
-  const { blob, isLoading: storeLoading, edit, isSaving } = useRegisterStore(
+  const { blob, isLoading: storeLoading, edit: save, isSaving } = useRegisterStore(
     entry?.i_am_member ? entry.id : undefined, writable,
   );
 
@@ -83,6 +85,16 @@ export default function RegisterDetail() {
   const { pushMark } = useLiveAttendanceSync(
     entry?.i_am_member ? entry.id : undefined, blob,
   );
+
+  // A viewer's edit never leaves the browser. The database would refuse it
+  // anyway; this spares the round trip and says why in plain words.
+  const edit = useCallback<typeof save>((fn) => {
+    if (isViewer) {
+      toast.message("You have view-only access to this register.");
+      return;
+    }
+    save(fn);
+  }, [isViewer, save]);
 
   const view = useRegisterView(blob.sessions);
 
@@ -157,7 +169,17 @@ export default function RegisterDetail() {
         </p>
       </div>
 
-      {!writable && <ReadOnlyNotice isOwner={entry.i_am_owner} />}
+      {isViewer ? (
+        <div className="flex items-center gap-3 border-l-4 border-rule bg-card p-4 text-sm print:hidden">
+          <Eye className="h-5 w-5 shrink-0 text-accent-deep" />
+          <p>
+            <strong>You have view-only access.</strong>{" "}
+            <span className="text-muted-foreground">
+              You can read, print and export everything here. Ask an owner if you need to make changes.
+            </span>
+          </p>
+        </div>
+      ) : !writable && <ReadOnlyNotice isOwner={entry.i_am_owner} />}
 
       {storeLoading ? (
         <Skeleton className="h-64 w-full" />
@@ -202,8 +224,10 @@ export default function RegisterDetail() {
                 register={entry}
                 view={view}
                 onEdit={edit}
-                onToggle={(traineeId, sessionId, nowPresent) =>
-                  void pushMark(traineeId, sessionId, nowPresent)}
+                canEdit={writable}
+                onToggle={(traineeId, sessionId, nowPresent) => {
+                  if (writable) void pushMark(traineeId, sessionId, nowPresent);
+                }}
               />
             )}
           </TabsContent>
@@ -221,16 +245,16 @@ export default function RegisterDetail() {
             {view.daySection === "live" ? (
               <CheckInPanel blob={blob} register={entry} view={view} onEdit={edit} />
             ) : (
-              <ManagePanel part="days" blob={blob} onEdit={edit} canEdit />
+              <ManagePanel part="days" blob={blob} onEdit={edit} canEdit={writable} />
             )}
           </TabsContent>
 
           <TabsContent value="people" className="mt-4">
-            <PeoplePanel blob={blob} view={view} onEdit={edit} />
+            <PeoplePanel blob={blob} view={view} onEdit={edit} canEdit={writable} isEvent={isEvent} />
           </TabsContent>
 
           <TabsContent value="access" className="mt-4">
-            <AccessPanel register={entry} />
+            <AccessPanel register={entry} blob={blob} onEdit={edit} canEdit={writable} />
           </TabsContent>
         </Tabs>
       )}

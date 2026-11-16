@@ -38,8 +38,8 @@ export function RegisterMasthead({
   );
 
   return (
-    <header className="border-b-4 border-register-gold bg-register-deep text-register-deep-foreground print:hidden">
-      <div className="mx-auto max-w-7xl px-4 py-4">
+    <header className="border-b-4 border-register-gold bg-register-deep pt-[env(safe-area-inset-top)] text-register-deep-foreground print:hidden">
+      <div className="mx-auto max-w-7xl py-4 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))]">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           {href ? (
             <Link

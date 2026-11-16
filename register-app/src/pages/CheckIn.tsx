@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { RegisterPageShell } from "@/components/register/RegisterPageShell";
 import { checkIn, fetchPublicRoster, fetchPublicSession } from "@/lib/register/liveApi";
-import { GRADES } from "@/lib/register/constants";
+import { gradesOf } from "@/lib/register/constants";
 import { rememberCheckIn } from "@/lib/register/checkInMemory";
 
 const NOT_LISTED = "__not_listed__";
@@ -171,7 +171,7 @@ export default function CheckIn() {
             <Select value={grade} onValueChange={setGrade}>
               <SelectTrigger id="grade"><SelectValue placeholder="Choose" /></SelectTrigger>
               <SelectContent>
-                {GRADES.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                {gradesOf(roster.data).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>

@@ -23,7 +23,8 @@ import { fetchSessionStatus } from "@/lib/register/liveApi";
 import { gradeAt, isPresent } from "@/lib/register/attendance";
 import { setAttendance, upsertSession } from "@/lib/register/blob";
 import { splitByEmail, unexplainedAbsentees } from "@/lib/register/chase";
-import { GRADES } from "@/lib/register/constants";
+import { gradesOf } from "@/lib/register/constants";
+import { publicOrigin } from "@/lib/native";
 import { ALL_YEARS, academicYearOf, sessionWhen, todayIso } from "@/lib/register/months";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
 import type { RegisterView } from "@/hooks/useRegisterView";
@@ -103,7 +104,7 @@ export function CheckInPanel({
 
   const [qr, setQr] = useState<string | null>(null);
   const checkInUrl = live
-    ? `${window.location.origin}/registers/checkin?s=${encodeURIComponent(live.id)}`
+    ? `${publicOrigin()}/registers/checkin?s=${encodeURIComponent(live.id)}`
     : "";
 
   useEffect(() => {
@@ -303,7 +304,7 @@ export function CheckInPanel({
                   <Select value={manualGrade} onValueChange={setManualGrade}>
                     <SelectTrigger><SelectValue placeholder="Grade…" /></SelectTrigger>
                     <SelectContent>
-                      {GRADES.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                      {gradesOf(blob).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <Button onClick={markPresent} disabled={!manualTrainee}>

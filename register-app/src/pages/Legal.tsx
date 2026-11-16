@@ -108,7 +108,7 @@ export function Terms() {
       <h2>Your responsibilities</h2>
       <ul>
         <li>You are responsible for the registers you create and for the personal data you put in them, including having a proper reason to hold it and telling the people concerned.</li>
-        <li>Only invite people who should see a register: everyone you invite can read all of it.</li>
+        <li>Only invite people who should see a register: everyone you invite — viewers included — can read all of it.</li>
         <li>Do not use the service to record clinical information about patients, or for anything unlawful.</li>
       </ul>
 

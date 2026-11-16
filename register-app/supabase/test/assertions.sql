@@ -141,6 +141,68 @@ begin
 end $$;
 commit;
 
+-- Roles. Alice makes Dave a viewer and sends Carol an owner invitation.
+begin;
+set local role authenticated;
+set local test.uid = '00000000-0000-0000-0000-00000000000a';
+do $$
+declare _id uuid := current_setting('test.reg')::uuid; _inv jsonb;
+begin
+  perform public.set_register_member_role(_id, '00000000-0000-0000-0000-00000000000d', 'viewer');
+  _inv := public.invite_to_register(_id, 'carol@example.org', 'owner');
+  perform set_config('test.ownertok', _inv->>'token', false);
+  -- the certificate design is the owners' to set, and is capped
+  update public.registers set certificate_design = '{"template":"modern","accent":"#005eb8"}' where id = _id;
+  perform pg_temp.fails(format($q$update public.registers set certificate_design = jsonb_build_object('x', repeat('y', 9000)) where id = %L$q$, _id), 'check constraint');
+  perform pg_temp.fails(format($q$update public.registers set kind = 'event' where id = %L$q$, _id), 'permission denied');
+end $$;
+commit;
+
+-- Dave, now a viewer: reads everything, changes nothing
+begin;
+set local role authenticated;
+set local test.uid = '00000000-0000-0000-0000-00000000000d';
+do $$
+declare _id uuid := current_setting('test.reg')::uuid;
+begin
+  assert (select my_role = 'viewer' and not i_am_owner from public.register_directory());
+  assert (select data is not null from public.register_stores where register_id = _id);
+  assert not public.can_edit_register(auth.uid(), _id);
+  perform pg_temp.fails(format($q$select public.save_register(%L, '{"trainees":[]}'::jsonb, 3)$q$, _id), 'view-only');
+  -- row-level security makes a non-owner's update match no rows
+  update public.registers set name = 'Mine now' where id = _id;
+  assert (select name <> 'Mine now' from public.registers where id = _id);
+  perform pg_temp.fails(format($q$select public.set_register_member_role(%L, '00000000-0000-0000-0000-00000000000d', 'owner')$q$, _id), 'Only an owner');
+  -- an owner invitation cannot be taken by whoever holds the link
+  assert (public.register_invite_preview(current_setting('test.ownertok'))->>'wrong_account')::boolean;
+end $$;
+commit;
+
+begin;
+set local role authenticated;
+set local test.uid = '00000000-0000-0000-0000-00000000000b';
+do $$
+declare _id uuid := current_setting('test.reg')::uuid;
+begin
+  -- Bob (an editor) cannot use Carol's owner link to promote himself: he is
+  -- already a member, so it is neither consumed nor applied.
+  perform public.accept_register_invite(current_setting('test.ownertok'));
+  assert (select my_role = 'editor' from public.register_directory());
+  -- a document that is not a register, or is enormous, is refused
+  perform pg_temp.fails(format($q$select public.save_register(%L, '[]'::jsonb, 3)$q$, _id), 'not a register');
+  perform pg_temp.fails(format($q$select public.save_register(%L, jsonb_build_object('junk',
+      (select jsonb_agg(md5(g::text)) from generate_series(1, 200000) g)), 3)$q$, _id), 'too large');
+end $$;
+commit;
+
+-- A stranger holding the forwarded owner link gets nowhere
+insert into auth.users (id, email) values ('00000000-0000-0000-0000-00000000000e', 'eve@example.org');
+begin;
+set local role authenticated;
+set local test.uid = '00000000-0000-0000-0000-00000000000e';
+select pg_temp.fails(format('select public.accept_register_invite(%L)', current_setting('test.ownertok')), 'different account');
+commit;
+
 -- Carol tries the same link afterwards
 begin;
 set local role authenticated;

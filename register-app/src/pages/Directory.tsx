@@ -15,6 +15,7 @@ import { ArchiveSection } from "@/components/register/ArchiveSection";
 import { UpgradeButton } from "@/components/app/UpgradeButton";
 import { useCreateRegister, usePlan, useRegisterDirectory } from "@/hooks/useRegisters";
 import { cn } from "@/lib/utils";
+import { PURCHASES_ENABLED } from "@/lib/native";
 import type { RegisterDirectoryEntry, RegisterKind } from "@/lib/register/types";
 
 function KindBadge({ kind }: { kind: RegisterKind }) {
@@ -127,18 +128,20 @@ function CreateRegisterDialog({ open, onOpenChange }: { open: boolean; onOpenCha
               {`One conference, course or study day — up to ${days} days.`}
             </KindChoice>
             <KindChoice value="regular" selected={kind === "regular"} onSelect={setKind}
-              title="Regular" price={plan?.subscribed ? "Included in your plan" : "Subscription"}>
+              title="Regular" price={plan?.subscribed ? "Included in your plan" : PURCHASES_ENABLED ? "Subscription" : "Not in your plan"}>
               Teaching that runs through the year: attendance rates, leave, excusals.
             </KindChoice>
           </div>
 
           {needsPlan ? (
             <div className="space-y-3 border-l-4 border-rule bg-card p-4">
-              <p className="text-sm">
-                <strong>Regular registers are part of the subscription.</strong> One
-                subscription covers every regular register you own, and the colleagues you
-                invite do not need one.
-              </p>
+              {PURCHASES_ENABLED && (
+                <p className="text-sm">
+                  <strong>Regular registers are part of the subscription.</strong> One
+                  subscription covers every regular register you own, and the colleagues you
+                  invite do not need one.
+                </p>
+              )}
               <UpgradeButton />
             </div>
           ) : (

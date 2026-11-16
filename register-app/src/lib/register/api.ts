@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { publicOrigin } from "@/lib/native";
 import type {
   ArchivedRegister,
   InvitePreview,
@@ -150,7 +151,7 @@ export async function setRegisterMemberRole(
 
 /** The link an invited person opens. The token in it is the invitation. */
 export function inviteLink(token: string): string {
-  return `${window.location.origin}/invite/${token}`;
+  return `${publicOrigin()}/invite/${token}`;
 }
 
 export interface InviteResult {
@@ -240,7 +241,7 @@ export async function fetchPlan(): Promise<Plan> {
 /** Ask a billing function for a Stripe page to send the browser to. */
 async function billingUrl(fn: "billing-checkout" | "billing-portal"): Promise<string> {
   const { data, error } = await supabase.functions.invoke(fn, {
-    body: { origin: window.location.origin },
+    body: {},
   });
   if (error) throw new Error(await functionErrorMessage(error));
   const url = (data as { url?: string; error?: string } | null)?.url;

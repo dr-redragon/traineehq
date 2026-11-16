@@ -16,6 +16,7 @@ import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { usePlan, useRegisterDirectory } from "@/hooks/useRegisters";
 import { supabase } from "@/integrations/supabase/client";
 import { deleteAccount, openBillingPortal } from "@/lib/register/api";
+import { PURCHASES_ENABLED } from "@/lib/native";
 
 const PROVIDER_NAMES: Record<string, string> = { google: "Google", apple: "Apple", azure: "NHSmail" };
 
@@ -122,11 +123,14 @@ export default function Account() {
               ) : (
                 <>
                   <ul className="space-y-1.5 text-sm text-muted-foreground">
-                    {[
+                    {(PURCHASES_ENABLED ? [
                       `Free: event registers — one conference or course each, up to ${plan.event_max_days} days`,
                       "Subscription: regular registers for teaching that runs all year",
                       "One subscription covers every regular register you own; collaborators never pay",
-                    ].map((line) => (
+                    ] : [
+                      `Event registers — one conference or course each, up to ${plan.event_max_days} days`,
+                      "Registers you are invited to, at whatever access their owner gives you",
+                    ]).map((line) => (
                       <li key={line} className="flex gap-2">
                         <Check className="mt-0.5 h-4 w-4 shrink-0 text-accent-deep" /> {line}
                       </li>
@@ -137,7 +141,7 @@ export default function Account() {
                       {lapsedRegular === 1
                         ? "One regular register you own is read-only."
                         : `${lapsedRegular} regular registers you own are read-only.`}{" "}
-                      Nothing has been deleted; subscribing makes them editable again.
+                      Nothing has been deleted{PURCHASES_ENABLED ? "; subscribing makes them editable again" : ""}.
                     </p>
                   )}
                 </>
@@ -145,13 +149,13 @@ export default function Account() {
 
               <div className="flex flex-wrap gap-2">
                 {!plan.subscribed && <UpgradeButton />}
-                {plan.managed_by_stripe && (
+                {plan.managed_by_stripe && PURCHASES_ENABLED && (
                   <Button variant="outline" onClick={portal} disabled={opening}>
                     {opening ? "Opening…" : "Manage billing"}
                   </Button>
                 )}
               </div>
-              {plan.managed_by_stripe && (
+              {plan.managed_by_stripe && PURCHASES_ENABLED && (
                 <p className="text-xs text-muted-foreground">
                   Card details, invoices and cancelling are handled on Stripe's own pages.
                 </p>

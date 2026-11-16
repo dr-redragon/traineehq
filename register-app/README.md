@@ -12,14 +12,15 @@ its own accounts, its own database, and a paid plan.
 | For | One conference, course or study day (up to 7 days) | Teaching that runs all year |
 | Price | Free | Subscription |
 | Check-in, feedback, certificates | Yes | Yes |
-| Collaborators | Yes, free | Yes, free — only the owner pays |
-| Attendance rates, leave, excusals | — | Yes |
+| Collaborators (owner / editor / viewer) | Yes, free | Yes, free — only the owner pays |
+| Certificate templates, own lists of grades and absence reasons | Yes | Yes |
+| Attendance rates, long-term leave and status | — | Yes |
 
 ## How it fits together
 
 - **Frontend** — Vite, React, TypeScript, Tailwind. A static site; deploy
-  anywhere (`netlify.toml` and `vercel.json` are included). Installable as an
-  app from the browser (web manifest).
+  anywhere (`netlify.toml` and `vercel.json` are included). The same build is
+  wrapped with Capacitor for the App Store and Google Play — see below.
 - **Backend** — one Supabase project: Postgres with row-level security, Auth,
   Storage for certificate logos, and seven edge functions.
 - **Sign-in** — Google, Apple and NHSmail, through Supabase Auth. No passwords.
@@ -42,10 +43,15 @@ browser:
 - **Access.** You see a register because you created it or accepted an
   invitation. There is no directory of other people's registers and no
   administrator who can read them.
+- **Roles.** Owner (everything, including who has access), editor (read and
+  write), viewer (read only). `save_register()` and the edge functions refuse
+  a viewer's writes; the interface only hides the controls.
 - **Invitations.** An owner invites an email address. The invitee is added
   when they sign in with that address, or when they open the emailed link and
   sign in with any account (needed for Apple's "hide my email"). Links are
-  single-use and last 14 days.
+  single-use and last 14 days. An *owner* invitation is the exception: it
+  works only for the address it was sent to, so a forwarded link cannot hand
+  over a register.
 - **Anonymous check-in.** An attendee has no account; the session id in the
   QR link is their whole authority and opens that one day only.
 
@@ -143,7 +149,7 @@ The webhook never overwrites a `comp` row.
 ## Checking it
 
 ```sh
-npm test               # 330 unit tests: attendance rules, reports, certificates, webhook signatures
+npm test               # 347 unit tests: attendance rules, reports, certificates, lists, webhook signatures
 npm run typecheck
 npm run lint
 npm run verify:schema  # applies the migration to a throwaway PostgreSQL 16 and
@@ -151,6 +157,84 @@ npm run verify:schema  # applies the migration to a throwaway PostgreSQL 16 and
 ```
 
 `verify:schema` needs the PostgreSQL 16 server binaries and no credentials.
+
+## App Store and Google Play
+
+The store apps are this same web app inside a native shell (Capacitor). The
+code for that is here; the native projects are generated on your machine, and
+building for iOS needs a Mac with Xcode.
+
+```sh
+# .env for a store build needs two more lines:
+#   VITE_PUBLIC_URL=https://YOUR-SITE      (QR codes and invitation links must
+#                                           point at the website, not the app)
+#   VITE_NATIVE_SCHEME=theregister         (must match the scheme below)
+npm run build
+npx cap add ios        # once
+npx cap add android    # once
+npx cap sync           # after every build
+npx cap open ios       # or: npx cap open android
+```
+
+Before the first `cap add`, change `appId` in `capacitor.config.ts` to an
+identifier you own. It cannot be changed after publishing.
+
+**Register the sign-in return address.** Sign-in opens in the system browser
+and comes back to `theregister://auth/callback`:
+
+- Supabase → Authentication → URL configuration: add
+  `theregister://auth/callback` to the redirect URLs.
+- iOS, `ios/App/App/Info.plist`:
+  ```xml
+  <key>CFBundleURLTypes</key>
+  <array><dict>
+    <key>CFBundleURLSchemes</key><array><string>theregister</string></array>
+  </dict></array>
+  ```
+- Android, inside the main `<activity>` in
+  `android/app/src/main/AndroidManifest.xml`:
+  ```xml
+  <intent-filter>
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="theregister" />
+  </intent-filter>
+  ```
+
+**What is already done for review:**
+
+| Store requirement | Status |
+|---|---|
+| Sign in with Apple offered wherever other sign-ins are (Apple 4.8) | Done |
+| Account deletion inside the app (Apple 5.1.1(v), Google Play) | Done — Account page |
+| Account deletion reachable on the web (Google Play) | Done — `/account` on the site |
+| Privacy policy URL | `/privacy` — fill in the operator details |
+| Sign-in in the system browser, not an embedded web view | Done |
+| No remotely loaded code; content security policy | Done |
+| Notch and home-indicator safe areas | Done |
+| Certificates and CSV exports open the system share sheet | Done |
+
+**Payments — read this before submitting.** Both stores require digital
+subscriptions sold *inside* an app to use their own billing (and take their
+commission), and do not let an app send people to a website to pay. So the
+store builds **sell nothing**: the subscribe button, prices and "manage
+billing" are removed, and a regular register simply shows as not in the plan.
+A subscription bought on the website works in the app. That is the
+arrangement Apple and Google accept for apps like this, and it is the default.
+
+To sell inside the apps you would add StoreKit and Play Billing (RevenueCat is
+the usual route) and have its webhook write `subscriptions.status` exactly as
+the Stripe one does — nothing else in the database changes. Not built.
+`VITE_NATIVE_PURCHASES=external` restores the Stripe button in a native build,
+for storefronts where linking out is permitted; do not set it without
+checking the current rules for that storefront.
+
+**Not verified here:** no iOS or Android build has been run. The Android
+project generates cleanly from this config; nothing has been compiled, signed
+or run on a device, and no store submission has been attempted. Icons, splash
+screens, screenshots and store listings are yours to add (`@capacitor/assets`
+generates the icon sets from `public/icon-512.png`).
 
 ## Before you go live
 

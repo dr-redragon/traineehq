@@ -8,7 +8,12 @@
  *     in `register_stores.data`.
  */
 
-export type RegisterRole = "owner" | "editor";
+/**
+ * owner   everything, including who else has access
+ * editor  read and write
+ * viewer  read only
+ */
+export type RegisterRole = "owner" | "editor" | "viewer";
 
 /**
  * `event` is free and covers one event — a conference, a course — of a few
@@ -28,8 +33,11 @@ export interface RegisterDirectoryEntry {
   i_am_member: boolean;
   /** Owners administer the register: membership, and its certificate badge. */
   i_am_owner: boolean;
+  my_role: RegisterRole;
   /** Object path in the register-logos bucket, or null for no badge. */
   certificate_logo_path: string | null;
+  /** Template, colour and wording of this register's certificates. */
+  certificate_design: Record<string, unknown> | null;
   /**
    * False for a regular register none of whose owners is subscribed. It can
    * still be read, exported and deleted; nothing can be written to it.
@@ -66,6 +74,8 @@ export interface InvitePreview {
   role: RegisterRole;
   invited_by: string | null;
   usable: boolean;
+  /** An owner invitation, opened by an account other than the one invited. */
+  wrong_account: boolean;
   already_member: boolean;
   slug: string | null;
 }
@@ -166,6 +176,20 @@ export interface RegisterBlob {
   attendance: Record<string, AttendanceMark>;
   excused: RegisterExcusal[];
   status: RegisterStatus[];
+  /** The register's own lists. Absent means the defaults in constants.ts. */
+  settings?: RegisterSettings;
+}
+
+/**
+ * What a register's organisers have changed from the defaults. Each list is
+ * absent until somebody edits it, so a register that never does keeps
+ * following the defaults if they are improved.
+ */
+export interface RegisterSettings {
+  /** The reasons offered when excusing an absence. "Other" is always added. */
+  excusalReasons?: string[];
+  /** The grades or roles offered on the sign-in form and the roster. */
+  grades?: string[];
 }
 
 export const EMPTY_REGISTER: RegisterBlob = {
@@ -209,6 +233,8 @@ export interface RosterEntry {
 export interface PublicRoster {
   trainees: RosterEntry[];
   sessions: { id: string; month: string; title: string }[];
+  /** The register's own grade list, or null for the defaults. */
+  grades?: string[] | null;
 }
 
 export interface RegisterAttendee {

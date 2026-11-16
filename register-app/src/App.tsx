@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from "react";
 import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
-import { BrowserRouter, Outlet, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Outlet, Route, Routes, useNavigate } from "react-router-dom";
+import { initNativeAuth } from "@/lib/nativeAuth";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,6 +44,15 @@ function AuthCacheSync() {
   return null;
 }
 
+/** In the store apps: finishes sign-in when the system browser hands back. */
+function NativeLinks() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    void initNativeAuth((path) => navigate(path, { replace: true }));
+  }, [navigate]);
+  return null;
+}
+
 /** Everything behind sign-in shares one shell and one register context. */
 function SignedIn() {
   return (
@@ -60,6 +70,7 @@ const App = () => (
       <AuthCacheSync />
       <Toaster />
       <BrowserRouter>
+        <NativeLinks />
         <Suspense fallback={<FullPageMessage>Loading…</FullPageMessage>}>
           <Routes>
             <Route path="/" element={<SignIn />} />

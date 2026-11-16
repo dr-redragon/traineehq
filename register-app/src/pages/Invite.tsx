@@ -44,6 +44,7 @@ export default function Invite() {
     : !preview.usable && !preview.already_member
       ? "This invitation has expired or has already been used."
       : null;
+  const role = preview?.role === "owner" ? "an owner" : preview?.role === "viewer" ? "a viewer" : "an editor";
 
   return (
     <Card className="mx-auto max-w-lg">
@@ -71,14 +72,22 @@ export default function Invite() {
               {preview!.invited_by ? " you" : ""} to help run this{" "}
               {preview!.kind === "event" ? "event register" : "teaching register"}
               {preview!.organisation ? ` for ${preview!.organisation}` : ""} as{" "}
-              {preview!.role === "owner" ? "an owner" : "an editor"}.{" "}
+              {role}.{" "}
               {preview!.role === "owner"
                 ? "Owners can do everything, including inviting and removing people."
-                : "Editors record attendance, run check-in and send certificates."}{" "}
+                : preview!.role === "viewer"
+                  ? "Viewers can see and export everything, and change nothing."
+                  : "Editors record attendance, run check-in and send certificates."}{" "}
               It costs you nothing.
             </p>
             {preview!.already_member ? (
               <Button asChild><Link to={`/registers/${preview!.slug}`}>Open the register</Link></Button>
+            ) : preview!.wrong_account ? (
+              <p className="border-l-4 border-rule pl-3 text-sm">
+                This invitation makes its holder an owner, so it only works for the address
+                it was sent to. Sign out, then sign in with that address and open the link
+                again.
+              </p>
             ) : (
               <Button onClick={() => accept.mutate()} disabled={accept.isPending}>
                 {accept.isPending ? "Accepting…" : "Accept invitation"}

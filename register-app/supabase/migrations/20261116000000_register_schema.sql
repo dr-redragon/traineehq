@@ -5,7 +5,8 @@
 --
 --   accounts        profiles (filled from the Google / Apple / NHS sign-in),
 --                   subscriptions (written only by the Stripe webhook)
---   registers       a register, its members, its data, its history
+--   registers       a register, its members (owner / editor / viewer), its
+--                   data, its history
 --   invitations     collaborators are invited by email and accept by signing in
 --   teaching days   published sessions, attendees, feedback, form templates
 --
@@ -35,7 +36,10 @@ begin;
 
 -- ------------------------------------------------------------------ types --
 do $$ begin
-  create type public.register_role as enum ('owner', 'editor');
+  -- owner   everything, including who else has access
+  -- editor  read and write: attendance, days, people, check-in, certificates
+  -- viewer  read only
+  create type public.register_role as enum ('owner', 'editor', 'viewer');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -103,6 +107,13 @@ create table if not exists public.registers (
   updated_at            timestamptz not null default now(),
   -- Object path in the register-logos bucket, or null for no badge.
   certificate_logo_path text,
+  -- Which certificate template the register uses and the wording and colour
+  -- an owner has changed on it. Read by the browser, which draws the PDF and
+  -- sanitises every field as it does so; capped here so it cannot be used to
+  -- store anything sizeable.
+  certificate_design    jsonb not null default '{}'::jsonb
+    check (jsonb_typeof(certificate_design) = 'object'
+           and pg_column_size(certificate_design) <= 4096),
   -- Null means live. register_archive_days() after this it is destroyed.
   archived_at           timestamptz,
   archived_by           uuid references auth.users(id) on delete set null
@@ -552,7 +563,11 @@ language sql stable security definer set search_path = public as $$
       select jsonb_agg(jsonb_build_object(
                'id', sn->>'id', 'month', sn->>'month', 'title', sn->>'title'))
         from jsonb_array_elements(st.data->'sessions') sn
-    ), '[]'::jsonb)
+    ), '[]'::jsonb),
+    -- The register's own list of grades or roles for the sign-in form, if its
+    -- organisers have set one. Null means the form's defaults.
+    'grades', case when jsonb_typeof(st.data->'settings'->'grades') = 'array'
+                   then st.data->'settings'->'grades' end
   )
   from public.register_sessions s
   join public.register_stores  st on st.register_id = s.register_id
@@ -650,6 +665,14 @@ begin
    limit 1;
 
   if _trainee_id is null then
+    -- Adding oneself is open to anybody holding the day's link, so it has a
+    -- ceiling: without one a script could grow the roster without limit. Far
+    -- above any real event; an organiser can still add people by hand.
+    if (select jsonb_array_length(coalesce(data->'trainees', '[]'::jsonb))
+          from public.register_stores where register_id = _register) >= 5000 then
+      return jsonb_build_object('trainee_id', null, 'created', false);
+    end if;
+
     _created := true;
     -- The same shape of id the browser generates (7 base-36 characters), so
     -- nothing downstream can tell a self-registered trainee from a typed one.
@@ -778,6 +801,23 @@ begin
 end;
 $$;
 
+-- Whether this person may change a register's contents: an owner or an
+-- editor. A viewer is a member — they can read everything — and no more.
+create or replace function public.can_edit_register(_user_id uuid, _register_id uuid)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.register_members
+     where user_id = _user_id and register_id = _register_id
+       and role::text in ('owner', 'editor')
+  );
+$$;
+
+-- The largest register document save_register() accepts. A busy register
+-- running for years is a few hundred kilobytes; this is a ceiling on abuse,
+-- not a limit anybody should meet.
+create or replace function public.register_max_bytes()
+returns integer language sql immutable set search_path = public as $$ select 4 * 1024 * 1024 $$;
+
 -- Whether a register may be written to. An event register always may; a
 -- regular one while any of its owners is subscribed.
 create or replace function public.register_is_entitled(_register_id uuid)
@@ -874,14 +914,18 @@ create or replace function public.register_directory()
 returns table (
   id uuid, name text, slug text, organisation text, kind public.register_kind,
   member_count bigint, i_am_member boolean, i_am_owner boolean,
-  certificate_logo_path text, entitled boolean, created_at timestamptz
+  my_role public.register_role,
+  certificate_logo_path text, certificate_design jsonb,
+  entitled boolean, created_at timestamptz
 )
 language sql stable security definer set search_path = public as $$
   select r.id, r.name, r.slug, r.organisation, r.kind,
          (select count(*) from public.register_members m where m.register_id = r.id),
          true,
          me.role = 'owner',
+         me.role,
          r.certificate_logo_path,
+         r.certificate_design,
          public.register_is_entitled(r.id),
          r.created_at
     from public.registers r
@@ -950,6 +994,19 @@ declare
 begin
   if _caller is null or not public.is_register_member(_caller, _register_id) then
     raise exception 'You do not have access to that register';
+  end if;
+
+  if not public.can_edit_register(_caller, _register_id) then
+    raise exception 'You have view-only access to this register'
+      using hint = 'Ask one of its owners if you need to make changes.';
+  end if;
+
+  if jsonb_typeof(_data) is distinct from 'object' then
+    raise exception 'That is not a register';
+  end if;
+
+  if pg_column_size(_data) > public.register_max_bytes() then
+    raise exception 'This register has grown too large to save';
   end if;
 
   perform public.assert_register_writable(_register_id);
@@ -1047,6 +1104,15 @@ begin
     raise exception 'That person already has access to this register';
   end if;
 
+  -- Each invitation is an email this service sends in the owner's name. A
+  -- ceiling on how many can be outstanding keeps a register from being used
+  -- to send mail to a list of strangers.
+  if (select count(*) from public.register_invites
+       where register_id = _register_id and accepted_at is null and email <> _clean) >= 50 then
+    raise exception 'This register already has 50 invitations waiting'
+      using hint = 'Withdraw the ones no longer needed, then invite again.';
+  end if;
+
   -- Inviting the same address again replaces the earlier invitation: a new
   -- link, a new fortnight, and the old link stops working.
   insert into public.register_invites (register_id, email, role, token, invited_by)
@@ -1060,6 +1126,10 @@ begin
                 created_at = now(),
                 expires_at = now() + interval '14 days'
   returning * into _inv;
+
+  insert into public.audit_log (user_id, action, details)
+  values (_caller, 'register.invited', jsonb_build_object(
+    'register_id', _register_id, 'email', _clean, 'role', _role));
 
   return jsonb_build_object(
     'id', _inv.id, 'email', _inv.email, 'token', _inv.token, 'expires_at', _inv.expires_at);
@@ -1076,6 +1146,12 @@ returns jsonb language sql stable security definer set search_path = public as $
     'role',          i.role,
     'invited_by',    nullif(btrim(coalesce(p.first_name, '') || ' ' || coalesce(p.last_name, '')), ''),
     'usable',        i.accepted_at is null and i.expires_at > now() and r.archived_at is null,
+    -- An owner invitation is only for the address it was sent to; see
+    -- accept_register_invite().
+    'wrong_account', i.role = 'owner' and not exists (
+                       select 1 from auth.users u
+                        where u.id = auth.uid() and lower(u.email) = i.email
+                          and u.email_confirmed_at is not null),
     'already_member', public.is_register_member(auth.uid(), r.id),
     'slug',          case when public.is_register_member(auth.uid(), r.id) then r.slug end
   )
@@ -1120,6 +1196,19 @@ begin
   if _inv.expires_at < now() then
     raise exception 'This invitation has expired'
       using hint = 'Ask whoever invited you to send it again.';
+  end if;
+
+  -- A link can be forwarded, and whoever holds it may use it. That is an
+  -- acceptable way to become an editor or a viewer; it is not an acceptable
+  -- way to become an owner, who can read everything, remove everybody else
+  -- and delete the register. An owner invitation is therefore good only for
+  -- the address it was sent to, proven by signing in with it.
+  if _inv.role = 'owner' and not exists (
+    select 1 from auth.users u
+     where u.id = _caller and lower(u.email) = _inv.email and u.email_confirmed_at is not null
+  ) then
+    raise exception 'This invitation is for a different account'
+      using hint = 'It makes its holder an owner, so it can only be accepted by signing in with the address it was sent to.';
   end if;
 
   insert into public.register_members (register_id, user_id, role, granted_by)
@@ -1358,7 +1447,7 @@ grant select on public.profiles to authenticated;
 grant update (first_name, last_name) on public.profiles to authenticated;
 grant select on public.subscriptions to authenticated;
 grant select, delete on public.registers to authenticated;
-grant update (name, organisation, certificate_logo_path) on public.registers to authenticated;
+grant update (name, organisation, certificate_logo_path, certificate_design) on public.registers to authenticated;
 grant select on public.register_members to authenticated;
 grant select, delete on public.register_invites to authenticated;
 grant select on public.register_stores, public.register_sessions, public.register_attendees,
@@ -1370,6 +1459,7 @@ grant select on public.register_stores, public.register_sessions, public.registe
 grant execute on function
   public.is_register_member(uuid, uuid),
   public.is_register_owner(uuid, uuid),
+  public.can_edit_register(uuid, uuid),
   public.has_active_subscription(uuid),
   public.register_is_entitled(uuid),
   public.register_event_max_days(),

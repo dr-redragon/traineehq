@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/collapsible";
 import { activeStatusType, isFormerTrainee } from "@/lib/register/eligibility";
 import { STATUS_SHORT, statusRangeText } from "@/lib/register/statusText";
-import { GRADES } from "@/lib/register/constants";
+import { gradesOf } from "@/lib/register/constants";
 import { formatMonth, sessionsSorted, sessionWhen } from "@/lib/register/months";
 import { cn } from "@/lib/utils";
 import type { RegisterEdit } from "@/hooks/useRegisterStore";
@@ -40,17 +40,22 @@ const NONE = "__none__";
  * be behind a button. Editing an existing row still opens a dialog.
  */
 export function ManagePanel({
-  blob, onEdit, canEdit, part,
+  blob, onEdit, canEdit, part, isEvent = false,
 }: {
   blob: RegisterBlob;
   onEdit: (edit: RegisterEdit) => void;
   canEdit: boolean;
   part: "trainees" | "days";
+  /**
+   * An event register has no programme to have joined part-way through: the
+   * start month is left out, and everybody counts for every day.
+   */
+  isEvent?: boolean;
 }) {
   const [trainee, setTrainee] = useState<
     { id?: string; name: string; grade: string; email: string; startMonth: string } | null
   >(null);
-  const [adding, setAdding] = useState(() => ({ name: "", grade: "", email: "", startMonth: defaultStartMonth() }));
+  const [adding, setAdding] = useState(() => ({ name: "", grade: "", email: "", startMonth: isEvent ? "" : defaultStartMonth() }));
   const [session, setSession] = useState<RegisterSession | null>(null);
   const [confirm, setConfirm] = useState<{ label: string; detail: string; run: () => void } | null>(null);
   const [showFormer, setShowFormer] = useState(false);
@@ -86,7 +91,7 @@ export function ManagePanel({
       ...(adding.email.trim() ? { email: adding.email.trim() } : {}),
       startMonth: adding.startMonth,
     }));
-    setAdding({ name: "", grade: "", email: "", startMonth: defaultStartMonth() });
+    setAdding({ name: "", grade: "", email: "", startMonth: isEvent ? "" : defaultStartMonth() });
   };
 
   const row = (t: RegisterTrainee) => {
@@ -141,7 +146,7 @@ export function ManagePanel({
       <section className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <h2 className="text-sm font-semibold">Trainees</h2>
+            <h2 className="text-sm font-semibold">{isEvent ? "Attendees" : "Trainees"}</h2>
             <p className="text-xs text-muted-foreground">
               {current.length} on the roster
               {former.length > 0 && ` · ${former.length} former`}
@@ -165,7 +170,7 @@ export function ManagePanel({
                     <SelectTrigger id="add-t-grade"><SelectValue placeholder="Not set" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value={NONE}>Not set</SelectItem>
-                      {GRADES.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                      {gradesOf(blob).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -177,24 +182,29 @@ export function ManagePanel({
                     onChange={(e) => setAdding((a) => ({ ...a, email: e.target.value }))} />
                 </div>
                 <Button type="submit" disabled={!adding.name.trim()} className="w-full sm:w-auto">
-                  <UserPlus className="mr-1.5 h-4 w-4" /> Add trainee
+                  <UserPlus className="mr-1.5 h-4 w-4" /> {isEvent ? "Add attendee" : "Add trainee"}
                 </Button>
-                <div className="space-y-1.5 sm:col-span-4 sm:max-w-xs">
+                {!isEvent && <div className="space-y-1.5 sm:col-span-4 sm:max-w-xs">
                   <Label htmlFor="add-t-start" className="text-xs">
                     Started on programme <span className="text-muted-foreground">(month)</span>
                   </Label>
                   <MonthInput id="add-t-start" value={adding.startMonth}
                     placeholder="Blank — counts for every teaching day"
                     onChange={(m) => setAdding((a) => ({ ...a, startMonth: m }))} />
-                </div>
+                </div>}
               </form>
-              <p className="mt-2 text-[11px] text-muted-foreground">
+              {isEvent ? (
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  People who check in with the QR code add themselves; this is for anybody
+                  you want on the list beforehand.
+                </p>
+              ) : <p className="mt-2 text-[11px] text-muted-foreground">
                 Grade keeps itself up to date: whatever a trainee picks at their next sign-in
                 replaces it, since it changes between rotations. New trainees count from August
                 of this training year; change the start month for a mid-year arrival. Teaching
                 days before it don't count for or against them, and they're left out of earlier
                 years. Clear it for somebody who should count for every day.
-              </p>
+              </p>}
             </CardContent>
           </Card>
         )}
@@ -321,7 +331,7 @@ export function ManagePanel({
                 <SelectTrigger id="t-grade"><SelectValue placeholder="Not set" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>Not set</SelectItem>
-                  {GRADES.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                  {gradesOf(blob).map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground">
@@ -336,7 +346,7 @@ export function ManagePanel({
               <Input id="t-email" type="email" value={trainee?.email ?? ""}
                 onChange={(e) => setTrainee((t) => t && { ...t, email: e.target.value })} />
             </div>
-            <div className="space-y-1.5">
+            {!isEvent && <div className="space-y-1.5">
               <Label htmlFor="t-start" className="text-xs">Started on programme</Label>
               <MonthInput id="t-start" value={trainee?.startMonth ?? ""}
                 placeholder="Blank — counts for every teaching day"
@@ -345,7 +355,7 @@ export function ManagePanel({
                 Teaching days before this month don't count for or against them, and they're
                 left out of any year that ends before it.
               </p>
-            </div>
+            </div>}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setTrainee(null)}>Cancel</Button>

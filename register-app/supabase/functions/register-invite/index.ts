@@ -59,8 +59,10 @@ Deno.serve(async (req) => {
         paragraph(`<strong>${esc(inviter)}</strong> has invited you to help run the ${what} ` +
           `<strong>${esc(registerName)}</strong>` +
           (register?.organisation ? ` for ${esc(register.organisation)}` : "") +
-          ` as ${invite.role === "owner" ? "an owner" : "an editor"}.`) +
-        paragraph("Open the link and sign in with Google, Apple or your NHSmail account. " +
+          ` as ${invite.role === "owner" ? "an owner" : invite.role === "viewer" ? "a viewer" : "an editor"}.`) +
+        paragraph((invite.role === "owner"
+          ? `Open the link and sign in as ${esc(invite.email)} — an owner invitation only works for the address it was sent to. `
+          : "Open the link and sign in with Google, Apple or your NHSmail account. ") +
           "It is free for you, and the link works for 14 days."),
       button: { label: "Accept invitation", url: link },
       reason: `You're receiving this because ${inviter} entered your address to invite you. ` +

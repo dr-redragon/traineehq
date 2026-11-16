@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { saveFile } from "@/lib/saveFile";
+import { publicOrigin } from "@/lib/native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Award, Copy, ExternalLink, Loader2, Mail, Pencil, RefreshCw, RotateCcw,
@@ -137,6 +139,7 @@ export function LiveDayCard({
     traineeName: attendee.name,
     registerName: register.name,
     deaneryName: register.organisation ?? "",
+    design: register.certificate_design,
     sessionTitle: live?.title ?? session.title,
     sessionDate: live?.session_date ?? "",
     location: live?.location ?? null,
@@ -153,12 +156,7 @@ export function LiveDayCard({
     try {
       const details = detailsFor(attendee);
       const bytes = await renderCertificatePdf(details);
-      const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: "application/pdf" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = certificateFilename(details);
-      link.click();
-      URL.revokeObjectURL(url);
+      await saveFile(bytes, certificateFilename(details), "application/pdf");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not make the certificate");
     } finally {
@@ -249,10 +247,10 @@ export function LiveDayCard({
   // ------------------------------------------------------------------ render
 
   const checkInUrl = live
-    ? `${window.location.origin}/registers/checkin?s=${encodeURIComponent(live.id)}`
+    ? `${publicOrigin()}/registers/checkin?s=${encodeURIComponent(live.id)}`
     : "";
   const feedbackUrl = live
-    ? `${window.location.origin}/registers/feedback?s=${encodeURIComponent(live.id)}`
+    ? `${publicOrigin()}/registers/feedback?s=${encodeURIComponent(live.id)}`
     : "";
 
   const copy = (url: string, what: string) => {

@@ -1,6 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { SignInProvider } from "@/lib/brand";
 import { safeDestination } from "@/lib/safeDestination";
+import { authRedirectUrl, isNative } from "@/lib/native";
 
 const NEXT_KEY = "register.signin.next";
 export const DEFAULT_DESTINATION = "/registers";
@@ -20,10 +21,16 @@ export async function signInWith(provider: SignInProvider, next: string) {
 
   const hint = (import.meta.env.VITE_NHS_DOMAIN_HINT as string | undefined) ?? "nhs.net";
 
-  const { error } = await supabase.auth.signInWithOAuth({
+  const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: authRedirectUrl(),
+      // In the native app the provider's page must open in the system browser,
+      // not in the app's own web view: Google refuses to sign anybody in
+      // inside an embedded web view, and a page the app controls is exactly
+      // where a password should not be typed. See lib/nativeAuth.ts for the
+      // way back.
+      skipBrowserRedirect: isNative,
       // Microsoft returns no email claim unless it is asked for, and an account
       // with no email cannot be matched to an invitation.
       ...(provider === "azure" && {
@@ -34,6 +41,11 @@ export async function signInWith(provider: SignInProvider, next: string) {
     },
   });
   if (error) throw error;
+
+  if (isNative && data?.url) {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url: data.url });
+  }
 }
 
 /** Where to go now that sign-in has finished. Read once, then forgotten. */

@@ -1,4 +1,6 @@
+import { toast } from "sonner";
 import { useMemo } from "react";
+import { saveFile } from "@/lib/saveFile";
 import { useQuery } from "@tanstack/react-query";
 import { Download, MessageSquare, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -90,15 +92,8 @@ export function FeedbackPanel({
 
   const downloadCsv = () => {
     if (!responses?.length || !selected) return;
-    const blob = new Blob([feedbackCsv(responses, selected.form)], {
-      type: "text/csv;charset=utf-8",
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `feedback-${selected.session_date}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    void saveFile(feedbackCsv(responses, selected.form), `feedback-${selected.session_date}.csv`, "text/csv;charset=utf-8")
+      .catch((e: Error) => toast.error(e.message));
   };
 
   if (isLoading) return <Skeleton className="h-40 w-full" />;

@@ -29,6 +29,122 @@ export interface CertificateDetails {
   reference?: string | null;
   /** Public URL of the register's badge. Without one the layout closes up. */
   logoUrl?: string | null;
+  /**
+   * The register's template, colour and wording, as stored. Untrusted: it is
+   * passed through `normaliseDesign` before anything is drawn from it.
+   */
+  design?: unknown;
+}
+
+/* ---------------------------------------------------------------- templates */
+
+export type CertificateTemplateId = "classic" | "modern" | "mono";
+
+type Rgb = readonly [number, number, number];
+
+export interface CertificateTemplate {
+  id: CertificateTemplateId;
+  name: string;
+  description: string;
+  /** Titles and the recipient's name in Times, or everything in Helvetica. */
+  serif: boolean;
+  frame: "double" | "single" | "band";
+  /** Headings and, on a band template, the band. Replaced by a chosen accent. */
+  primary: Rgb;
+  /** Hairlines. Null follows the primary colour. */
+  rule: Rgb | null;
+  paper: Rgb;
+  ink: Rgb;
+  muted: Rgb;
+}
+
+export const CERTIFICATE_TEMPLATES: CertificateTemplate[] = [
+  {
+    id: "classic", name: "Classic",
+    description: "Cream paper, a double border and serif lettering.",
+    serif: true, frame: "double",
+    primary: [0.173, 0.302, 0.224], rule: [0.690, 0.541, 0.243],
+    paper: [0.988, 0.980, 0.960], ink: [0.082, 0.129, 0.110], muted: [0.478, 0.459, 0.408],
+  },
+  {
+    id: "modern", name: "Modern",
+    description: "White, a bold band of colour and clean sans-serif type.",
+    serif: false, frame: "band",
+    primary: [0.867, 0.169, 0.059], rule: null,
+    paper: [1, 1, 1], ink: [0.125, 0.118, 0.114], muted: [0.376, 0.365, 0.365],
+  },
+  {
+    id: "mono", name: "Black and white",
+    description: "A single fine border and no colour: prints cleanly on any printer.",
+    serif: true, frame: "single",
+    primary: [0, 0, 0], rule: [0, 0, 0],
+    paper: [1, 1, 1], ink: [0, 0, 0], muted: [0.25, 0.25, 0.25],
+  },
+];
+
+/** What an owner may change on a template. Every text field is optional. */
+export interface CertificateDesign {
+  template: CertificateTemplateId;
+  /** '#rrggbb', or null for the template's own colour. */
+  accent: string | null;
+  heading: string;
+  lead: string;
+  statement: string;
+  issuedBy: string;
+  signatoryName: string;
+  signatoryTitle: string;
+}
+
+export const DESIGN_TEXT_MAX = 80;
+const HEX = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Turn whatever is stored into a design that is safe to draw.
+ *
+ * The stored value is written by a register's owner and read by everybody who
+ * issues a certificate from it, so nothing in it is taken on trust: the
+ * template must be one that exists, the colour must be a plain hex colour, and
+ * each piece of wording is folded to what the PDF font can encode and capped.
+ */
+export function normaliseDesign(raw: unknown): CertificateDesign {
+  const r = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as Record<string, unknown>;
+  const text = (v: unknown) => (typeof v === "string" ? safeText(v).slice(0, DESIGN_TEXT_MAX) : "");
+  const template = CERTIFICATE_TEMPLATES.some((t) => t.id === r.template)
+    ? (r.template as CertificateTemplateId) : "classic";
+  return {
+    template,
+    accent: typeof r.accent === "string" && HEX.test(r.accent) ? r.accent.toLowerCase() : null,
+    heading: text(r.heading),
+    lead: text(r.lead),
+    statement: text(r.statement),
+    issuedBy: text(r.issuedBy),
+    signatoryName: text(r.signatoryName),
+    signatoryTitle: text(r.signatoryTitle),
+  };
+}
+
+/** Only the fields that differ from a blank design, for storing. */
+export function designToStore(design: CertificateDesign): Record<string, string> {
+  const clean = normaliseDesign(design);
+  const out: Record<string, string> = { template: clean.template };
+  if (clean.accent) out.accent = clean.accent;
+  for (const key of ["heading", "lead", "statement", "issuedBy", "signatoryName", "signatoryTitle"] as const) {
+    if (clean[key]) out[key] = clean[key];
+  }
+  return out;
+}
+
+export function hexToRgb(hex: string): Rgb {
+  const n = parseInt(hex.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+}
+
+/** The colours a design is drawn in: its template's, with the accent applied. */
+export function certificateColours(design: CertificateDesign) {
+  const template = CERTIFICATE_TEMPLATES.find((t) => t.id === design.template)!;
+  // A black-and-white certificate stays black and white whatever was chosen.
+  const primary = design.accent && template.id !== "mono" ? hexToRgb(design.accent) : template.primary;
+  return { template, primary, rule: template.rule ?? primary };
 }
 
 export interface CertificateContent {
@@ -112,20 +228,23 @@ export function certificateContent(details: CertificateDetails): CertificateCont
   const deanery = safeText(details.deaneryName);
   const location = safeText(details.location ?? "");
   const reference = safeText(details.reference ?? "");
+  const design = normaliseDesign(details.design);
+  const signatory = [design.signatoryName, design.signatoryTitle].filter(Boolean).join(", ");
 
   const when = formatCertificateDate(details.sessionDate)
     + (location ? `  -  ${location}` : "");
 
   return {
     eyebrow: (deanery ? `${deanery} - ${register}` : register).toUpperCase(),
-    heading: "Certificate of Attendance",
-    lead: "This is to certify that",
+    heading: design.heading || "Certificate of Attendance",
+    lead: design.lead || "This is to certify that",
     recipient: safeText(details.traineeName) || "Attendee",
-    statement: "attended the teaching session",
+    statement: design.statement || "attended the teaching session",
     sessionLine: safeText(details.sessionTitle) || "Teaching session",
     whenLine: when,
-    footerLeft: `Issued by ${register}`,
-    footerRight: reference ? `Ref ${reference}` : null,
+    footerLeft: design.issuedBy || `Issued by ${register}`,
+    // A reference, where the register uses them; otherwise whoever signs it off.
+    footerRight: reference ? `Ref ${reference}` : signatory || null,
   };
 }
 
@@ -192,13 +311,19 @@ export async function renderCertificatePdf(details: CertificateDetails): Promise
   const sans = await pdf.embedFont(StandardFonts.Helvetica);
   const sansBold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
+  const design = normaliseDesign(details.design);
+  const { template, primary, rule } = certificateColours(design);
+
   const colour = (c: readonly [number, number, number]) => rgb(c[0], c[1], c[2]);
-  const INK = colour(CERTIFICATE_PALETTE.ink);
-  const MOSS = colour(CERTIFICATE_PALETTE.moss);
-  const MOSS_DEEP = colour(CERTIFICATE_PALETTE.mossDeep);
-  const GOLD = colour(CERTIFICATE_PALETTE.gold);
-  const PAPER = colour(CERTIFICATE_PALETTE.paper);
-  const MUTED = colour(CERTIFICATE_PALETTE.muted);
+  const INK = colour(template.ink);
+  const PRIMARY = colour(primary);
+  const RULE = colour(rule);
+  const PAPER = colour(template.paper);
+  const MUTED = colour(template.muted);
+
+  // The ceremonial lines: Times on a serif template, Helvetica otherwise.
+  const display = template.serif ? serif : sans;
+  const displayBold = template.serif ? serifBold : sansBold;
 
   /** Centre a line, shrinking it only if it would otherwise run into the border. */
   const centre = (
@@ -214,14 +339,27 @@ export async function renderCertificatePdf(details: CertificateDetails): Promise
   };
 
   page.drawRectangle({ x: 0, y: 0, width, height, color: PAPER });
-  page.drawRectangle({
-    x: 26, y: 26, width: width - 52, height: height - 52,
-    borderColor: MOSS, borderWidth: 2.5,
-  });
-  page.drawRectangle({
-    x: 34, y: 34, width: width - 68, height: height - 68,
-    borderColor: GOLD, borderWidth: 0.9,
-  });
+  if (template.frame === "double") {
+    page.drawRectangle({
+      x: 26, y: 26, width: width - 52, height: height - 52,
+      // The original's border is a lighter moss than its headings; a chosen
+      // accent is used as it is.
+      borderColor: design.accent ? PRIMARY : colour(CERTIFICATE_PALETTE.moss), borderWidth: 2.5,
+    });
+    page.drawRectangle({
+      x: 34, y: 34, width: width - 68, height: height - 68,
+      borderColor: RULE, borderWidth: 0.9,
+    });
+  } else if (template.frame === "single") {
+    page.drawRectangle({
+      x: 30, y: 30, width: width - 60, height: height - 60,
+      borderColor: RULE, borderWidth: 1,
+    });
+  } else {
+    // A band across the head and a thin echo of it at the foot.
+    page.drawRectangle({ x: 0, y: height - 22, width, height: 22, color: PRIMARY });
+    page.drawRectangle({ x: 0, y: 0, width, height: 6, color: PRIMARY });
+  }
 
   // The badge, if this register has one. A logo that will not load must never
   // block a certificate — the layout simply closes up around its absence.
@@ -263,27 +401,27 @@ export async function renderCertificatePdf(details: CertificateDetails): Promise
 
   centre(content.eyebrow, sansBold, 11, cursor);
   cursor -= 48;
-  centre(content.heading, serifBold, 36, cursor, MOSS_DEEP);
+  centre(content.heading, displayBold, template.serif ? 36 : 34, cursor, PRIMARY);
   cursor -= 22;
   page.drawLine({
     start: { x: width / 2 - 90, y: cursor }, end: { x: width / 2 + 90, y: cursor },
-    thickness: 1.4, color: GOLD,
+    thickness: 1.4, color: RULE,
   });
 
   cursor -= 52;
-  centre(content.lead, serif, 14.5, cursor, MUTED);
+  centre(content.lead, display, 14.5, cursor, MUTED);
   cursor -= 48;
-  centre(content.recipient, serifBold, 32, cursor);
+  centre(content.recipient, displayBold, 32, cursor);
   cursor -= 38;
-  centre(content.statement, serif, 14.5, cursor, MUTED);
+  centre(content.statement, display, 14.5, cursor, MUTED);
   cursor -= 38;
-  centre(content.sessionLine, sansBold, 18, cursor, MOSS_DEEP);
+  centre(content.sessionLine, sansBold, 18, cursor, PRIMARY);
   cursor -= 30;
   centre(content.whenLine, sans, 13, cursor, MUTED);
 
   page.drawLine({
     start: { x: 70, y: FOOT_RULE_Y + 20 }, end: { x: width - 70, y: FOOT_RULE_Y + 20 },
-    thickness: 0.6, color: GOLD,
+    thickness: 0.6, color: RULE,
   });
   page.drawText(content.footerLeft, {
     x: 70, y: FOOT_RULE_Y, size: 9.5, font: sans, color: MUTED,

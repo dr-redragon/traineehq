@@ -34,6 +34,11 @@ export function normaliseBlob(data: Partial<RegisterBlob> | null | undefined): R
     attendance: data?.attendance && typeof data.attendance === "object" ? data.attendance : {},
     excused:    Array.isArray(data?.excused)    ? data!.excused    : [],
     status:     Array.isArray(data?.status)     ? data!.status     : [],
+    // Only when present: a register that has never changed its lists must not
+    // start carrying an empty settings object on its next save.
+    ...(data?.settings && typeof data.settings === "object" && !Array.isArray(data.settings)
+      ? { settings: data.settings }
+      : {}),
   };
 }
 

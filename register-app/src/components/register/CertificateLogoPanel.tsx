@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { saveFile } from "@/lib/saveFile";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Award, ImageOff, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -96,20 +97,14 @@ export function CertificateLogoPanel({ register }: { register: RegisterDirectory
         traineeName: "A. Trainee",
         registerName: register.name,
         deaneryName: register.organisation ?? "",
+        design: register.certificate_design,
         sessionTitle: "Example teaching session",
         sessionDate: new Date().toISOString().slice(0, 10),
         location: null,
         logoUrl,
       };
       const bytes = await renderCertificatePdf(details);
-      const url = URL.createObjectURL(
-        new Blob([bytes as BlobPart], { type: "application/pdf" }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = certificateFilename(details);
-      link.click();
-      URL.revokeObjectURL(url);
+      await saveFile(bytes, certificateFilename(details), "application/pdf");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Could not make the preview");
     } finally {

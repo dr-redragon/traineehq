@@ -8,6 +8,7 @@ import { isConfigured, supabase } from "@/integrations/supabase/client";
 import { APP_NAME, PRICE_LABEL, SIGN_IN_PROVIDERS, type SignInProvider } from "@/lib/brand";
 import { safeDestination } from "@/lib/safeDestination";
 import { DEFAULT_DESTINATION, signInWith } from "@/lib/signIn";
+import { PURCHASES_ENABLED } from "@/lib/native";
 
 function GoogleIcon() {
   return (
@@ -121,7 +122,7 @@ export default function SignIn() {
           <div className="mt-10 grid gap-8 sm:grid-cols-2">
             <PlanColumn
               title="Event register"
-              price="Free"
+              price={PURCHASES_ENABLED ? "Free" : "For single events"}
               points={[
                 "One conference, course or study day",
                 "QR check-in, feedback and certificates",
@@ -130,11 +131,11 @@ export default function SignIn() {
             />
             <PlanColumn
               title="Regular register"
-              price={PRICE_LABEL || "Subscription"}
+              price={PURCHASES_ENABLED ? PRICE_LABEL || "Subscription" : "For teaching programmes"}
               points={[
                 "Teaching that runs all year, every year",
                 "Attendance percentages, leave and excusals",
-                "Collaborators included — only the owner pays",
+                PURCHASES_ENABLED ? "Collaborators included — only the owner pays" : "Run it together with invited colleagues",
               ]}
             />
           </div>

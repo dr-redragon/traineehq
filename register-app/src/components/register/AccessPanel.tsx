@@ -22,7 +22,19 @@ import { RegisterHistoryPanel } from "@/components/register/RegisterHistoryPanel
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { purgeCountdown } from "@/lib/register/archive";
 import { inviteLink } from "@/lib/register/api";
-import type { RegisterDirectoryEntry, RegisterPerson, RegisterRole } from "@/lib/register/types";
+import { CertificateDesignPanel } from "@/components/register/CertificateDesignPanel";
+import { ListsPanel } from "@/components/register/ListsPanel";
+import type { RegisterEdit } from "@/hooks/useRegisterStore";
+import type { RegisterBlob, RegisterDirectoryEntry, RegisterPerson, RegisterRole } from "@/lib/register/types";
+
+/** The three levels of access, most to least. */
+const ROLES: { id: RegisterRole; label: string; can: string }[] = [
+  { id: "owner", label: "Owner", can: "Everything, including who has access and deleting the register" },
+  { id: "editor", label: "Editor — read and write", can: "Record attendance, run check-in, send certificates" },
+  { id: "viewer", label: "Viewer — read only", can: "See and export everything, change nothing" },
+];
+const roleLabel = (role: RegisterRole) =>
+  role === "owner" ? "Owner" : role === "viewer" ? "Viewer" : "Editor";
 
 function nameOf(person: RegisterPerson | undefined, fallback: string) {
   const name = [person?.first_name, person?.last_name].filter(Boolean).join(" ").trim();
@@ -52,7 +64,15 @@ async function copy(text: string, done: string) {
  * Collaborators never need a subscription of their own: a regular register is
  * covered by its owner's.
  */
-export function AccessPanel({ register: entry }: { register: RegisterDirectoryEntry }) {
+export function AccessPanel({
+  register: entry, blob, onEdit, canEdit,
+}: {
+  register: RegisterDirectoryEntry;
+  blob: RegisterBlob;
+  onEdit: (edit: RegisterEdit) => void;
+  /** Editors and owners, on a register that is not read-only. */
+  canEdit: boolean;
+}) {
   const { data: user } = useCurrentUser();
 
   const { data: members, isLoading: membersLoading } = useRegisterMembers(entry.id);
@@ -100,7 +120,8 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
       <div>
         <h2 className="font-display text-lg font-bold tracking-tight">Who can use this register</h2>
         <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-          Access is given per person. Only an owner can invite someone, change roles or
+          Access is given per person, at one of three levels: owner, editor (read and
+          write) or viewer (read only). Only an owner can invite someone, change roles or
           remove people. Collaborators do not need a subscription of their own.
         </p>
       </div>
@@ -129,19 +150,15 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
 
                   <div className="hidden flex-1 sm:block" />
 
-                  {m.role === "owner" ? (
-                    <Badge className="gap-1"><Crown className="h-3 w-3" /> Owner</Badge>
-                  ) : (
-                    <Badge variant="secondary">Editor</Badge>
-                  )}
-
-                  {iAmOwner && !lastOwner && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() =>
+                  {/* An owner changes anybody's role from here, except the last
+                      owner's: a register with no owner could never have its
+                      access managed again. Everyone else sees a label. */}
+                  {iAmOwner && !lastOwner ? (
+                    <Select
+                      value={m.role}
+                      onValueChange={(next) =>
                         setRole.mutate(
-                          { userId: m.user_id, role: m.role === "owner" ? "editor" : "owner" },
+                          { userId: m.user_id, role: next as RegisterRole },
                           {
                             onSuccess: () => toast.success("Role updated."),
                             onError: (e: Error) => toast.error(e.message),
@@ -150,8 +167,17 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
                       }
                       disabled={setRole.isPending}
                     >
-                      {m.role === "owner" ? "Make editor" : "Make owner"}
-                    </Button>
+                      <SelectTrigger className="h-9 w-[170px]" aria-label={`Role for ${nameOf(person, "this member")}`}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map((r) => <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  ) : m.role === "owner" ? (
+                    <Badge className="gap-1"><Crown className="h-3 w-3" /> Owner</Badge>
+                  ) : (
+                    <Badge variant="secondary">{roleLabel(m.role)}</Badge>
                   )}
 
                   {(iAmOwner || isMe) && !lastOwner && (
@@ -191,6 +217,11 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
       {/* The badge the register puts on its certificates: owners only, because
           it is what the register signs its name with. */}
       {iAmOwner && <CertificateLogoPanel register={entry} />}
+      {iAmOwner && <CertificateDesignPanel register={entry} />}
+
+      {/* The lists the forms offer. Part of the register's own data, so they
+          are any editor's to change, like the roster. */}
+      {canEdit && <ListsPanel blob={blob} onEdit={onEdit} isEvent={entry.kind === "event"} />}
 
       {/* ---------------------------------------------------------- invite -- */}
       {iAmOwner && (
@@ -202,6 +233,12 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
               They get an email with a link. Once they sign in — with Google, Apple or an
               NHS account — the register is theirs to open. The link works for 14 days.
             </p>
+            <ul className="space-y-1 text-xs text-muted-foreground">
+              {ROLES.map((r) => (
+                <li key={r.id}><strong className="text-foreground">{roleLabel(r.id)}:</strong> {r.can}.</li>
+              ))}
+              <li>An owner invitation only works for the address it is sent to.</li>
+            </ul>
             <form onSubmit={onInvite} className="flex flex-wrap items-end gap-3">
               <div className="min-w-[220px] flex-1 space-y-1.5">
                 <Label htmlFor="invite-email" className="text-xs">Email address</Label>
@@ -212,13 +249,14 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
                     onChange={(e) => setEmail(e.target.value)} />
                 </div>
               </div>
-              <div className="w-full space-y-1.5 sm:w-[150px]">
+              <div className="w-full space-y-1.5 sm:w-[220px]">
                 <Label htmlFor="invite-role" className="text-xs">Role</Label>
                 <Select value={role} onValueChange={(v) => setRoleChoice(v as RegisterRole)}>
                   <SelectTrigger id="invite-role"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="editor">Editor</SelectItem>
-                    <SelectItem value="owner">Owner</SelectItem>
+                    {[...ROLES].reverse().map((r) => (
+                      <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -243,7 +281,7 @@ export function AccessPanel({ register: entry }: { register: RegisterDirectoryEn
                     <div className="min-w-0 basis-full sm:basis-auto">
                       <p className="truncate font-medium">{i.email}</p>
                       <p className="text-xs text-muted-foreground">
-                        {i.role === "owner" ? "Owner" : "Editor"} ·{" "}
+                        {roleLabel(i.role)} ·{" "}
                         {expired
                           ? "expired — invite them again for a new link"
                           : `link valid until ${new Date(i.expires_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}

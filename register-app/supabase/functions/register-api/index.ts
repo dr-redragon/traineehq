@@ -136,10 +136,11 @@ const READ_ONLY =
   "This register is read-only: none of its owners has an active subscription. " +
   "Nothing has been deleted, and an owner can subscribe from the Account page.";
 
-async function isMember(db: SupabaseClient, userId: string, registerId: string): Promise<boolean> {
+/** The caller's role in a register, or null if they are not a member of it. */
+async function roleIn(db: SupabaseClient, userId: string, registerId: string): Promise<string | null> {
   const { data } = await db.from("register_members")
-    .select("user_id").eq("register_id", registerId).eq("user_id", userId).maybeSingle();
-  return !!data;
+    .select("role").eq("register_id", registerId).eq("user_id", userId).maybeSingle();
+  return data?.role ?? null;
 }
 
 /* --------------------------------------------------------------------- forms */
@@ -803,8 +804,13 @@ Deno.serve(async (req) => {
       : cleanText(body.register_id, 64) || null;
 
     if (!registerId) return json({ error: "Unknown register or session" }, 404);
-    if (!await isMember(db, user.id, registerId)) {
-      return json({ error: "You do not have access to that register" }, 403);
+    const role = await roleIn(db, user.id, registerId);
+    if (!role) return json({ error: "You do not have access to that register" }, 403);
+
+    // A viewer may look and nothing else. Checked before the plan, so somebody
+    // with view-only access is told that rather than sent to subscribe.
+    if (role === "viewer" && !READ_ACTIONS.has(action)) {
+      return json({ error: "You have view-only access to this register" }, 403);
     }
 
     if (!READ_ACTIONS.has(action) && !await isEntitled(db, registerId)) {
